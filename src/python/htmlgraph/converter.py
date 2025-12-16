@@ -11,7 +11,7 @@ Provides:
 from pathlib import Path
 from typing import Any
 
-from htmlgraph.models import Node, Edge, Step
+from htmlgraph.models import Node, Edge, Step, Session, ActivityEntry
 from htmlgraph.parser import HtmlParser
 
 
@@ -279,6 +279,245 @@ class NodeConverter:
     def delete(self, node_id: str) -> bool:
         """Delete a node file."""
         filepath = self.directory / f"{node_id}.html"
+        if filepath.exists():
+            filepath.unlink()
+            return True
+        return False
+
+
+# =============================================================================
+# Session Converters
+# =============================================================================
+
+def session_to_dict(session: Session) -> dict[str, Any]:
+    """
+    Convert Session to a plain dictionary (JSON-serializable).
+
+    Useful for API responses or JSON export.
+    """
+    data = session.model_dump()
+
+    # Convert datetime objects to ISO strings
+    for key in ["started_at", "ended_at", "last_activity"]:
+        if key in data and data[key]:
+            data[key] = data[key].isoformat()
+
+    # Convert activity log timestamps
+    for entry in data.get("activity_log", []):
+        if entry.get("timestamp"):
+            entry["timestamp"] = entry["timestamp"].isoformat()
+
+    return data
+
+
+def dict_to_session(data: dict[str, Any]) -> Session:
+    """
+    Create Session from a plain dictionary.
+
+    Handles datetime string parsing.
+    """
+    from datetime import datetime
+
+    # Parse datetime strings
+    for key in ["started_at", "ended_at", "last_activity"]:
+        if key in data and isinstance(data[key], str):
+            data[key] = datetime.fromisoformat(data[key].replace("Z", "+00:00"))
+
+    # Parse activity log timestamps
+    for entry in data.get("activity_log", []):
+        if isinstance(entry.get("timestamp"), str):
+            entry["timestamp"] = datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00"))
+
+    return Session.from_dict(data)
+
+
+def html_to_session(filepath: Path | str) -> Session:
+    """
+    Parse HTML file into a Session model.
+
+    Args:
+        filepath: Path to HTML file
+
+    Returns:
+        Session instance populated from HTML
+
+    Raises:
+        FileNotFoundError: If file doesn't exist
+        ValueError: If HTML is malformed or missing required data
+    """
+    from datetime import datetime
+
+    filepath = Path(filepath)
+    if not filepath.exists():
+        raise FileNotFoundError(f"HTML file not found: {filepath}")
+
+    parser = HtmlParser.from_file(filepath)
+
+    # Get article element with session data
+    article = parser.select_one("article[data-type='session']")
+    if not article:
+        raise ValueError(f"No session article found in: {filepath}")
+
+    # Extract session attributes
+    session_id = parser.get_attr(article, "id")
+    if not session_id:
+        raise ValueError(f"Session missing ID: {filepath}")
+
+    data = {
+        "id": session_id,
+        "status": parser.get_attr(article, "data-status") or "active",
+        "agent": parser.get_attr(article, "data-agent") or "claude-code",
+        "is_subagent": parser.get_attr(article, "data-is-subagent") == "true",
+        "event_count": int(parser.get_attr(article, "data-event-count") or 0),
+    }
+
+    # Parse timestamps
+    started_at = parser.get_attr(article, "data-started-at")
+    if started_at:
+        data["started_at"] = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+
+    ended_at = parser.get_attr(article, "data-ended-at")
+    if ended_at:
+        data["ended_at"] = datetime.fromisoformat(ended_at.replace("Z", "+00:00"))
+
+    last_activity = parser.get_attr(article, "data-last-activity")
+    if last_activity:
+        data["last_activity"] = datetime.fromisoformat(last_activity.replace("Z", "+00:00"))
+
+    start_commit = parser.get_attr(article, "data-start-commit")
+    if start_commit:
+        data["start_commit"] = start_commit
+
+    # Parse title
+    title_el = parser.select_one("h1")
+    if title_el:
+        data["title"] = parser.get_text(title_el)
+
+    # Parse worked_on edges
+    worked_on = []
+    for link in parser.select("nav[data-graph-edges] section[data-edge-type='worked-on'] a"):
+        href = parser.get_attr(link, "href") or ""
+        # Extract feature ID from href
+        feature_id = href.replace("../features/", "").replace(".html", "")
+        if feature_id:
+            worked_on.append(feature_id)
+    data["worked_on"] = worked_on
+
+    # Parse continued_from edge
+    continued_link = parser.select_one("nav[data-graph-edges] section[data-edge-type='continued-from'] a")
+    if continued_link:
+        href = parser.get_attr(continued_link, "href") or ""
+        data["continued_from"] = href.replace(".html", "")
+
+    # Parse activity log
+    activity_log = []
+    for li in parser.select("section[data-activity-log] ol li"):
+        entry_data = {
+            "summary": parser.get_text(li),
+            "tool": parser.get_attr(li, "data-tool") or "unknown",
+            "success": parser.get_attr(li, "data-success") != "false",
+        }
+
+        ts = parser.get_attr(li, "data-ts")
+        if ts:
+            entry_data["timestamp"] = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+
+        event_id = parser.get_attr(li, "data-event-id")
+        if event_id:
+            entry_data["id"] = event_id
+
+        feature = parser.get_attr(li, "data-feature")
+        if feature:
+            entry_data["feature_id"] = feature
+
+        drift = parser.get_attr(li, "data-drift")
+        if drift:
+            entry_data["drift_score"] = float(drift)
+
+        activity_log.append(ActivityEntry(**entry_data))
+
+    # Activity log in HTML is reversed (newest first), so reverse back
+    data["activity_log"] = list(reversed(activity_log))
+
+    return Session(**data)
+
+
+def session_to_html(
+    session: Session,
+    filepath: Path | str,
+    stylesheet_path: str = "../styles.css",
+    create_dirs: bool = True
+) -> Path:
+    """
+    Write a Session model to an HTML file.
+
+    Args:
+        session: Session instance to serialize
+        filepath: Destination file path
+        stylesheet_path: Relative path to CSS stylesheet
+        create_dirs: Create parent directories if needed
+
+    Returns:
+        Path to written file
+    """
+    filepath = Path(filepath)
+
+    if create_dirs:
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+
+    html_content = session.to_html(stylesheet_path=stylesheet_path)
+    filepath.write_text(html_content, encoding="utf-8")
+
+    return filepath
+
+
+class SessionConverter:
+    """
+    Converter class for batch operations on sessions.
+
+    Example:
+        converter = SessionConverter("sessions/")
+        sessions = converter.load_all()
+        converter.save_all(sessions)
+    """
+
+    def __init__(self, directory: Path | str, stylesheet_path: str = "../styles.css"):
+        self.directory = Path(directory)
+        self.stylesheet_path = stylesheet_path
+
+    def load(self, session_id: str) -> Session | None:
+        """Load a single session by ID."""
+        filepath = self.directory / f"{session_id}.html"
+        if filepath.exists():
+            return html_to_session(filepath)
+        return None
+
+    def load_all(self, pattern: str = "*.html") -> list[Session]:
+        """Load all sessions matching pattern."""
+        sessions = []
+        for filepath in self.directory.glob(pattern):
+            try:
+                sessions.append(html_to_session(filepath))
+            except (ValueError, KeyError):
+                continue
+        return sessions
+
+    def save(self, session: Session) -> Path:
+        """Save a single session."""
+        filepath = self.directory / f"{session.id}.html"
+        return session_to_html(session, filepath, self.stylesheet_path)
+
+    def save_all(self, sessions: list[Session]) -> list[Path]:
+        """Save multiple sessions."""
+        return [self.save(session) for session in sessions]
+
+    def exists(self, session_id: str) -> bool:
+        """Check if a session file exists."""
+        return (self.directory / f"{session_id}.html").exists()
+
+    def delete(self, session_id: str) -> bool:
+        """Delete a session file."""
+        filepath = self.directory / f"{session_id}.html"
         if filepath.exists():
             filepath.unlink()
             return True

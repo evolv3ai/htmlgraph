@@ -5,7 +5,7 @@ A lightweight graph database framework using HTML files as nodes,
 hyperlinks as edges, and CSS selectors as the query language.
 """
 
-from htmlgraph.models import Node, Edge, Step, Graph
+from htmlgraph.models import Node, Edge, Step, Graph, Session, ActivityEntry
 from htmlgraph.graph import HtmlGraph
 from htmlgraph.agents import AgentInterface
 from htmlgraph.server import serve
@@ -16,6 +16,8 @@ __all__ = [
     "Edge",
     "Step",
     "Graph",
+    "Session",
+    "ActivityEntry",
     "HtmlGraph",
     "AgentInterface",
     "serve",

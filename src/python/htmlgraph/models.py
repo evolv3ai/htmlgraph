@@ -306,6 +306,206 @@ class Node(BaseModel):
         return cls(**data)
 
 
+class ActivityEntry(BaseModel):
+    """
+    A lightweight activity log entry for high-frequency events.
+
+    Stored inline within Session nodes to avoid file explosion.
+    """
+
+    id: str | None = None  # Optional event ID for deduplication
+    timestamp: datetime = Field(default_factory=datetime.now)
+    tool: str  # Edit, Bash, Read, Write, Grep, Glob, Task, UserQuery, etc.
+    summary: str  # Human-readable summary (e.g., "Edit: src/auth/login.py:45-52")
+    success: bool = True
+    feature_id: str | None = None  # Link to feature this activity belongs to
+    drift_score: float | None = None  # 0.0-1.0 alignment score
+    payload: dict[str, Any] | None = None  # Optional rich payload for significant events
+
+    def to_html(self) -> str:
+        """Convert activity to HTML list item."""
+        attrs = [
+            f'data-ts="{self.timestamp.isoformat()}"',
+            f'data-tool="{self.tool}"',
+            f'data-success="{str(self.success).lower()}"',
+        ]
+        if self.id:
+            attrs.append(f'data-event-id="{self.id}"')
+        if self.feature_id:
+            attrs.append(f'data-feature="{self.feature_id}"')
+        if self.drift_score is not None:
+            attrs.append(f'data-drift="{self.drift_score:.2f}"')
+
+        return f'<li {" ".join(attrs)}>{self.summary}</li>'
+
+    def to_context(self) -> str:
+        """Lightweight context for AI agents."""
+        status = "✓" if self.success else "✗"
+        return f"[{self.timestamp.strftime('%H:%M:%S')}] {status} {self.tool}: {self.summary}"
+
+
+class Session(BaseModel):
+    """
+    An agent work session containing an activity log.
+
+    Sessions track agent work over time with:
+    - Status tracking (active, ended, stale)
+    - High-frequency activity log (inline events)
+    - Links to features worked on
+    - Session continuity (continued_from)
+    """
+
+    id: str
+    title: str = ""
+    agent: str = "claude-code"
+    status: Literal["active", "ended", "stale"] = "active"
+    is_subagent: bool = False
+
+    started_at: datetime = Field(default_factory=datetime.now)
+    ended_at: datetime | None = None
+    last_activity: datetime = Field(default_factory=datetime.now)
+
+    start_commit: str | None = None  # Git commit hash at session start
+    event_count: int = 0
+
+    # Relationships
+    worked_on: list[str] = Field(default_factory=list)  # Feature IDs
+    continued_from: str | None = None  # Previous session ID
+
+    # High-frequency activity log
+    activity_log: list[ActivityEntry] = Field(default_factory=list)
+
+    def add_activity(self, entry: ActivityEntry) -> None:
+        """Add an activity entry to the log."""
+        self.activity_log.append(entry)
+        self.event_count += 1
+        self.last_activity = datetime.now()
+
+        # Track features worked on
+        if entry.feature_id and entry.feature_id not in self.worked_on:
+            self.worked_on.append(entry.feature_id)
+
+    def end(self) -> None:
+        """Mark session as ended."""
+        self.status = "ended"
+        self.ended_at = datetime.now()
+
+    def to_html(self, stylesheet_path: str = "../styles.css") -> str:
+        """Convert session to HTML document with inline activity log."""
+        # Build edges HTML for worked_on features
+        edges_html = ""
+        if self.worked_on or self.continued_from:
+            edge_sections = []
+
+            if self.worked_on:
+                feature_links = "\n                    ".join(
+                    f'<li><a href="../features/{fid}.html" data-relationship="worked-on">{fid}</a></li>'
+                    for fid in self.worked_on
+                )
+                edge_sections.append(f'''
+            <section data-edge-type="worked-on">
+                <h3>Worked On:</h3>
+                <ul>
+                    {feature_links}
+                </ul>
+            </section>''')
+
+            if self.continued_from:
+                edge_sections.append(f'''
+            <section data-edge-type="continued-from">
+                <h3>Continued From:</h3>
+                <ul>
+                    <li><a href="{self.continued_from}.html" data-relationship="continued-from">{self.continued_from}</a></li>
+                </ul>
+            </section>''')
+
+            edges_html = f'''
+        <nav data-graph-edges>{"".join(edge_sections)}
+        </nav>'''
+
+        # Build activity log HTML
+        activity_html = ""
+        if self.activity_log:
+            # Show most recent first (reversed)
+            log_items = "\n                ".join(
+                entry.to_html() for entry in reversed(self.activity_log[-100:])  # Last 100 entries
+            )
+            activity_html = f'''
+        <section data-activity-log>
+            <h3>Activity Log ({self.event_count} events)</h3>
+            <ol reversed>
+                {log_items}
+            </ol>
+        </section>'''
+
+        # Build attributes
+        subagent_attr = f' data-is-subagent="{str(self.is_subagent).lower()}"'
+        commit_attr = f' data-start-commit="{self.start_commit}"' if self.start_commit else ""
+        ended_attr = f' data-ended-at="{self.ended_at.isoformat()}"' if self.ended_at else ""
+
+        title = self.title or f"Session {self.id}"
+
+        return f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>{title}</title>
+    <link rel="stylesheet" href="{stylesheet_path}">
+</head>
+<body>
+    <article id="{self.id}"
+             data-type="session"
+             data-status="{self.status}"
+             data-agent="{self.agent}"
+             data-started-at="{self.started_at.isoformat()}"
+             data-last-activity="{self.last_activity.isoformat()}"
+             data-event-count="{self.event_count}"{subagent_attr}{commit_attr}{ended_attr}>
+
+        <header>
+            <h1>{title}</h1>
+            <div class="metadata">
+                <span class="badge status-{self.status}">{self.status.title()}</span>
+                <span class="badge">{self.agent}</span>
+                <span class="badge">{self.event_count} events</span>
+            </div>
+        </header>
+{edges_html}{activity_html}
+    </article>
+</body>
+</html>
+'''
+
+    def to_context(self) -> str:
+        """Generate lightweight context for AI agents."""
+        lines = [f"# Session: {self.id}"]
+        lines.append(f"Status: {self.status} | Agent: {self.agent}")
+        lines.append(f"Started: {self.started_at.strftime('%Y-%m-%d %H:%M')}")
+        lines.append(f"Events: {self.event_count}")
+
+        if self.worked_on:
+            lines.append(f"Worked on: {', '.join(self.worked_on)}")
+
+        # Last 5 activities
+        if self.activity_log:
+            lines.append("\nRecent activity:")
+            for entry in self.activity_log[-5:]:
+                lines.append(f"  {entry.to_context()}")
+
+        return "\n".join(lines)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Session":
+        """Create a Session from a dictionary."""
+        if "activity_log" in data:
+            data["activity_log"] = [
+                ActivityEntry(**e) if isinstance(e, dict) else e
+                for e in data["activity_log"]
+            ]
+        return cls(**data)
+
+
 class Graph(BaseModel):
     """
     A collection of nodes representing the full graph.
