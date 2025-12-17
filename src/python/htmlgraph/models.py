@@ -83,7 +83,7 @@ class Node(BaseModel):
     id: str
     title: str
     type: str = "node"
-    status: Literal["todo", "in-progress", "blocked", "done"] = "todo"
+    status: Literal["todo", "in-progress", "blocked", "done", "active", "ended", "stale"] = "todo"
     priority: Literal["low", "medium", "high", "critical"] = "medium"
     created: datetime = Field(default_factory=datetime.now)
     updated: datetime = Field(default_factory=datetime.now)

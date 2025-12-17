@@ -129,14 +129,20 @@ class HtmlParser:
                 key = attr.replace("-", "_")
                 metadata[key] = value
 
-        # Timestamps
-        for attr in ["created", "updated"]:
-            value = self.get_data_attribute(article, attr)
-            if value:
-                try:
-                    metadata[attr] = datetime.fromisoformat(value.replace("Z", "+00:00"))
-                except ValueError:
-                    metadata[attr] = value
+        # Timestamps (with fallbacks for session-specific attributes)
+        created_value = self.get_data_attribute(article, "created") or self.get_data_attribute(article, "started-at")
+        if created_value:
+            try:
+                metadata["created"] = datetime.fromisoformat(created_value.replace("Z", "+00:00"))
+            except ValueError:
+                metadata["created"] = created_value
+
+        updated_value = self.get_data_attribute(article, "updated") or self.get_data_attribute(article, "last-activity")
+        if updated_value:
+            try:
+                metadata["updated"] = datetime.fromisoformat(updated_value.replace("Z", "+00:00"))
+            except ValueError:
+                metadata["updated"] = updated_value
 
         return metadata
 

@@ -15,7 +15,7 @@ Or via CLI:
 import json
 import re
 import urllib.parse
-from datetime import datetime
+from datetime import datetime, timezone
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from typing import Any
@@ -360,13 +360,19 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         sort_by = params.get("sort", "updated")
         reverse = params.get("order", "desc") == "desc"
 
+        # Helper to ensure timezone-aware datetimes for comparison
+        def ensure_tz_aware(dt: datetime) -> datetime:
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc)
+            return dt
+
         if sort_by == "priority":
             priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
             nodes.sort(key=lambda n: priority_order.get(n.priority, 99), reverse=not reverse)
         elif sort_by == "created":
-            nodes.sort(key=lambda n: n.created, reverse=reverse)
+            nodes.sort(key=lambda n: ensure_tz_aware(n.created), reverse=reverse)
         else:  # default: updated
-            nodes.sort(key=lambda n: n.updated, reverse=reverse)
+            nodes.sort(key=lambda n: ensure_tz_aware(n.updated), reverse=reverse)
 
         # Pagination
         limit = int(params.get("limit", 100))

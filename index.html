@@ -766,6 +766,62 @@
             display: block;
         }
 
+        /* ================================================================
+           SESSIONS VIEW
+           ================================================================ */
+        .sessions {
+            display: none;
+            margin-top: 1.5rem;
+        }
+
+        .sessions.active {
+            display: block;
+        }
+
+        .sessions-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-strong);
+            box-shadow: var(--shadow-md);
+        }
+
+        .sessions-table th,
+        .sessions-table td {
+            border-bottom: 1px solid var(--border);
+            padding: 0.875rem 1rem;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        .sessions-table th {
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.625rem;
+            background: var(--bg-tertiary);
+            border-bottom: 2px solid var(--border-strong);
+        }
+
+        .sessions-table tr:hover td {
+            background: var(--bg-tertiary);
+        }
+
+        .sessions-table .session-id {
+            font-weight: 600;
+            color: var(--status-active);
+            cursor: pointer;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        .sessions-table .session-id:hover {
+            color: var(--accent);
+        }
+
         .analytics-header {
             display: flex;
             align-items: flex-start;
@@ -1058,6 +1114,65 @@
             color: var(--text-muted);
         }
 
+        /* Activity Log */
+        .activity-header {
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .activity-list {
+            list-style: none;
+            max-height: 600px;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+        }
+
+        .activity-item {
+            padding: 0.875rem 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.8125rem;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.625rem;
+            margin-bottom: 0.375rem;
+            flex-wrap: wrap;
+        }
+
+        .activity-time {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.6875rem;
+            color: var(--text-muted);
+        }
+
+        .activity-tool {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .activity-content {
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+            word-wrap: break-word;
+        }
+
+        .badge.drift-high {
+            background: var(--status-blocked);
+        }
+
+        .badge.drift-low {
+            background: var(--status-done);
+        }
+
         /* Edges */
         .edge-list {
             list-style: none;
@@ -1295,6 +1410,7 @@
             <button class="view-btn active" data-view="kanban">Kanban</button>
             <button class="view-btn" data-view="graph">Graph</button>
             <button class="view-btn" data-view="analytics">Analytics</button>
+            <button class="view-btn" data-view="sessions">Sessions</button>
         </div>
 
         <!-- Kanban View -->
@@ -1344,6 +1460,17 @@
                     <div class="loading">Select a feature to see continuity…</div>
                 </div>
             </div>
+        </div>
+
+        <!-- Sessions View -->
+        <div class="sessions" id="sessions">
+            <div class="analytics-header">
+                <div>
+                    <h2>Sessions</h2>
+                    <p>View all Claude Code sessions tracked by HtmlGraph.</p>
+                </div>
+            </div>
+            <div id="sessions-list" class="loading">Loading sessions...</div>
         </div>
     </div>
 
@@ -1656,6 +1783,77 @@
             }
         }
 
+        async function loadAndRenderSessions() {
+            const sessionsListEl = document.getElementById('sessions-list');
+
+            try {
+                // Fetch all sessions from the API
+                const response = await fetch(`${API}/sessions`);
+                if (!response.ok) throw new Error('Failed to load sessions');
+
+                const data = await response.json();
+                const sessions = data.nodes || [];
+
+                if (sessions.length === 0) {
+                    sessionsListEl.innerHTML = '<div class="loading">No sessions found.</div>';
+                    return;
+                }
+
+                // Sort by updated descending (most recent first)
+                sessions.sort((a, b) => new Date(b.updated) - new Date(a.updated));
+
+                // Render sessions table
+                const rows = sessions.map(s => {
+                    const created = new Date(s.created).toLocaleString();
+                    const updated = new Date(s.updated).toLocaleString();
+                    const statusBadge = s.status === 'active' ? 'status-active' : 'status-done';
+
+                    return `
+                        <tr>
+                            <td>
+                                <span class="session-id" data-collection="sessions" data-id="${s.id}">
+                                    ${s.id}
+                                </span>
+                            </td>
+                            <td><span class="badge ${statusBadge}">${s.status}</span></td>
+                            <td>${s.properties?.event_count || 0}</td>
+                            <td>${s.properties?.agent || '—'}</td>
+                            <td class="mono">${created}</td>
+                            <td class="mono">${updated}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                sessionsListEl.innerHTML = `
+                    <table class="sessions-table">
+                        <thead>
+                            <tr>
+                                <th>Session ID</th>
+                                <th>Status</th>
+                                <th>Events</th>
+                                <th>Agent</th>
+                                <th>Created</th>
+                                <th>Updated</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows}
+                        </tbody>
+                    </table>
+                `;
+
+                // Add click handlers for session IDs
+                sessionsListEl.querySelectorAll('.session-id').forEach(link => {
+                    link.addEventListener('click', () => {
+                        openPanel(link.dataset.collection, link.dataset.id);
+                    });
+                });
+
+            } catch (err) {
+                sessionsListEl.innerHTML = `<div class="loading">Error loading sessions: ${err.message}</div>`;
+            }
+        }
+
         // Get collapsed columns from localStorage
         function getCollapsedColumns() {
             try {
@@ -1830,6 +2028,80 @@
             currentNode = null;
         }
 
+        async function fetchActivityLog(collection, sessionId) {
+            const container = document.getElementById('activity-log-container');
+
+            try {
+                // Fetch the HTML file directly
+                const response = await fetch(`${API}/../.htmlgraph/${collection}/${sessionId}.html`);
+                if (!response.ok) throw new Error('Failed to load session file');
+
+                const html = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+
+                // Find the activity log section
+                const activitySection = doc.querySelector('section[data-activity-log]');
+                if (!activitySection) {
+                    container.innerHTML = '<div class="loading">No activity log found</div>';
+                    return;
+                }
+
+                // Get the activity items
+                const activityItems = activitySection.querySelectorAll('li[data-ts]');
+                const eventCount = activitySection.querySelector('h3')?.textContent || 'Activity Log';
+
+                if (activityItems.length === 0) {
+                    container.innerHTML = '<div class="loading">No events recorded</div>';
+                    return;
+                }
+
+                // Render activity log (show first 50 events)
+                const limit = 50;
+                const events = Array.from(activityItems).slice(0, limit);
+
+                let html_content = `
+                    <div class="activity-header">
+                        <strong>${eventCount}</strong>
+                        ${activityItems.length > limit ? `<span>(showing first ${limit})</span>` : ''}
+                    </div>
+                    <ol class="activity-list" reversed>
+                `;
+
+                events.forEach(item => {
+                    const ts = new Date(item.dataset.ts).toLocaleString();
+                    const tool = item.dataset.tool || 'Unknown';
+                    const success = item.dataset.success === 'true';
+                    const feature = item.dataset.feature || '';
+                    const drift = item.dataset.drift ? parseFloat(item.dataset.drift).toFixed(2) : '';
+                    const content = item.textContent.trim();
+
+                    const statusIcon = success ? '✅' : '❌';
+                    const featureBadge = feature ? `<span class="badge">${feature}</span>` : '';
+                    const driftBadge = drift ? `<span class="badge drift-${drift >= 0.7 ? 'high' : 'low'}">drift: ${drift}</span>` : '';
+
+                    html_content += `
+                        <li class="activity-item">
+                            <div class="activity-meta">
+                                <span class="activity-time">${ts}</span>
+                                ${statusIcon}
+                                <span class="activity-tool">${tool}</span>
+                                ${featureBadge}
+                                ${driftBadge}
+                            </div>
+                            <div class="activity-content">${content}</div>
+                        </li>
+                    `;
+                });
+
+                html_content += `</ol>`;
+                container.innerHTML = html_content;
+
+            } catch (err) {
+                container.innerHTML = `<div class="loading">Error loading activity log: ${err.message}</div>`;
+            }
+        }
+
         function renderPanelLoading() {
             document.getElementById('panel-title').textContent = 'Loading...';
             document.getElementById('panel-body').innerHTML = '<div class="loading">Loading...</div>';
@@ -1953,6 +2225,16 @@
                 `;
             }
 
+            // Activity Log (for sessions only)
+            if (node.type === 'session') {
+                bodyHtml += `
+                    <div class="panel-section">
+                        <h3>Activity Log</h3>
+                        <div id="activity-log-container" class="loading">Loading activity log...</div>
+                    </div>
+                `;
+            }
+
             // Timestamps
             bodyHtml += `
                 <div class="panel-section">
@@ -1965,6 +2247,11 @@
             `;
 
             document.getElementById('panel-body').innerHTML = bodyHtml;
+
+            // Load activity log for sessions
+            if (node.type === 'session') {
+                fetchActivityLog(node._collection || 'sessions', node.id);
+            }
 
             // Actions
             let actionsHtml = '';
@@ -2400,6 +2687,7 @@
             const kanban = document.getElementById('kanban');
             const graph = document.getElementById('graph-container');
             const analytics = document.getElementById('analytics');
+            const sessions = document.getElementById('sessions');
             const buttons = document.querySelectorAll('.view-btn');
 
             buttons.forEach(btn => {
@@ -2410,16 +2698,25 @@
                 kanban.classList.add('active');
                 graph.classList.remove('active');
                 analytics.classList.remove('active');
+                sessions.classList.remove('active');
             } else if (view === 'graph') {
                 kanban.classList.remove('active');
                 graph.classList.add('active');
                 analytics.classList.remove('active');
+                sessions.classList.remove('active');
                 renderGraph(allNodes);
             } else if (view === 'analytics') {
                 kanban.classList.remove('active');
                 graph.classList.remove('active');
                 analytics.classList.add('active');
+                sessions.classList.remove('active');
                 ensureAnalyticsLoaded(false);
+            } else if (view === 'sessions') {
+                kanban.classList.remove('active');
+                graph.classList.remove('active');
+                analytics.classList.remove('active');
+                sessions.classList.add('active');
+                loadAndRenderSessions();
             }
         }
 
