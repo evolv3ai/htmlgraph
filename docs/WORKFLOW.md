@@ -218,6 +218,98 @@ Ask yourself:
 
 ---
 
+## Pre-Commit Hook
+
+HtmlGraph includes an optional pre-commit hook that reminds developers to create/start features for non-trivial work.
+
+### Installation
+
+The pre-commit hook is automatically installed at `.git/hooks/pre-commit` when you first set up the project. To install it manually:
+
+```bash
+# The hook is already at .git/hooks/pre-commit
+# Just ensure it's executable
+chmod +x .git/hooks/pre-commit
+```
+
+### Behavior
+
+The hook runs before every commit and:
+
+1. **Checks if HtmlGraph is initialized** - Skips if `.htmlgraph/` doesn't exist
+2. **Checks for active features** - Runs `htmlgraph feature list --status in-progress`
+3. **Shows appropriate message:**
+   - If features are active: Displays list of active features
+   - If no features are active: Shows reminder to create/start a feature
+4. **Always allows the commit** - This is a reminder, not enforcement
+
+### Example Output
+
+**With active features:**
+```
+✓ HtmlGraph: 2 active feature(s)
+
+ID                        Status       Priority   Title
+================================================================================
+feature-auth              in-progress  high       User Authentication
+feature-dashboard         in-progress  medium     Dashboard UI
+```
+
+**Without active features:**
+```
+⚠️  HtmlGraph Feature Reminder
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+No active features found. Did you forget to start one?
+
+For non-trivial work, consider:
+  1. Create feature: (use Python API or dashboard)
+  2. Start feature: htmlgraph feature start <feature-id>
+
+Quick decision:
+  • >30 min work? → Create feature
+  • 3+ files? → Create feature
+  • Needs tests? → Create feature
+  • Simple fix? → Direct commit OK
+
+To disable this reminder: git config htmlgraph.precommit false
+To bypass once: git commit --no-verify
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Proceeding with commit...
+```
+
+### Configuration
+
+**Disable the hook permanently:**
+```bash
+git config htmlgraph.precommit false
+```
+
+**Re-enable the hook:**
+```bash
+git config --unset htmlgraph.precommit
+```
+
+**Bypass for a single commit:**
+```bash
+git commit --no-verify -m "your message"
+```
+
+### Philosophy
+
+The pre-commit hook is designed as a **gentle reminder**, not enforcement:
+
+- ✅ Educates developers about the feature workflow
+- ✅ Surfaces the decision framework at the right time
+- ✅ Shows what features are currently active
+- ✅ Always allows commits (never blocks)
+- ❌ Not a strict gatekeeper
+- ❌ Doesn't prevent direct commits for trivial work
+
+The hook respects developer judgment - if you're making a quick fix or trivial change, you can proceed with the commit. For non-trivial work, the reminder helps ensure proper attribution and tracking.
+
+---
+
 ## Claude Code Session Checklist
 
 Use this checklist to ensure consistent workflow quality and proper attribution throughout your session.
