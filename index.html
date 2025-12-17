@@ -822,6 +822,57 @@
             color: var(--accent);
         }
 
+        /* Session Filters */
+        .session-filters {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem 1.5rem;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-strong);
+            box-shadow: var(--shadow-md);
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.375rem;
+        }
+
+        .filter-group label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .filter-select,
+        .filter-input {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--border);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border-radius: 4px;
+            font-size: 0.875rem;
+            font-family: 'JetBrains Mono', monospace;
+            min-width: 150px;
+        }
+
+        .filter-select:focus,
+        .filter-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+        }
+
+        .filter-input::placeholder {
+            color: var(--text-muted);
+            opacity: 0.6;
+        }
+
         .analytics-header {
             display: flex;
             align-items: flex-start;
@@ -1470,6 +1521,45 @@
                     <p>View all Claude Code sessions tracked by HtmlGraph.</p>
                 </div>
             </div>
+
+            <!-- Session Filters -->
+            <div class="session-filters">
+                <div class="filter-group">
+                    <label for="filter-status">Status:</label>
+                    <select id="filter-status" class="filter-select">
+                        <option value="">All</option>
+                        <option value="active">Active</option>
+                        <option value="ended">Ended</option>
+                        <option value="stale">Stale</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="filter-agent">Agent:</label>
+                    <select id="filter-agent" class="filter-select">
+                        <option value="">All</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="filter-search">Search:</label>
+                    <input type="text" id="filter-search" class="filter-input" placeholder="Session ID...">
+                </div>
+
+                <div class="filter-group">
+                    <label for="filter-date-from">From:</label>
+                    <input type="date" id="filter-date-from" class="filter-input">
+                </div>
+
+                <div class="filter-group">
+                    <label for="filter-date-to">To:</label>
+                    <input type="date" id="filter-date-to" class="filter-input">
+                </div>
+
+                <button id="filter-clear" class="btn btn-secondary" style="align-self: flex-end;">Clear</button>
+                <button id="compare-sessions-btn" class="btn btn-primary" style="align-self: flex-end; display: none;">Compare Selected</button>
+            </div>
+
             <div id="sessions-list" class="loading">Loading sessions...</div>
         </div>
     </div>
@@ -1485,6 +1575,18 @@
             <div class="loading">Loading...</div>
         </div>
         <div class="panel-actions" id="panel-actions"></div>
+    </div>
+
+    <!-- Session Comparison Modal -->
+    <div class="panel-overlay" id="comparison-overlay" style="display: none;"></div>
+    <div class="panel" id="comparison-panel" style="display: none; width: 90%; max-width: 1400px;">
+        <div class="panel-header">
+            <h2>Session Comparison</h2>
+            <button class="panel-close" id="comparison-close">&times;</button>
+        </div>
+        <div class="panel-body" id="comparison-body">
+            <div class="loading">Loading comparison...</div>
+        </div>
     </div>
 
     <script>
@@ -1783,33 +1885,81 @@
             }
         }
 
-        async function loadAndRenderSessions() {
+        let allSessions = []; // Cache for filtering
+
+        async function loadAndRenderSessions(filters = {}) {
             const sessionsListEl = document.getElementById('sessions-list');
 
             try {
-                // Fetch all sessions from the API
-                const response = await fetch(`${API}/sessions`);
-                if (!response.ok) throw new Error('Failed to load sessions');
+                // Fetch all sessions from the API (only on first load)
+                if (allSessions.length === 0) {
+                    const response = await fetch(`${API}/sessions`);
+                    if (!response.ok) throw new Error('Failed to load sessions');
 
-                const data = await response.json();
-                const sessions = data.nodes || [];
+                    const data = await response.json();
+                    allSessions = data.nodes || [];
 
-                if (sessions.length === 0) {
+                    // Populate agent dropdown with unique agents
+                    const agents = [...new Set(allSessions.map(s => s.properties?.agent).filter(Boolean))];
+                    const agentSelect = document.getElementById('filter-agent');
+                    agents.forEach(agent => {
+                        const option = document.createElement('option');
+                        option.value = agent;
+                        option.textContent = agent;
+                        agentSelect.appendChild(option);
+                    });
+                }
+
+                if (allSessions.length === 0) {
                     sessionsListEl.innerHTML = '<div class="loading">No sessions found.</div>';
                     return;
                 }
 
+                // Apply filters
+                let filteredSessions = allSessions.filter(s => {
+                    // Status filter
+                    if (filters.status && s.status !== filters.status) return false;
+
+                    // Agent filter
+                    if (filters.agent && s.properties?.agent !== filters.agent) return false;
+
+                    // Search filter
+                    if (filters.search && !s.id.toLowerCase().includes(filters.search.toLowerCase())) return false;
+
+                    // Date range filter
+                    const sessionDate = new Date(s.created);
+                    if (filters.dateFrom) {
+                        const fromDate = new Date(filters.dateFrom);
+                        if (sessionDate < fromDate) return false;
+                    }
+                    if (filters.dateTo) {
+                        const toDate = new Date(filters.dateTo);
+                        toDate.setHours(23, 59, 59, 999); // End of day
+                        if (sessionDate > toDate) return false;
+                    }
+
+                    return true;
+                });
+
                 // Sort by updated descending (most recent first)
-                sessions.sort((a, b) => new Date(b.updated) - new Date(a.updated));
+                filteredSessions.sort((a, b) => new Date(b.updated) - new Date(a.updated));
+
+                if (filteredSessions.length === 0) {
+                    sessionsListEl.innerHTML = '<div class="loading">No sessions match the current filters.</div>';
+                    return;
+                }
 
                 // Render sessions table
-                const rows = sessions.map(s => {
+                const rows = filteredSessions.map(s => {
                     const created = new Date(s.created).toLocaleString();
                     const updated = new Date(s.updated).toLocaleString();
                     const statusBadge = s.status === 'active' ? 'status-active' : 'status-done';
 
                     return `
                         <tr>
+                            <td style="width: 40px; text-align: center;">
+                                <input type="checkbox" class="session-compare-checkbox" data-session-id="${s.id}" />
+                            </td>
                             <td>
                                 <span class="session-id" data-collection="sessions" data-id="${s.id}">
                                     ${s.id}
@@ -1828,6 +1978,7 @@
                     <table class="sessions-table">
                         <thead>
                             <tr>
+                                <th style="width: 40px;"></th>
                                 <th>Session ID</th>
                                 <th>Status</th>
                                 <th>Events</th>
@@ -1840,6 +1991,9 @@
                             ${rows}
                         </tbody>
                     </table>
+                    <div style="margin-top: 1rem; text-align: center; color: var(--text-muted); font-size: 0.875rem;">
+                        Showing ${filteredSessions.length} of ${allSessions.length} sessions
+                    </div>
                 `;
 
                 // Add click handlers for session IDs
@@ -1849,9 +2003,169 @@
                     });
                 });
 
+                // Add checkbox handlers for comparison
+                sessionsListEl.querySelectorAll('.session-compare-checkbox').forEach(checkbox => {
+                    checkbox.addEventListener('change', updateCompareButton);
+                });
+
             } catch (err) {
                 sessionsListEl.innerHTML = `<div class="loading">Error loading sessions: ${err.message}</div>`;
             }
+        }
+
+        function updateCompareButton() {
+            const selectedCheckboxes = document.querySelectorAll('.session-compare-checkbox:checked');
+            const compareBtn = document.getElementById('compare-sessions-btn');
+
+            if (selectedCheckboxes.length >= 2) {
+                compareBtn.style.display = 'block';
+                compareBtn.textContent = `Compare ${selectedCheckboxes.length} Sessions`;
+            } else {
+                compareBtn.style.display = 'none';
+            }
+        }
+
+        async function compareSessions() {
+            console.log('=== compareSessions called ===');
+            const selectedCheckboxes = document.querySelectorAll('.session-compare-checkbox:checked');
+            const sessionIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.sessionId);
+            console.log('Selected session IDs:', sessionIds);
+
+            if (sessionIds.length < 2) {
+                alert('Please select at least 2 sessions to compare');
+                return;
+            }
+
+            const comparisonOverlay = document.getElementById('comparison-overlay');
+            const comparisonPanel = document.getElementById('comparison-panel');
+            const comparisonBody = document.getElementById('comparison-body');
+
+            console.log('Modal elements found:', {
+                overlay: !!comparisonOverlay,
+                panel: !!comparisonPanel,
+                body: !!comparisonBody
+            });
+
+            console.log('Setting display to block and adding open class...');
+            comparisonOverlay.style.display = 'block';
+            comparisonPanel.style.display = 'block';
+            comparisonOverlay.classList.add('open');
+            comparisonPanel.classList.add('open');
+            comparisonBody.innerHTML = '<div class="loading">Loading session data...</div>';
+
+            console.log('Modal styles after setting:', {
+                overlayDisplay: window.getComputedStyle(comparisonOverlay).display,
+                overlayZIndex: window.getComputedStyle(comparisonOverlay).zIndex,
+                panelDisplay: window.getComputedStyle(comparisonPanel).display,
+                panelZIndex: window.getComputedStyle(comparisonPanel).zIndex,
+                panelPosition: window.getComputedStyle(comparisonPanel).position
+            });
+
+            try {
+                // Fetch all selected sessions
+                const sessionPromises = sessionIds.map(id =>
+                    fetch(`${API}/sessions/${id}`).then(r => r.json())
+                );
+                const sessions = await Promise.all(sessionPromises);
+
+                // Build comparison table
+                let html = '<div style="overflow-x: auto;"><table class="comparison-table" style="width: 100%; border-collapse: collapse;">';
+
+                // Header row with session IDs
+                html += '<thead><tr><th style="text-align: left; padding: 1rem; border-bottom: 2px solid var(--border-strong); background: var(--bg-tertiary);">Metric</th>';
+                sessions.forEach(s => {
+                    html += `<th style="text-align: center; padding: 1rem; border-bottom: 2px solid var(--border-strong); background: var(--bg-tertiary);"><div style="font-family: monospace; font-size: 0.75rem;">${s.id}</div></th>`;
+                });
+                html += '</tr></thead><tbody>';
+
+                // Status row
+                html += '<tr><td style="padding: 0.75rem; border-bottom: 1px solid var(--border); font-weight: 600;">Status</td>';
+                sessions.forEach(s => {
+                    const badge = s.status === 'active' ? 'status-active' : 'status-done';
+                    html += `<td style="padding: 0.75rem; border-bottom: 1px solid var(--border); text-align: center;"><span class="badge ${badge}">${s.status}</span></td>`;
+                });
+                html += '</tr>';
+
+                // Event count row
+                html += '<tr><td style="padding: 0.75rem; border-bottom: 1px solid var(--border); font-weight: 600;">Events</td>';
+                sessions.forEach(s => {
+                    html += `<td style="padding: 0.75rem; border-bottom: 1px solid var(--border); text-align: center;">${s.properties?.event_count || 0}</td>`;
+                });
+                html += '</tr>';
+
+                // Agent row
+                html += '<tr><td style="padding: 0.75rem; border-bottom: 1px solid var(--border); font-weight: 600;">Agent</td>';
+                sessions.forEach(s => {
+                    html += `<td style="padding: 0.75rem; border-bottom: 1px solid var(--border); text-align: center;">${s.properties?.agent || '—'}</td>`;
+                });
+                html += '</tr>';
+
+                // Created row
+                html += '<tr><td style="padding: 0.75rem; border-bottom: 1px solid var(--border); font-weight: 600;">Created</td>';
+                sessions.forEach(s => {
+                    html += `<td style="padding: 0.75rem; border-bottom: 1px solid var(--border); text-align: center; font-family: monospace; font-size: 0.75rem;">${new Date(s.created).toLocaleString()}</td>`;
+                });
+                html += '</tr>';
+
+                // Last activity row
+                html += '<tr><td style="padding: 0.75rem; border-bottom: 1px solid var(--border); font-weight: 600;">Last Activity</td>';
+                sessions.forEach(s => {
+                    html += `<td style="padding: 0.75rem; border-bottom: 1px solid var(--border); text-align: center; font-family: monospace; font-size: 0.75rem;">${new Date(s.updated).toLocaleString()}</td>`;
+                });
+                html += '</tr>';
+
+                // Duration row
+                html += '<tr><td style="padding: 0.75rem; border-bottom: 1px solid var(--border); font-weight: 600;">Duration</td>';
+                sessions.forEach(s => {
+                    const duration = Math.round((new Date(s.updated) - new Date(s.created)) / 60000); // minutes
+                    const hours = Math.floor(duration / 60);
+                    const minutes = duration % 60;
+                    const durationStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+                    html += `<td style="padding: 0.75rem; border-bottom: 1px solid var(--border); text-align: center;">${durationStr}</td>`;
+                });
+                html += '</tr>';
+
+                html += '</tbody></table></div>';
+
+                comparisonBody.innerHTML = html;
+                console.log('✅ Comparison modal content loaded successfully');
+
+            } catch (err) {
+                console.error('❌ Error in compareSessions:', err);
+                comparisonBody.innerHTML = `<div class="loading">Error loading sessions: ${err.message}</div>`;
+            }
+        }
+
+        function closeComparison() {
+            const overlay = document.getElementById('comparison-overlay');
+            const panel = document.getElementById('comparison-panel');
+            overlay.classList.remove('open');
+            panel.classList.remove('open');
+            // Give time for transition before hiding
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                panel.style.display = 'none';
+            }, 300);
+        }
+
+        function applySessionFilters() {
+            const filters = {
+                status: document.getElementById('filter-status').value,
+                agent: document.getElementById('filter-agent').value,
+                search: document.getElementById('filter-search').value,
+                dateFrom: document.getElementById('filter-date-from').value,
+                dateTo: document.getElementById('filter-date-to').value
+            };
+            loadAndRenderSessions(filters);
+        }
+
+        function clearSessionFilters() {
+            document.getElementById('filter-status').value = '';
+            document.getElementById('filter-agent').value = '';
+            document.getElementById('filter-search').value = '';
+            document.getElementById('filter-date-from').value = '';
+            document.getElementById('filter-date-to').value = '';
+            loadAndRenderSessions();
         }
 
         // Get collapsed columns from localStorage
@@ -2740,6 +3054,19 @@
             if (!btn) return;
             loadAndRenderContinuity(btn.dataset.feature).catch(err => renderAnalyticsError(err));
         });
+
+        // Session filter event listeners
+        document.getElementById('filter-status').addEventListener('change', applySessionFilters);
+        document.getElementById('filter-agent').addEventListener('change', applySessionFilters);
+        document.getElementById('filter-search').addEventListener('input', applySessionFilters);
+        document.getElementById('filter-date-from').addEventListener('change', applySessionFilters);
+        document.getElementById('filter-date-to').addEventListener('change', applySessionFilters);
+        document.getElementById('filter-clear').addEventListener('click', clearSessionFilters);
+        document.getElementById('compare-sessions-btn').addEventListener('click', compareSessions);
+
+        // Session comparison modal
+        document.getElementById('comparison-close').addEventListener('click', closeComparison);
+        document.getElementById('comparison-overlay').addEventListener('click', closeComparison);
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') closePanel();

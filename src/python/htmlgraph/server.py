@@ -25,6 +25,7 @@ from htmlgraph.models import Node, Edge, Step
 from htmlgraph.converter import node_to_dict, dict_to_node
 from htmlgraph.analytics_index import AnalyticsIndex
 from htmlgraph.event_log import JsonlEventLog
+from htmlgraph.file_watcher import GraphWatcher
 
 
 class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
@@ -506,7 +507,8 @@ def serve(
     port: int = 8080,
     graph_dir: str | Path = ".htmlgraph",
     static_dir: str | Path = ".",
-    host: str = "localhost"
+    host: str = "localhost",
+    watch: bool = True
 ):
     """
     Start the HtmlGraph server.
@@ -516,6 +518,7 @@ def serve(
         graph_dir: Directory containing graph data (.htmlgraph/)
         static_dir: Directory for static files (index.html, etc.)
         host: Host to bind to
+        watch: Enable file watching for auto-reload (default: True)
     """
     graph_dir = Path(graph_dir)
     static_dir = Path(static_dir)
@@ -540,6 +543,29 @@ def serve(
 
     server = HTTPServer((host, port), HtmlGraphAPIHandler)
 
+    # Start file watcher if enabled
+    watcher = None
+    if watch:
+        def get_graph(collection: str) -> HtmlGraph:
+            """Callback to get graph instance for a collection."""
+            handler = HtmlGraphAPIHandler
+            if collection not in handler.graphs:
+                collection_dir = handler.graph_dir / collection
+                handler.graphs[collection] = HtmlGraph(
+                    collection_dir,
+                    stylesheet_path="../styles.css",
+                    auto_load=True
+                )
+            return handler.graphs[collection]
+
+        watcher = GraphWatcher(
+            graph_dir=graph_dir,
+            collections=HtmlGraphAPIHandler.COLLECTIONS,
+            get_graph_callback=get_graph
+        )
+        watcher.start()
+
+    watch_status = "Enabled" if watch else "Disabled"
     print(f"""
 ╔══════════════════════════════════════════════════════════════╗
 ║                    HtmlGraph Server                          ║
@@ -547,6 +573,7 @@ def serve(
 ║  Dashboard:  http://{host}:{port}/
 ║  API:        http://{host}:{port}/api/
 ║  Graph Dir:  {graph_dir}
+║  Auto-reload: {watch_status}
 ╚══════════════════════════════════════════════════════════════╝
 
 API Endpoints:
@@ -574,6 +601,8 @@ Press Ctrl+C to stop.
         server.serve_forever()
     except KeyboardInterrupt:
         print("\nShutting down...")
+        if watcher:
+            watcher.stop()
         server.shutdown()
 
 

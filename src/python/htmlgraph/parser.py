@@ -278,6 +278,22 @@ class HtmlParser:
             else:
                 properties[key] = value
 
+        # Extract session-specific data attributes from article element
+        article = self.get_article()
+        if article and self.get_data_attribute(article, "type") == "session":
+            # Add event_count if present
+            event_count = article.attrs.get("data-event-count")
+            if event_count:
+                try:
+                    properties["event_count"] = int(event_count)
+                except (ValueError, TypeError):
+                    pass
+
+            # Add agent if present
+            agent = article.attrs.get("data-agent")
+            if agent:
+                properties["agent"] = agent
+
         return properties
 
     def get_content(self) -> str:

@@ -134,11 +134,36 @@ HTMLGRAPH_PROCESS_NOTICE = """## HTMLGRAPH DEVELOPMENT PROCESS ACTIVE
 
 **IMPORTANT: Activate the `htmlgraph-tracker` skill now using the Skill tool.**
 
-This skill ensures proper activity attribution and documentation throughout the session.
+This skill ensures proper activity attribution, documentation, and provides the Feature Creation Decision Framework throughout the session.
 
 ---
 
 **HtmlGraph is tracking this session. All activity is logged to HTML files.**
+
+### Feature Creation Decision Framework
+
+**Use this framework for EVERY user request:**
+
+Create a **FEATURE** if ANY apply:
+- >30 minutes work
+- 3+ files
+- New tests needed
+- Multi-component impact
+- Hard to revert
+- Needs docs
+
+Implement **DIRECTLY** if ALL apply:
+- Single file
+- <30 minutes
+- Trivial change
+- Easy to revert
+- No tests needed
+
+**When in doubt, CREATE A FEATURE.** Over-tracking is better than losing attribution.
+
+See the `htmlgraph-tracker` skill for complete framework details.
+
+---
 
 ### Quick Reference
 
@@ -338,11 +363,15 @@ htmlgraph feature start <feature-id>
 
     context_parts.append("""## Session Continuity
 
-**IMPORTANT:** At the start of this session, greet the user and provide a brief status update including:
-1. Previous session summary (if any)
-2. Current feature progress
-3. What remains to be done
-4. Ask what they'd like to work on next
+**CRITICAL - DO THIS FIRST:**
+1. **IMMEDIATELY activate the `htmlgraph-tracker` skill** using the Skill tool (required for every session start and after every compact)
+2. Then greet the user with a brief status update:
+   - Previous session summary (if any)
+   - Current feature progress
+   - What remains to be done
+   - Ask what they'd like to work on next
+
+The htmlgraph-tracker skill MUST be activated to ensure proper feature creation decisions and attribution.
 """)
 
     context = "\n\n---\n\n".join(context_parts)

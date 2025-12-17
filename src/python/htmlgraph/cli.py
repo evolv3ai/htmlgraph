@@ -32,7 +32,8 @@ def cmd_serve(args):
         port=args.port,
         graph_dir=args.graph_dir,
         static_dir=args.static_dir,
-        host=args.host
+        host=args.host,
+        watch=not args.no_watch
     )
 
 
@@ -232,6 +233,206 @@ def cmd_session_dedupe(args):
             print(f"Staled:  {result['staled_active']} extra active sessions")
         if result.get("kept_active"):
             print(f"Kept:    {result['kept_active']} canonical active sessions")
+
+
+def cmd_session_link(args):
+    """Link a feature to a session retroactively."""
+    from htmlgraph.graph import HtmlGraph
+    from htmlgraph.models import Edge
+    import json
+
+    graph_dir = Path(args.graph_dir)
+    sessions_dir = graph_dir / "sessions"
+    feature_dir = graph_dir / args.collection
+
+    # Load session
+    session_file = sessions_dir / f"{args.session_id}.html"
+    if not session_file.exists():
+        print(f"Error: Session '{args.session_id}' not found at {session_file}", file=sys.stderr)
+        sys.exit(1)
+
+    session_graph = HtmlGraph(sessions_dir)
+    session = session_graph.get(args.session_id)
+    if not session:
+        print(f"Error: Failed to load session '{args.session_id}'", file=sys.stderr)
+        sys.exit(1)
+
+    # Load feature
+    feature_file = feature_dir / f"{args.feature_id}.html"
+    if not feature_file.exists():
+        print(f"Error: Feature '{args.feature_id}' not found at {feature_file}", file=sys.stderr)
+        sys.exit(1)
+
+    feature_graph = HtmlGraph(feature_dir)
+    feature = feature_graph.get(args.feature_id)
+    if not feature:
+        print(f"Error: Failed to load feature '{args.feature_id}'", file=sys.stderr)
+        sys.exit(1)
+
+    # Check if already linked
+    worked_on = session.edges.get("worked-on", [])
+    already_linked = any(e.target_id == args.feature_id for e in worked_on)
+
+    if already_linked:
+        print(f"Feature '{args.feature_id}' is already linked to session '{args.session_id}'")
+        if not args.bidirectional:
+            sys.exit(0)
+
+    # Add edge from session to feature
+    if not already_linked:
+        new_edge = Edge(
+            target_id=args.feature_id,
+            relationship="worked-on",
+            title=feature.title
+        )
+        if "worked-on" not in session.edges:
+            session.edges["worked-on"] = []
+        session.edges["worked-on"].append(new_edge)
+        session_graph.update(session)
+        print(f"✓ Linked feature '{args.feature_id}' to session '{args.session_id}'")
+
+    # Optionally add reciprocal edge from feature to session
+    if args.bidirectional:
+        implemented_in = feature.edges.get("implemented-in", [])
+        feature_already_linked = any(e.target_id == args.session_id for e in implemented_in)
+
+        if not feature_already_linked:
+            reciprocal_edge = Edge(
+                target_id=args.session_id,
+                relationship="implemented-in",
+                title=f"Session {session.id}"
+            )
+            if "implemented-in" not in feature.edges:
+                feature.edges["implemented-in"] = []
+            feature.edges["implemented-in"].append(reciprocal_edge)
+            feature_graph.update(feature)
+            print(f"✓ Added reciprocal link from feature '{args.feature_id}' to session '{args.session_id}'")
+        else:
+            print(f"Feature '{args.feature_id}' already has reciprocal link to session")
+
+    if args.format == "json":
+        result = {
+            "session_id": args.session_id,
+            "feature_id": args.feature_id,
+            "bidirectional": args.bidirectional,
+            "linked": not already_linked
+        }
+        print(json.dumps(result, indent=2))
+
+
+def cmd_session_validate_attribution(args):
+    """Validate feature attribution and tracking."""
+    from htmlgraph.graph import HtmlGraph
+    from htmlgraph.converter import SessionConverter
+    import json
+    from datetime import datetime
+
+    graph_dir = Path(args.graph_dir)
+    feature_dir = graph_dir / args.collection
+    sessions_dir = graph_dir / "sessions"
+    events_dir = graph_dir / "events"
+
+    # Load feature
+    feature_graph = HtmlGraph(feature_dir)
+    feature = feature_graph.get(args.feature_id)
+    if not feature:
+        print(f"Error: Feature '{args.feature_id}' not found", file=sys.stderr)
+        sys.exit(1)
+
+    # Find sessions that worked on this feature
+    sessions_graph = HtmlGraph(sessions_dir)
+    all_sessions = sessions_graph.query('[data-type="session"]')
+    linked_sessions = []
+
+    for session in all_sessions:
+        worked_on = session.edges.get("worked-on", [])
+        if any(e.target_id == args.feature_id for e in worked_on):
+            linked_sessions.append(session)
+
+    # Count events attributed to this feature
+    event_count = 0
+    last_activity = None
+    high_drift_events = []
+
+    for session in linked_sessions:
+        session_events_file = events_dir / f"{session.id}.jsonl"
+        if session_events_file.exists():
+            with open(session_events_file, 'r') as f:
+                for line in f:
+                    try:
+                        event = json.loads(line.strip())
+                        if event.get('feature_id') == args.feature_id:
+                            event_count += 1
+                            timestamp = event.get('timestamp')
+                            if timestamp:
+                                event_time = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                                if not last_activity or event_time > last_activity:
+                                    last_activity = event_time
+
+                            # Check for high drift
+                            drift_score = event.get('drift_score')
+                            if drift_score and drift_score > 0.8:
+                                high_drift_events.append({
+                                    'timestamp': timestamp,
+                                    'tool': event.get('tool'),
+                                    'drift': drift_score
+                                })
+                    except json.JSONDecodeError:
+                        continue
+
+    # Calculate attribution health
+    health = "UNKNOWN"
+    issues = []
+
+    if len(linked_sessions) == 0:
+        health = "CRITICAL"
+        issues.append("Feature not linked to any session")
+    elif event_count == 0:
+        health = "CRITICAL"
+        issues.append("No events attributed to feature")
+    elif event_count < 5:
+        health = "WARNING"
+        issues.append(f"Only {event_count} events attributed (unusually low)")
+    else:
+        health = "GOOD"
+
+    if len(high_drift_events) > 3:
+        if health == "GOOD":
+            health = "WARNING"
+        issues.append(f"{len(high_drift_events)} events with drift > 0.8 (may be misattributed)")
+
+    # Output results
+    if args.format == "json":
+        result = {
+            "feature_id": args.feature_id,
+            "feature_title": feature.title,
+            "health": health,
+            "linked_sessions": len(linked_sessions),
+            "event_count": event_count,
+            "last_activity": last_activity.isoformat() if last_activity else None,
+            "high_drift_count": len(high_drift_events),
+            "issues": issues
+        }
+        print(json.dumps(result, indent=2))
+    else:
+        status_symbol = "✓" if health == "GOOD" else "⚠" if health == "WARNING" else "✗"
+        print(f"{status_symbol} Feature '{args.feature_id}' validation:")
+        print(f"  Title: {feature.title}")
+        print(f"  Health: {health}")
+        print(f"  - Linked to {len(linked_sessions)} session(s)")
+        print(f"  - {event_count} events attributed")
+        if last_activity:
+            print(f"  - Last activity: {last_activity.strftime('%Y-%m-%d %H:%M:%S')}")
+
+        if issues:
+            print(f"\n⚠ Issues detected:")
+            for issue in issues:
+                print(f"  - {issue}")
+
+        if len(high_drift_events) > 0 and len(high_drift_events) <= 5:
+            print(f"\n⚠ High drift events:")
+            for event in high_drift_events[:5]:
+                print(f"  - {event['timestamp']}: {event['tool']} (drift: {event['drift']:.2f})")
 
 
 def cmd_track(args):
@@ -682,6 +883,7 @@ curl Examples:
     serve_parser.add_argument("--host", default="0.0.0.0", help="Host to bind to (default: 0.0.0.0)")
     serve_parser.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
     serve_parser.add_argument("--static-dir", "-s", default=".", help="Static files directory")
+    serve_parser.add_argument("--no-watch", action="store_true", help="Disable file watching (auto-reload disabled)")
 
     # init
     init_parser = subparsers.add_parser("init", help="Initialize .htmlgraph directory")
@@ -734,6 +936,28 @@ curl Examples:
     session_dedupe.add_argument("--move-dir", default="_orphans", help="Subfolder name under sessions/")
     session_dedupe.add_argument("--dry-run", action="store_true", help="Show what would happen without moving files")
     session_dedupe.add_argument("--no-stale-active", action="store_true", help="Do not mark extra active sessions as stale")
+
+    # session link
+    session_link = session_subparsers.add_parser(
+        "link",
+        help="Link a feature to a session retroactively"
+    )
+    session_link.add_argument("session_id", help="Session ID")
+    session_link.add_argument("feature_id", help="Feature ID to link")
+    session_link.add_argument("--collection", "-c", default="features", help="Feature collection")
+    session_link.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    session_link.add_argument("--bidirectional", "-b", action="store_true", help="Also add session to feature's implemented-in edges")
+    session_link.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # session validate-attribution
+    session_validate = session_subparsers.add_parser(
+        "validate-attribution",
+        help="Validate feature attribution and tracking"
+    )
+    session_validate.add_argument("feature_id", help="Feature ID to validate")
+    session_validate.add_argument("--collection", "-c", default="features", help="Feature collection")
+    session_validate.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    session_validate.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
 
     # track
     track_parser = subparsers.add_parser("track", help="Track an activity")
@@ -833,6 +1057,10 @@ curl Examples:
             cmd_session_list(args)
         elif args.session_command == "dedupe":
             cmd_session_dedupe(args)
+        elif args.session_command == "link":
+            cmd_session_link(args)
+        elif args.session_command == "validate-attribution":
+            cmd_session_validate_attribution(args)
         else:
             session_parser.print_help()
             sys.exit(1)

@@ -62,6 +62,59 @@ htmlgraph feature primary <feature-id>
 htmlgraph feature complete <feature-id>
 ```
 
+## Feature Creation Decision Framework
+
+**CRITICAL**: Use this framework to decide when to create a feature vs implementing directly.
+
+### Quick Decision Rule
+
+Create a **FEATURE** if ANY apply:
+- Estimated >30 minutes of work
+- Involves 3+ files
+- Requires new automated tests
+- Affects multiple components
+- Hard to revert (schema, API changes)
+- Needs user/API documentation
+
+Implement **DIRECTLY** if ALL apply:
+- Single file, obvious change
+- <30 minutes work
+- No cross-system impact
+- Easy to revert
+- No tests needed
+- Internal/trivial change
+
+### Decision Tree (Quick Reference)
+
+```
+User request received
+  ├─ Bug in existing feature? → See Bug Fix Workflow in WORKFLOW.md
+  ├─ >30 minutes? → CREATE FEATURE
+  ├─ 3+ files? → CREATE FEATURE
+  ├─ New tests needed? → CREATE FEATURE
+  ├─ Multi-component impact? → CREATE FEATURE
+  ├─ Hard to revert? → CREATE FEATURE
+  └─ Otherwise → IMPLEMENT DIRECTLY
+```
+
+### Examples
+
+**✅ CREATE FEATURE:**
+- "Add user authentication" (multi-file, tests, docs)
+- "Implement session comparison view" (new UI, Playwright tests)
+- "Fix attribution drift algorithm" (complex, backend tests)
+
+**❌ IMPLEMENT DIRECTLY:**
+- "Fix typo in README" (single file, trivial)
+- "Update CSS color" (single file, quick, reversible)
+- "Add missing import" (obvious fix, no impact)
+
+### Default Rule
+
+**When in doubt, CREATE A FEATURE.** Over-tracking is better than losing attribution.
+
+See `docs/WORKFLOW.md` for the complete decision framework with detailed criteria, thresholds, and edge cases.
+
 ## Handling Drift Warnings
 
 When you see a drift warning like:
