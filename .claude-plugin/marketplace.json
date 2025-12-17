@@ -13,7 +13,7 @@
       "name": "htmlgraph",
       "source": "./packages/claude-plugin",
       "description": "HTML-based agent observability + workflow analytics (Git-first JSONL + rebuildable SQLite index)",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "author": {
         "name": "Shakes Tzedakis",
         "email": "noreply@htmlgraph.dev"

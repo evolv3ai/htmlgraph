@@ -213,6 +213,10 @@ class SessionManager:
 
         # Dedupe: if a canonical active session already exists for this agent/commit,
         # reuse it instead of creating a new file (prevents session explosion).
+        #
+        # IMPORTANT: We reuse the session REGARDLESS of time elapsed. A session
+        # represents the entire Claude Code process lifecycle, not a time window.
+        # The session will only end when the Stop hook is called (process terminates).
         if not is_subagent:
             active_sessions = [
                 s for s in self._list_active_sessions()
@@ -220,12 +224,15 @@ class SessionManager:
             ]
             canonical = self._choose_canonical_active_session(active_sessions)
             if canonical and canonical.start_commit == desired_commit:
-                seconds_since_activity = (now - canonical.last_activity).total_seconds()
-                if seconds_since_activity <= self.session_dedupe_window_seconds:
-                    self._active_session = canonical
-                    return canonical
+                # Reuse the canonical session regardless of time since last activity.
+                # This ensures ONE session per Claude Code process, even if the user
+                # pauses for hours between commands.
+                self._active_session = canonical
+                canonical.last_activity = now  # Update activity timestamp
+                self.session_converter.save(canonical)
+                return canonical
 
-            # If we're truly starting a new session, mark other active sessions as stale.
+            # If we're truly starting a new session (different commit), mark old sessions as stale.
             for s in active_sessions:
                 self._mark_session_stale(s)
 
