@@ -419,11 +419,15 @@ def main():
         summary = format_tool_summary(tool_name, tool_input_data, tool_response)
 
         # Determine success
-        success_field = tool_response.get("success")
-        if isinstance(success_field, bool):
-            is_error = not success_field
+        if isinstance(tool_response, dict):
+            success_field = tool_response.get("success")
+            if isinstance(success_field, bool):
+                is_error = not success_field
+            else:
+                is_error = bool(tool_response.get("is_error", False))
         else:
-            is_error = bool(tool_response.get("is_error", False))
+            # For list or other non-dict responses (like Playwright), assume success
+            is_error = False
 
         # Get drift thresholds from config
         drift_settings = drift_config.get("drift_detection", {})
