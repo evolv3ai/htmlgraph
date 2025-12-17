@@ -769,7 +769,7 @@ class SessionManager:
 
     def start_feature(self, feature_id: str, collection: str = "features") -> Node | None:
         """
-        Mark a feature as in-progress.
+        Mark a feature as in-progress and link to active session.
 
         Args:
             feature_id: Feature to start
@@ -791,6 +791,11 @@ class SessionManager:
         node.status = "in-progress"
         node.updated = datetime.now()
         graph.update(node)
+
+        # Link feature to active session (bidirectional)
+        active_session = self.get_active_session()
+        if active_session:
+            self._add_session_link_to_feature(feature_id, active_session.id)
 
         return node
 
@@ -912,36 +917,51 @@ class SessionManager:
 
     def _add_session_link_to_feature(self, feature_id: str, session_id: str) -> None:
         """
-        Add a bidirectional link from feature to session.
+        Add a bidirectional link between feature and session.
 
-        This creates an "implemented-in" edge on the feature pointing to the session.
-        Only adds if the link doesn't already exist.
+        This creates:
+        1. "implemented-in" edge on the feature pointing to the session
+        2. "worked-on" edge on the session pointing to the feature
+
+        Only adds if the links don't already exist.
         """
         from htmlgraph.models import Edge
 
         # Find the feature in either collection
-        node = self.features_graph.get(feature_id) or self.bugs_graph.get(feature_id)
-        if not node:
+        feature_node = self.features_graph.get(feature_id) or self.bugs_graph.get(feature_id)
+        if not feature_node:
             return
 
-        # Check if edge already exists
-        existing_sessions = node.edges.get("implemented-in", [])
-        for edge in existing_sessions:
-            if edge.target_id == session_id:
-                return  # Already linked
+        # Check if feature → session edge already exists
+        existing_sessions = feature_node.edges.get("implemented-in", [])
+        feature_already_linked = any(edge.target_id == session_id for edge in existing_sessions)
 
-        # Add new edge
-        edge = Edge(
-            target_id=session_id,
-            relationship="implemented-in",
-            title=session_id,
-            since=datetime.now(),
-        )
-        node.add_edge(edge)
+        if not feature_already_linked:
+            # Add feature → session edge
+            edge = Edge(
+                target_id=session_id,
+                relationship="implemented-in",
+                title=session_id,
+                since=datetime.now(),
+            )
+            feature_node.add_edge(edge)
 
-        # Save the updated feature
-        graph = self._get_graph_for_node(node)
-        graph.update(node)
+            # Save the updated feature
+            graph = self._get_graph_for_node(feature_node)
+            graph.update(feature_node)
+
+        # Now add session → feature link (reverse link)
+        session = self.get_session(session_id)
+        if not session:
+            return
+
+        # Check if session → feature link already exists
+        if feature_id not in session.worked_on:
+            # Add feature to session's worked_on list
+            session.worked_on.append(feature_id)
+
+            # Save the updated session
+            self.session_converter.save(session)
 
     def _get_graph(self, collection: str) -> HtmlGraph:
         """Get graph for a collection."""
