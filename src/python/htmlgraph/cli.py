@@ -40,6 +40,7 @@ def cmd_serve(args):
 def cmd_init(args):
     """Initialize a new .htmlgraph directory."""
     from htmlgraph.server import HtmlGraphAPIHandler
+    import shutil
 
     graph_dir = Path(args.dir) / ".htmlgraph"
     graph_dir.mkdir(parents=True, exist_ok=True)
@@ -61,6 +62,98 @@ def cmd_init(args):
     print(f"Initialized HtmlGraph in {graph_dir}")
     print(f"Collections: {', '.join(HtmlGraphAPIHandler.COLLECTIONS)}")
     print(f"\nStart server with: htmlgraph serve")
+
+    # Install Git hooks if requested
+    if args.install_hooks:
+        git_dir = Path(args.dir) / ".git"
+        if not git_dir.exists():
+            print(f"\n⚠️  Warning: No .git directory found. Git hooks not installed.")
+            print(f"   Initialize git first: git init")
+            return
+
+        hooks_dir = graph_dir / "hooks"
+        hooks_dir.mkdir(exist_ok=True)
+
+        # Copy post-commit hook template
+        hook_src = Path(__file__).parent.parent.parent.parent / ".htmlgraph" / "hooks" / "post-commit.sh"
+        hook_dest = hooks_dir / "post-commit.sh"
+
+        if hook_src.exists() and hook_src.resolve() != hook_dest.resolve():
+            shutil.copy(hook_src, hook_dest)
+            hook_dest.chmod(0o755)
+        elif not hook_dest.exists():
+            # Create hook inline if template doesn't exist
+            hook_content = '''#!/bin/bash
+#
+# HtmlGraph Post-Commit Hook
+# Logs Git commit events for agent-agnostic continuity tracking
+#
+
+set +e
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT" || exit 0
+
+if [ ! -d ".htmlgraph" ]; then
+    exit 0
+fi
+
+if ! command -v htmlgraph &> /dev/null; then
+    if command -v python3 &> /dev/null; then
+        python3 -m htmlgraph.git_events commit &> /dev/null &
+    fi
+    exit 0
+fi
+
+htmlgraph git-event commit &> /dev/null &
+exit 0
+'''
+            hook_dest.write_text(hook_content)
+            hook_dest.chmod(0o755)
+
+        # Install hook to .git/hooks/
+        git_hook_path = git_dir / "hooks" / "post-commit"
+
+        # Check if hook already exists
+        if git_hook_path.exists():
+            print(f"\n⚠️  Existing post-commit hook found")
+            # Backup existing hook
+            backup_path = git_hook_path.with_suffix(".existing")
+            if not backup_path.exists():
+                shutil.copy(git_hook_path, backup_path)
+                print(f"   Backed up to: {backup_path}")
+
+            # Create chaining hook
+            chain_content = f'''#!/bin/bash
+# Chained hook - runs existing hook then HtmlGraph hook
+
+# Run existing hook
+if [ -f "{backup_path}" ]; then
+    "{backup_path}" || exit $?
+fi
+
+# Run HtmlGraph hook
+if [ -f "{hook_dest}" ]; then
+    "{hook_dest}" || true  # Never fail
+fi
+'''
+            git_hook_path.write_text(chain_content)
+            git_hook_path.chmod(0o755)
+            print(f"   Installed chained hook at: {git_hook_path}")
+        else:
+            # No existing hook, just symlink
+            try:
+                git_hook_path.symlink_to(hook_dest.resolve())
+                print(f"\n✓ Git hooks installed")
+                print(f"  post-commit: {git_hook_path} -> {hook_dest}")
+            except OSError:
+                # Symlink failed, copy instead
+                shutil.copy(hook_dest, git_hook_path)
+                git_hook_path.chmod(0o755)
+                print(f"\n✓ Git hooks installed")
+                print(f"  post-commit: {git_hook_path}")
+
+        print(f"\nGit commits will now be logged to HtmlGraph automatically.")
 
 
 def cmd_status(args):
@@ -539,6 +632,19 @@ def cmd_watch(args):
     )
 
 
+def cmd_git_event(args):
+    """Log a Git event (commit, checkout, merge, push)."""
+    from htmlgraph.git_events import log_git_commit
+
+    if args.event_type == "commit":
+        success = log_git_commit()
+        if not success:
+            sys.exit(1)
+    else:
+        print(f"Error: Event type '{args.event_type}' not yet implemented")
+        sys.exit(1)
+
+
 # =============================================================================
 # Feature Management Commands
 # =============================================================================
@@ -888,6 +994,7 @@ curl Examples:
     # init
     init_parser = subparsers.add_parser("init", help="Initialize .htmlgraph directory")
     init_parser.add_argument("dir", nargs="?", default=".", help="Directory to initialize")
+    init_parser.add_argument("--install-hooks", action="store_true", help="Install Git hooks for event logging")
 
     # status
     status_parser = subparsers.add_parser("status", help="Show graph status")
@@ -1038,6 +1145,10 @@ curl Examples:
     watch_parser.add_argument("--interval", type=float, default=2.0, help="Polling interval seconds")
     watch_parser.add_argument("--batch-seconds", type=float, default=5.0, help="Batch window seconds")
 
+    # git-event
+    git_event_parser = subparsers.add_parser("git-event", help="Log Git events (commit, checkout, merge, push)")
+    git_event_parser.add_argument("event_type", choices=["commit", "checkout", "merge", "push"], help="Type of Git event")
+
     args = parser.parse_args()
 
     if args.command == "serve":
@@ -1092,6 +1203,8 @@ curl Examples:
             sys.exit(1)
     elif args.command == "watch":
         cmd_watch(args)
+    elif args.command == "git-event":
+        cmd_git_event(args)
     else:
         parser.print_help()
         sys.exit(1)
