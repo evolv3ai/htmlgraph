@@ -281,7 +281,11 @@ def test_cli_init_bootstraps_events_index_and_hooks(temp_graph_dir):
     cmd_init(args)
 
     graph_dir = temp_graph_dir / ".htmlgraph"
-    assert (temp_graph_dir / "index.html").exists()
+    index_path = temp_graph_dir / "index.html"
+    assert index_path.exists()
+    # Ensure we ship the "current" dashboard template, not the old minimal one.
+    index_html = index_path.read_text(encoding="utf-8")
+    assert "COLOR SYSTEM & THEME" in index_html
     assert (graph_dir / "events").exists()
     assert (graph_dir / "events" / ".gitkeep").exists()
     assert (graph_dir / "index.sqlite").exists()

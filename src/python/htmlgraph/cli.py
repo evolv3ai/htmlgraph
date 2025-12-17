@@ -1014,190 +1014,27 @@ def cmd_feature_list(args):
 
 
 def create_default_index(path: Path):
-    """Create a default index.html that uses the API."""
-    html = '''<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HtmlGraph Dashboard</title>
-    <style>
-        :root {
-            --color-primary: #2563eb;
-            --color-success: #16a34a;
-            --color-warning: #d97706;
-            --color-danger: #dc2626;
-            --color-bg: #f9fafb;
-            --color-card: #ffffff;
-            --color-text: #1f2937;
-            --color-muted: #6b7280;
-            --color-border: #e5e7eb;
-        }
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --color-bg: #111827;
-                --color-card: #1f2937;
-                --color-text: #f9fafb;
-                --color-muted: #9ca3af;
-                --color-border: #374151;
-            }
-        }
-        * { box-sizing: border-box; }
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-            background: var(--color-bg);
-            color: var(--color-text);
-            margin: 0;
-            padding: 2rem;
-        }
-        .container { max-width: 1400px; margin: 0 auto; }
-        header { text-align: center; margin-bottom: 2rem; }
-        header h1 { margin: 0; }
-        header p { color: var(--color-muted); }
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-        .stat {
-            background: var(--color-card);
-            padding: 1rem;
-            border-radius: 8px;
-            text-align: center;
-        }
-        .stat-value { font-size: 2rem; font-weight: 700; color: var(--color-primary); }
-        .stat-label { font-size: 0.75rem; color: var(--color-muted); text-transform: uppercase; }
-        .kanban {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 1rem;
-        }
-        .column {
-            background: var(--color-card);
-            border-radius: 8px;
-            padding: 1rem;
-        }
-        .column h2 {
-            font-size: 0.875rem;
-            margin: 0 0 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid var(--color-border);
-            display: flex;
-            justify-content: space-between;
-        }
-        .column h2 span {
-            background: var(--color-bg);
-            padding: 0.125rem 0.5rem;
-            border-radius: 999px;
-            font-size: 0.75rem;
-        }
-        .cards { display: flex; flex-direction: column; gap: 0.5rem; }
-        .card {
-            display: block;
-            background: var(--color-bg);
-            padding: 0.75rem;
-            border-radius: 6px;
-            text-decoration: none;
-            color: inherit;
-            border-left: 3px solid var(--color-primary);
-        }
-        .card:hover { opacity: 0.8; }
-        .card-title { font-weight: 600; margin-bottom: 0.25rem; }
-        .card-meta { font-size: 0.75rem; color: var(--color-muted); }
-        .badge {
-            display: inline-block;
-            padding: 0.125rem 0.375rem;
-            border-radius: 999px;
-            font-size: 0.625rem;
-            font-weight: 600;
-            margin-right: 0.25rem;
-        }
-        .priority-critical { background: #fee2e2; color: #dc2626; }
-        .priority-high { background: #fef3c7; color: #d97706; }
-        .priority-medium { background: #dbeafe; color: #2563eb; }
-        .priority-low { background: #f3f4f6; color: #6b7280; }
-        .type-feature { border-left-color: var(--color-warning); }
-        .type-bug { border-left-color: var(--color-danger); }
-        .type-spike { border-left-color: #8b5cf6; }
-        .type-chore { border-left-color: var(--color-muted); }
-        .empty { color: var(--color-muted); text-align: center; padding: 2rem; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1>HtmlGraph</h1>
-            <p>"HTML is All You Need"</p>
-        </header>
-        <div class="stats" id="stats">Loading...</div>
-        <div class="kanban" id="kanban"></div>
-    </div>
-    <script>
-        const API = '/api';
-        const STATUSES = ['in-progress', 'todo', 'blocked', 'done'];
-        const STATUS_LABELS = {
-            'in-progress': 'In Progress',
-            'todo': 'Todo',
-            'blocked': 'Blocked',
-            'done': 'Done'
-        };
+    """
+    Create a default index.html for new projects.
 
-        async function loadData() {
-            const [status, query] = await Promise.all([
-                fetch(`${API}/status`).then(r => r.json()),
-                fetch(`${API}/query`).then(r => r.json())
-            ]);
-            return { status, nodes: query.nodes };
-        }
+    The dashboard UI evolves quickly; to keep new projects consistent with the
+    current dashboard, prefer a packaged HTML template over a hardcoded string.
+    """
+    template = Path(__file__).parent / "dashboard.html"
+    try:
+        if template.exists():
+            path.write_text(template.read_text(encoding="utf-8"), encoding="utf-8")
+            return
+    except Exception:
+        pass
 
-        function renderStats(status) {
-            const s = status.by_status || {};
-            document.getElementById('stats').innerHTML = `
-                <div class="stat"><div class="stat-value">${status.total_nodes}</div><div class="stat-label">Total</div></div>
-                <div class="stat"><div class="stat-value">${s['done'] || 0}</div><div class="stat-label">Done</div></div>
-                <div class="stat"><div class="stat-value">${s['in-progress'] || 0}</div><div class="stat-label">Active</div></div>
-                <div class="stat"><div class="stat-value">${s['blocked'] || 0}</div><div class="stat-label">Blocked</div></div>
-            `;
-        }
-
-        function renderKanban(nodes) {
-            const byStatus = {};
-            STATUSES.forEach(s => byStatus[s] = []);
-            nodes.forEach(n => {
-                if (byStatus[n.status]) byStatus[n.status].push(n);
-            });
-
-            document.getElementById('kanban').innerHTML = STATUSES.map(status => `
-                <div class="column">
-                    <h2>${STATUS_LABELS[status]} <span>${byStatus[status].length}</span></h2>
-                    <div class="cards">
-                        ${byStatus[status].length === 0 ? '<div class="empty">Empty</div>' : ''}
-                        ${byStatus[status].map(n => `
-                            <div class="card type-${n.type}">
-                                <div class="card-title">${n.title}</div>
-                                <div class="card-meta">
-                                    <span class="badge priority-${n.priority}">${n.priority}</span>
-                                    ${n._collection}/${n.id}
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        loadData().then(({ status, nodes }) => {
-            renderStats(status);
-            renderKanban(nodes);
-        }).catch(err => {
-            document.getElementById('stats').innerHTML = `<div class="empty">Error loading data: ${err.message}</div>`;
-        });
-    </script>
-</body>
-</html>
-'''
-    path.write_text(html)
+    # Fallback (rare): minimal landing page.
+    path.write_text(
+        "<!doctype html><html><head><meta charset='utf-8'><title>HtmlGraph</title></head>"
+        "<body><h1>HtmlGraph</h1><p>Run <code>htmlgraph serve</code> and open "
+        "<code>http://localhost:8080</code>.</p></body></html>",
+        encoding="utf-8",
+    )
 
 
 def main():
