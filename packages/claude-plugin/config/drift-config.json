@@ -7,7 +7,7 @@
     "cooldown_minutes": 10
   },
   "classification": {
-    "enabled": true,
+    "enabled": false,
     "use_haiku_agent": true,
     "use_headless": false,
     "work_item_types": {
