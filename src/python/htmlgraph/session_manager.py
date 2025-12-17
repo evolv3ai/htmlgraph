@@ -18,7 +18,7 @@ from typing import Any, Literal
 
 from htmlgraph.models import Node, Session, ActivityEntry
 from htmlgraph.graph import HtmlGraph
-from htmlgraph.converter import session_to_html, html_to_session, SessionConverter
+from htmlgraph.converter import session_to_html, html_to_session, SessionConverter, dict_to_node
 from htmlgraph.event_log import JsonlEventLog, EventRecord
 
 
@@ -277,6 +277,30 @@ class SessionManager:
             self._active_session = canonical
             return canonical
 
+        return None
+
+    def get_active_session_for_agent(self, agent: str) -> Session | None:
+        """
+        Get the currently active session for a specific agent.
+
+        This avoids cross-agent pollution (e.g. Codex logging into a Claude session)
+        when multiple agents are active in the same repository.
+        """
+        if not agent:
+            return self.get_active_session()
+
+        if (
+            self._active_session
+            and self._active_session.status == "active"
+            and self._active_session.agent == agent
+        ):
+            return self._active_session
+
+        sessions = [s for s in self._list_active_sessions() if s.agent == agent]
+        canonical = self._choose_canonical_active_session(sessions)
+        if canonical:
+            self._active_session = canonical
+            return canonical
         return None
 
     def dedupe_orphan_sessions(
@@ -742,6 +766,49 @@ class SessionManager:
     # Feature Management
     # =========================================================================
 
+    def _ensure_session_for_agent(self, agent: str) -> Session:
+        """
+        Ensure there is an active session for `agent`, creating one if needed.
+
+        Note: This is intentionally lightweight and relies on start_session()'s
+        dedupe logic to prevent session file explosions.
+        """
+        active = self.get_active_session_for_agent(agent)
+        if active:
+            return active
+        return self.start_session(
+            session_id=None,
+            agent=agent,
+            title=f"Auto session ({agent})",
+        )
+
+    def _maybe_log_work_item_action(
+        self,
+        *,
+        agent: str | None,
+        tool: str,
+        summary: str,
+        feature_id: str | None,
+        success: bool = True,
+        payload: dict[str, Any] | None = None,
+    ) -> None:
+        if not agent:
+            return
+        try:
+            session = self._ensure_session_for_agent(agent)
+            self.track_activity(
+                session_id=session.id,
+                tool=tool,
+                summary=summary,
+                file_paths=None,
+                success=success,
+                feature_id=feature_id,
+                payload=payload,
+            )
+        except Exception:
+            # Never break feature ops because of tracking.
+            return
+
     def get_active_features(self) -> list[Node]:
         """Get all features with status 'in-progress'."""
         features = []
@@ -758,6 +825,75 @@ class SessionManager:
 
         return features
 
+    def create_feature(
+        self,
+        title: str,
+        collection: str = "features",
+        description: str = "",
+        priority: str = "medium",
+        steps: list[str] | None = None,
+        agent: str | None = None,
+    ) -> Node:
+        """
+        Create a new feature/bug/chore.
+
+        Args:
+            title: Title of the work item
+            collection: Collection name (features, bugs)
+            description: Optional description
+            priority: Priority (low, medium, high, critical)
+            steps: Optional list of implementation steps
+            agent: Optional agent name for logging
+
+        Returns:
+            Created Node
+        """
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        prefix = collection[:-1] if collection.endswith("s") else collection
+        node_id = f"{prefix}-{timestamp}"
+
+        # Default steps if none provided
+        if steps is None:
+            if collection == "features":
+                steps = [
+                    "Design approach",
+                    "Implement core functionality",
+                    "Add tests",
+                    "Update documentation",
+                ]
+            else:
+                steps = []
+
+        node_data = {
+            "id": node_id,
+            "type": prefix,
+            "title": title,
+            "status": "todo",
+            "priority": priority,
+            "created": datetime.now().isoformat(),
+            "updated": datetime.now().isoformat(),
+            "content": description,
+            "steps": [{"description": s, "completed": False} for s in steps],
+            "properties": {},
+            "edges": {},
+        }
+
+        node = dict_to_node(node_data)
+
+        graph = self._get_graph(collection)
+        graph.add(node)
+
+        if agent:
+            self._maybe_log_work_item_action(
+                agent=agent,
+                tool="FeatureCreate",
+                summary=f"Created: {collection}/{node_id}",
+                feature_id=node_id,
+                payload={"collection": collection, "action": "create", "title": title},
+            )
+
+        return node
+
     def get_primary_feature(self) -> Node | None:
         """Get the primary active feature."""
         for feature in self.get_active_features():
@@ -767,13 +903,22 @@ class SessionManager:
         active = self.get_active_features()
         return active[0] if active else None
 
-    def start_feature(self, feature_id: str, collection: str = "features") -> Node | None:
+    def start_feature(
+        self,
+        feature_id: str,
+        collection: str = "features",
+        *,
+        agent: str | None = None,
+        log_activity: bool = True,
+    ) -> Node | None:
         """
         Mark a feature as in-progress and link to active session.
 
         Args:
             feature_id: Feature to start
             collection: Collection name (features, bugs)
+            agent: Optional agent name for attribution/logging
+            log_activity: If true, write an event record (requires agent)
 
         Returns:
             Updated Node or None
@@ -793,19 +938,39 @@ class SessionManager:
         graph.update(node)
 
         # Link feature to active session (bidirectional)
-        active_session = self.get_active_session()
+        active_session = self.get_active_session_for_agent(agent) if agent else self.get_active_session()
+        if agent and not active_session:
+            active_session = self._ensure_session_for_agent(agent)
         if active_session:
             self._add_session_link_to_feature(feature_id, active_session.id)
 
+        if log_activity and agent:
+            self._maybe_log_work_item_action(
+                agent=agent,
+                tool="FeatureStart",
+                summary=f"Started: {collection}/{feature_id}",
+                feature_id=feature_id,
+                payload={"collection": collection, "action": "start"},
+            )
+
         return node
 
-    def complete_feature(self, feature_id: str, collection: str = "features") -> Node | None:
+    def complete_feature(
+        self,
+        feature_id: str,
+        collection: str = "features",
+        *,
+        agent: str | None = None,
+        log_activity: bool = True,
+    ) -> Node | None:
         """
         Mark a feature as done.
 
         Args:
             feature_id: Feature to complete
             collection: Collection name
+            agent: Optional agent name for attribution/logging
+            log_activity: If true, write an event record (requires agent)
 
         Returns:
             Updated Node or None
@@ -820,9 +985,25 @@ class SessionManager:
         node.properties["completed_at"] = datetime.now().isoformat()
         graph.update(node)
 
+        if log_activity and agent:
+            self._maybe_log_work_item_action(
+                agent=agent,
+                tool="FeatureComplete",
+                summary=f"Completed: {collection}/{feature_id}",
+                feature_id=feature_id,
+                payload={"collection": collection, "action": "complete"},
+            )
+
         return node
 
-    def set_primary_feature(self, feature_id: str, collection: str = "features") -> Node | None:
+    def set_primary_feature(
+        self,
+        feature_id: str,
+        collection: str = "features",
+        *,
+        agent: str | None = None,
+        log_activity: bool = True,
+    ) -> Node | None:
         """Set a feature as the primary focus."""
         # Clear existing primary
         for feature in self.get_active_features():
@@ -837,6 +1018,53 @@ class SessionManager:
             node.properties["is_primary"] = True
             graph.update(node)
 
+        if log_activity and agent:
+            self._maybe_log_work_item_action(
+                agent=agent,
+                tool="FeaturePrimary",
+                summary=f"Primary: {collection}/{feature_id}",
+                feature_id=feature_id,
+                payload={"collection": collection, "action": "primary"},
+            )
+
+        return node
+
+    def activate_feature(
+        self,
+        feature_id: str,
+        collection: str = "features",
+        *,
+        agent: str | None = None,
+        log_activity: bool = True,
+    ) -> Node | None:
+        """
+        Convenience: ensure feature is in-progress and set as primary in one action.
+
+        This is useful for tool integrations (e.g. MCP) that want a single
+        high-signal event instead of multiple low-signal events.
+        """
+        node = self.start_feature(
+            feature_id,
+            collection=collection,
+            agent=agent,
+            log_activity=False,
+        )
+        if node is None:
+            return None
+        self.set_primary_feature(
+            feature_id,
+            collection=collection,
+            agent=agent,
+            log_activity=False,
+        )
+        if log_activity and agent:
+            self._maybe_log_work_item_action(
+                agent=agent,
+                tool="FeatureActivate",
+                summary=f"Activated: {collection}/{feature_id}",
+                feature_id=feature_id,
+                payload={"collection": collection, "action": "activate"},
+            )
         return node
 
     # =========================================================================

@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -59,10 +59,24 @@ class AnalyticsIndex:
                     (str(SCHEMA_VERSION),),
                 )
             else:
-                # For now we only support a single schema version.
-                if int(current["value"]) != SCHEMA_VERSION:
-                    raise RuntimeError(
-                        f"Unsupported analytics index schema: {current['value']}"
+                try:
+                    current_version = int(current["value"])
+                except Exception:
+                    current_version = None
+
+                if current_version != SCHEMA_VERSION:
+                    # The DB is a rebuildable cache (gitignored). When the schema changes,
+                    # reset it in-place for a smoother UX.
+                    conn.execute("DROP TABLE IF EXISTS event_files")
+                    conn.execute("DROP TABLE IF EXISTS events")
+                    conn.execute("DROP TABLE IF EXISTS sessions")
+                    conn.execute("DROP TABLE IF EXISTS git_commits")
+                    conn.execute("DROP TABLE IF EXISTS git_commit_parents")
+                    conn.execute("DROP TABLE IF EXISTS git_commit_features")
+                    conn.execute("DELETE FROM meta WHERE key='schema_version'")
+                    conn.execute(
+                        "INSERT INTO meta(key,value) VALUES('schema_version', ?)",
+                        (str(SCHEMA_VERSION),),
                     )
 
             conn.execute(
@@ -104,6 +118,45 @@ class AnalyticsIndex:
                 """
             )
 
+            # Git commit graph tables (continuity spine)
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS git_commits (
+                    commit_hash TEXT PRIMARY KEY,
+                    commit_hash_short TEXT,
+                    ts TEXT,
+                    branch TEXT,
+                    author_name TEXT,
+                    author_email TEXT,
+                    subject TEXT,
+                    message TEXT,
+                    insertions INTEGER,
+                    deletions INTEGER,
+                    is_merge INTEGER
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS git_commit_parents (
+                    commit_hash TEXT NOT NULL,
+                    parent_hash TEXT NOT NULL,
+                    PRIMARY KEY(commit_hash, parent_hash),
+                    FOREIGN KEY(commit_hash) REFERENCES git_commits(commit_hash)
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS git_commit_features (
+                    commit_hash TEXT NOT NULL,
+                    feature_id TEXT NOT NULL,
+                    PRIMARY KEY(commit_hash, feature_id),
+                    FOREIGN KEY(commit_hash) REFERENCES git_commits(commit_hash)
+                )
+                """
+            )
+
             # Indexes for typical dashboard queries
             conn.execute("CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts)")
             conn.execute(
@@ -122,6 +175,8 @@ class AnalyticsIndex:
             conn.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_event_files_event_path ON event_files(event_id, path)"
             )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_git_commits_ts ON git_commits(ts)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_git_commit_features_feature ON git_commit_features(feature_id)")
 
     def upsert_session(self, session: dict[str, Any]) -> None:
         """
@@ -212,10 +267,67 @@ class AnalyticsIndex:
             conn.execute("DELETE FROM event_files")
             conn.execute("DELETE FROM events")
             conn.execute("DELETE FROM sessions")
+            conn.execute("DELETE FROM git_commit_features")
+            conn.execute("DELETE FROM git_commit_parents")
+            conn.execute("DELETE FROM git_commits")
 
             session_meta: dict[str, dict[str, Any]] = {}
 
-            for event in events:
+            def normalize_event(event: dict[str, Any]) -> dict[str, Any] | None:
+                """
+                Normalize multiple on-disk event shapes into the AnalyticsIndex schema.
+
+                Supported:
+                - EventRecord JSON (event_id/tool/summary/...)
+                - Legacy Git hook events ({type:"GitCommit", ...})
+                """
+                if event.get("event_id"):
+                    return event
+
+                legacy_type = event.get("type")
+                if legacy_type in {"GitCommit", "GitCheckout", "GitMerge", "GitPush"}:
+                    ts = event.get("timestamp") or event.get("ts")
+                    session_id = event.get("session_id") or "git"
+                    if not ts:
+                        return None
+
+                    features = event.get("features") if isinstance(event.get("features"), list) else []
+                    feature_id = features[0] if features else None
+
+                    # Best-effort deterministic IDs for GitCommit (by hash), otherwise timestamp-based.
+                    if legacy_type == "GitCommit" and event.get("commit_hash"):
+                        base = f"git-commit-{event.get('commit_hash')}"
+                        event_id = base if feature_id is None else f"{base}-{feature_id}"
+                        msg = (event.get("commit_message") or "").strip().splitlines()[0] if event.get("commit_message") else ""
+                        summary = f"Commit {event.get('commit_hash_short','')}: {msg}".strip()
+                    else:
+                        event_id = f"legacy-{legacy_type.lower()}-{ts}"
+                        summary = legacy_type
+
+                    file_paths = event.get("files_changed") if isinstance(event.get("files_changed"), list) else []
+
+                    return {
+                        "event_id": event_id,
+                        "timestamp": ts,
+                        "session_id": session_id,
+                        "agent": event.get("agent") or "git",
+                        "tool": legacy_type,
+                        "summary": summary,
+                        "success": True,
+                        "feature_id": feature_id,
+                        "drift_score": None,
+                        "file_paths": file_paths,
+                        "payload": event,
+                    }
+
+                return None
+
+            for raw_event in events:
+                event = normalize_event(raw_event)
+                if event is None:
+                    skipped += 1
+                    continue
+
                 event_id = event.get("event_id")
                 session_id = event.get("session_id")
                 ts = event.get("timestamp") or event.get("ts")
@@ -281,6 +393,64 @@ class AnalyticsIndex:
                             (event_id, str(p)),
                         )
 
+                # Derive Git commit DAG rows from GitCommit events.
+                if (event.get("tool") or "") == "GitCommit":
+                    payload_dict: dict[str, Any] | None = None
+                    if isinstance(event.get("payload"), dict):
+                        payload_dict = event.get("payload")
+                    else:
+                        try:
+                            if payload_json:
+                                payload_dict = json.loads(payload_json)
+                        except Exception:
+                            payload_dict = None
+
+                    if payload_dict and payload_dict.get("type") == "GitCommit":
+                        commit_hash = payload_dict.get("commit_hash")
+                        if commit_hash:
+                            conn.execute(
+                                """
+                                INSERT OR IGNORE INTO git_commits(
+                                    commit_hash, commit_hash_short, ts, branch, author_name, author_email,
+                                    subject, message, insertions, deletions, is_merge
+                                )
+                                VALUES(?,?,?,?,?,?,?,?,?,?,?)
+                                """,
+                                (
+                                    str(commit_hash),
+                                    payload_dict.get("commit_hash_short"),
+                                    ts,
+                                    payload_dict.get("branch"),
+                                    payload_dict.get("author_name"),
+                                    payload_dict.get("author_email"),
+                                    payload_dict.get("subject"),
+                                    payload_dict.get("commit_message"),
+                                    payload_dict.get("insertions"),
+                                    payload_dict.get("deletions"),
+                                    1 if payload_dict.get("is_merge") else 0,
+                                ),
+                            )
+
+                            parents = payload_dict.get("parents") or []
+                            if isinstance(parents, list):
+                                for parent in parents:
+                                    if not parent:
+                                        continue
+                                    conn.execute(
+                                        "INSERT OR IGNORE INTO git_commit_parents(commit_hash, parent_hash) VALUES(?,?)",
+                                        (str(commit_hash), str(parent)),
+                                    )
+
+                            features = payload_dict.get("features") or []
+                            if isinstance(features, list):
+                                for fid in features:
+                                    if not fid:
+                                        continue
+                                    conn.execute(
+                                        "INSERT OR IGNORE INTO git_commit_features(commit_hash, feature_id) VALUES(?,?)",
+                                        (str(commit_hash), str(fid)),
+                                    )
+
                 inserted += 1
 
             # Upsert sessions after loading all events.
@@ -302,6 +472,80 @@ class AnalyticsIndex:
                 )
 
         return {"inserted": inserted, "skipped": skipped}
+
+    # ---------------------------------------------------------------------
+    # Git continuity queries
+    # ---------------------------------------------------------------------
+
+    def feature_commits(self, feature_id: str, limit: int = 200) -> list[dict[str, Any]]:
+        """
+        Return commit timeline for a feature based on GitCommit events.
+        """
+        self.ensure_schema()
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT c.commit_hash, c.commit_hash_short, c.ts, c.branch, c.author_name, c.author_email,
+                       c.subject, c.insertions, c.deletions, c.is_merge
+                FROM git_commit_features f
+                JOIN git_commits c ON c.commit_hash = f.commit_hash
+                WHERE f.feature_id = ?
+                ORDER BY c.ts DESC
+                LIMIT ?
+                """,
+                (feature_id, int(limit)),
+            ).fetchall()
+
+            parents = conn.execute(
+                """
+                SELECT commit_hash, COUNT(*) AS parent_count
+                FROM git_commit_parents
+                WHERE commit_hash IN (SELECT commit_hash FROM git_commit_features WHERE feature_id = ?)
+                GROUP BY commit_hash
+                """,
+                (feature_id,),
+            ).fetchall()
+
+        parent_counts = {r["commit_hash"]: int(r["parent_count"] or 0) for r in parents}
+        out: list[dict[str, Any]] = []
+        for r in rows:
+            d = dict(r)
+            d["parent_count"] = parent_counts.get(d["commit_hash"], 0)
+            out.append(d)
+        return out
+
+    def feature_commit_graph(self, feature_id: str, limit: int = 200) -> dict[str, Any]:
+        """
+        Return a minimal DAG representation (nodes + edges) for a feature's commits.
+        """
+        commits = self.feature_commits(feature_id=feature_id, limit=limit)
+        commit_hashes = {c["commit_hash"] for c in commits if c.get("commit_hash")}
+        self.ensure_schema()
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT commit_hash, parent_hash
+                FROM git_commit_parents
+                WHERE commit_hash IN (
+                    SELECT commit_hash FROM git_commit_features WHERE feature_id = ?
+                )
+                """,
+                (feature_id,),
+            ).fetchall()
+
+        edges: list[dict[str, Any]] = []
+        external: set[str] = set()
+        for r in rows:
+            parent = r["parent_hash"]
+            if parent and parent not in commit_hashes:
+                external.add(parent)
+            edges.append({"from": parent, "to": r["commit_hash"]})
+
+        nodes = [{"id": c["commit_hash"], **{k: c.get(k) for k in ("commit_hash_short","ts","branch","subject","is_merge","insertions","deletions")}} for c in commits]
+        for parent in sorted(external):
+            nodes.append({"id": parent, "commit_hash_short": parent[:7], "external": True})
+
+        return {"nodes": nodes, "edges": edges}
 
     # ---------------------------------------------------------------------
     # Query helpers for API

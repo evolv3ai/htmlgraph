@@ -10,15 +10,15 @@
 <body>
     <article id="epic-git-continuity-spine"
              data-type="epic"
-             data-status="todo"
+             data-status="in-progress"
              data-priority="high"
              data-created="2025-12-17T06:19:30.492467"
-             data-updated="2025-12-17T06:19:30.492477">
+             data-updated="2025-12-17T08:28:52.246200">
 
         <header>
             <h1>Git as Continuity Spine: Agent-Agnostic Event Tracking</h1>
             <div class="metadata">
-                <span class="badge status-todo">Todo</span>
+                <span class="badge status-in-progress">In Progress</span>
                 <span class="badge priority-high">High Priority</span>
             </div>
         </header>
@@ -37,13 +37,13 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false">⏳ Design Git hook architecture and event schema</li>
-                <li data-completed="false">⏳ Implement post-commit hook for commit event logging</li>
-                <li data-completed="false">⏳ Implement post-checkout/post-merge hooks for branch continuity</li>
-                <li data-completed="false">⏳ Implement pre-push hook for team boundary tracking</li>
-                <li data-completed="false">⏳ Create filesystem watcher (htmlgraph watch) for fine-grained activity</li>
-                <li data-completed="false">⏳ Design and implement agent instruction conduit (AGENTS.md)</li>
-                <li data-completed="false">⏳ Create minimal MCP server with 3 core tools</li>
+                <li data-completed="true">✅ Design Git hook architecture and event schema</li>
+                <li data-completed="true">✅ Implement post-commit hook for commit event logging</li>
+                <li data-completed="true">✅ Implement post-checkout/post-merge hooks for branch continuity</li>
+                <li data-completed="true">✅ Implement pre-push hook for team boundary tracking</li>
+                <li data-completed="true">✅ Create filesystem watcher (htmlgraph watch) for fine-grained activity</li>
+                <li data-completed="true">✅ Design and implement agent instruction conduit (AGENTS.md)</li>
+                <li data-completed="true">✅ Create minimal MCP server with 3 core tools</li>
                 <li data-completed="false">⏳ Build cross-session analytics keyed by commit graph</li>
                 <li data-completed="false">⏳ Document architecture and migration guide</li>
                 <li data-completed="false">⏳ Test with multiple agent types (Claude/Codex/Gemini)</li>
@@ -179,7 +179,7 @@ htmlgraph feature list --status in-progress
 
 ## Switch Attribution
 ```bash
-htmlgraph feature primary <feature-id>
+htmlgraph feature primary
 ```
 
 That's it! Git commits and file changes are tracked automatically.
@@ -376,7 +376,6 @@ htmlgraph init --install-hooks
 - No configuration required
 
 **Key**: Works out of the box, improves with opt-in features.
-
         </section>
     </article>
 </body>

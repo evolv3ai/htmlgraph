@@ -1510,6 +1510,9 @@
                 <div class="analytics-card" id="analytics-continuity">
                     <div class="loading">Select a feature to see continuity…</div>
                 </div>
+                <div class="analytics-card" id="analytics-commits">
+                    <div class="loading">Select a feature to see commits…</div>
+                </div>
             </div>
         </div>
 
@@ -1635,7 +1638,23 @@
         // Constants
         // =====================================================================
 
-        const API = '/api';
+        function resolveApiBase() {
+            const params = new URLSearchParams(window.location.search);
+            const apiParam = (params.get('api') || '').trim();
+            const defaultOrigin = window.location.protocol === 'file:' ? 'http://localhost:8080' : window.location.origin;
+
+            if (apiParam) {
+                // Allow either absolute (http...) or absolute-path (/api) forms.
+                if (apiParam.startsWith('/')) {
+                    return new URL(apiParam, defaultOrigin).toString().replace(/\/$/, '');
+                }
+                return apiParam.replace(/\/$/, '');
+            }
+
+            return new URL('/api', defaultOrigin).toString().replace(/\/$/, '');
+        }
+
+        const API = resolveApiBase();
         const STATUSES = ['todo', 'in-progress', 'blocked', 'done'];
         const STATUS_LABELS = {
             'in-progress': 'In Progress',
@@ -1680,7 +1699,7 @@
         }
 
         async function fetchAnalytics(endpoint, params = {}) {
-            const url = new URL(`${API}/analytics/${endpoint}`, window.location.origin);
+            const url = new URL(`${API}/analytics/${endpoint}`);
             Object.entries(params).forEach(([k, v]) => {
                 if (v === undefined || v === null || v === '') return;
                 url.searchParams.set(k, String(v));
@@ -1830,16 +1849,60 @@
             `;
         }
 
+        function renderAnalyticsCommits(featureId, commits) {
+            const el = document.getElementById('analytics-commits');
+            const rows = (commits || []).map(c => {
+                const ts = (c.ts || '').slice(0, 19).replace('T', ' ');
+                const short = c.commit_hash_short || (c.commit_hash || '').slice(0, 7);
+                const branch = c.branch || '—';
+                const subj = c.subject || '';
+                const delta = `${c.insertions || 0}+/${c.deletions || 0}-`;
+                const parents = c.parent_count ?? 0;
+                const merge = c.is_merge ? 'merge' : '';
+                return `
+                    <tr>
+                        <td class="mono">${short}</td>
+                        <td class="mono">${escapeHtml(branch)}</td>
+                        <td>${escapeHtml(subj)}</td>
+                        <td class="mono">${delta}</td>
+                        <td class="mono">${parents}</td>
+                        <td class="mono">${escapeHtml(ts)}</td>
+                        <td class="mono">${merge}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            el.innerHTML = `
+                <h3>Commits: ${featureId}</h3>
+                <p class="analytics-note">GitCommit events form the continuity spine. This view shows what actually advanced the feature across sessions/branches.</p>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Commit</th><th>Branch</th><th>Subject</th><th>Δ</th><th>Parents</th><th>Time</th><th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows || `<tr><td colspan="7">No commit data for this feature yet.</td></tr>`}
+                    </tbody>
+                </table>
+            `;
+        }
+
         function renderAnalyticsError(err) {
             const msg = err && err.message ? err.message : String(err);
             const overview = document.getElementById('analytics-overview');
             const tools = document.getElementById('analytics-tools');
             const features = document.getElementById('analytics-features');
             const continuity = document.getElementById('analytics-continuity');
+            const commits = document.getElementById('analytics-commits');
+            const hint = window.location.protocol === 'file:'
+                ? 'You opened this dashboard as a local file. Run <span class="mono">htmlgraph serve</span> and open <span class="mono">http://localhost:8080</span>, or pass <span class="mono">?api=http://localhost:8080/api</span>.'
+                : 'Ensure <span class="mono">htmlgraph serve</span> is running and accessible from this page.';
 
             const html = `
                 <h3>Analytics Unavailable</h3>
                 <p class="analytics-note">${msg}</p>
+                <p class="analytics-note">${hint}</p>
                 <p class="analytics-note">Build the index:</p>
                 <pre class="mono">PYTHONPATH=src/python .venv/bin/python -m htmlgraph.cli events export-sessions -g .htmlgraph\nPYTHONPATH=src/python .venv/bin/python -m htmlgraph.cli index rebuild -g .htmlgraph</pre>
             `;
@@ -1847,6 +1910,7 @@
             tools.innerHTML = html;
             features.innerHTML = html;
             continuity.innerHTML = html;
+            commits.innerHTML = html;
         }
 
         async function loadAndRenderAnalyticsBase() {
@@ -1872,6 +1936,11 @@
             renderAnalyticsContinuity(featureId, data.sessions || []);
         }
 
+        async function loadAndRenderCommits(featureId) {
+            const data = await fetchAnalytics('commits', { feature_id: featureId, limit: 200 });
+            renderAnalyticsCommits(featureId, data.commits || []);
+        }
+
         async function ensureAnalyticsLoaded(force = false) {
             const stale = (Date.now() - analyticsLoadedAt) > 60_000;
             if (!force && analyticsCache.overview && !stale) return;
@@ -1879,6 +1948,7 @@
                 await loadAndRenderAnalyticsBase();
                 if (!analyticsCache.selectedFeatureId && analyticsCache.features && analyticsCache.features.length) {
                     await loadAndRenderContinuity(analyticsCache.features[0].feature_id);
+                    await loadAndRenderCommits(analyticsCache.features[0].feature_id);
                 }
             } catch (err) {
                 renderAnalyticsError(err);
@@ -3053,6 +3123,7 @@
             const btn = e.target.closest && e.target.closest('button[data-feature]');
             if (!btn) return;
             loadAndRenderContinuity(btn.dataset.feature).catch(err => renderAnalyticsError(err));
+            loadAndRenderCommits(btn.dataset.feature).catch(err => renderAnalyticsError(err));
         });
 
         // Session filter event listeners

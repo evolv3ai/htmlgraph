@@ -253,6 +253,29 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
             self.analytics_db = AnalyticsIndex(self.graph_dir / "index.sqlite")
         return self.analytics_db
 
+    def _reset_analytics_cache(self) -> None:
+        self.analytics_db = None
+
+    def _remove_analytics_db_files(self, db_path: Path) -> None:
+        # SQLite WAL mode leaves sidecar files. This DB is a rebuildable cache.
+        for suffix in ("", "-wal", "-shm"):
+            p = db_path if suffix == "" else Path(str(db_path) + suffix)
+            try:
+                if p.exists():
+                    p.unlink()
+            except Exception:
+                pass
+
+    def _rebuild_analytics_db(self, db_path: Path) -> None:
+        events_dir = self.graph_dir / "events"
+        if not events_dir.exists() or not any(events_dir.glob("*.jsonl")):
+            raise FileNotFoundError("No event logs found under .htmlgraph/events/*.jsonl")
+
+        log = JsonlEventLog(events_dir)
+        index = AnalyticsIndex(db_path)
+        events = (event for _, event in log.iter_events())
+        index.rebuild_from_events(events)
+
     def _handle_analytics(self, endpoint: str | None, params: dict):
         """
         Analytics endpoints.
@@ -264,52 +287,110 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
             return self._send_error_json("Specify an analytics endpoint (overview, features, session)", 400)
 
         db_path = self.graph_dir / "index.sqlite"
+
+        def ensure_db_exists() -> None:
+            if db_path.exists():
+                return
+            self._rebuild_analytics_db(db_path)
+
+        # Build-on-demand if missing
         if not db_path.exists():
-            events_dir = self.graph_dir / "events"
-            if not events_dir.exists() or not any(events_dir.glob("*.jsonl")):
+            try:
+                ensure_db_exists()
+            except FileNotFoundError:
                 return self._send_error_json(
                     "Analytics index not found and no event logs present. Start tracking, or run: htmlgraph events export-sessions",
                     404,
                 )
-
-            try:
-                log = JsonlEventLog(events_dir)
-                index = AnalyticsIndex(db_path)
-                events = (event for _, event in log.iter_events())
-                index.rebuild_from_events(events)
             except Exception as e:
                 return self._send_error_json(f"Failed to build analytics index: {e}", 500)
 
-        analytics = self._get_analytics()
+        def should_reset_index(err: Exception) -> bool:
+            msg = str(err).lower()
+            return (
+                "unsupported analytics index schema" in msg
+                or "no such table" in msg
+                or "malformed" in msg
+                or "file is not a database" in msg
+                or "schema_version" in msg
+            )
+
+        def with_rebuild(fn):
+            try:
+                return fn()
+            except Exception as e:
+                if not should_reset_index(e):
+                    raise
+                # Reset cache and rebuild once.
+                self._reset_analytics_cache()
+                self._remove_analytics_db_files(db_path)
+                ensure_db_exists()
+                self._reset_analytics_cache()
+                return fn()
 
         since = params.get("since")
         until = params.get("until")
 
         if endpoint == "overview":
-            return self._send_json(analytics.overview(since=since, until=until))
+            try:
+                return self._send_json(with_rebuild(lambda: self._get_analytics().overview(since=since, until=until)))
+            except Exception as e:
+                return self._send_error_json(f"Failed analytics query (overview): {e}", 500)
 
         if endpoint == "features":
             limit = int(params.get("limit", 50))
-            return self._send_json({"features": analytics.top_features(since=since, until=until, limit=limit)})
+            try:
+                return self._send_json({"features": with_rebuild(lambda: self._get_analytics().top_features(since=since, until=until, limit=limit))})
+            except Exception as e:
+                return self._send_error_json(f"Failed analytics query (features): {e}", 500)
 
         if endpoint == "session":
             session_id = params.get("id")
             if not session_id:
                 return self._send_error_json("Missing required param: id", 400)
             limit = int(params.get("limit", 500))
-            return self._send_json({"events": analytics.session_events(session_id=session_id, limit=limit)})
+            try:
+                return self._send_json({"events": with_rebuild(lambda: self._get_analytics().session_events(session_id=session_id, limit=limit))})
+            except Exception as e:
+                return self._send_error_json(f"Failed analytics query (session): {e}", 500)
 
         if endpoint == "continuity":
             feature_id = params.get("feature_id") or params.get("feature")
             if not feature_id:
                 return self._send_error_json("Missing required param: feature_id", 400)
             limit = int(params.get("limit", 200))
-            return self._send_json({"sessions": analytics.feature_continuity(feature_id=feature_id, since=since, until=until, limit=limit)})
+            try:
+                return self._send_json({"sessions": with_rebuild(lambda: self._get_analytics().feature_continuity(feature_id=feature_id, since=since, until=until, limit=limit))})
+            except Exception as e:
+                return self._send_error_json(f"Failed analytics query (continuity): {e}", 500)
 
         if endpoint == "transitions":
             limit = int(params.get("limit", 50))
             feature_id = params.get("feature_id") or params.get("feature")
-            return self._send_json({"transitions": analytics.top_tool_transitions(since=since, until=until, feature_id=feature_id, limit=limit)})
+            try:
+                return self._send_json({"transitions": with_rebuild(lambda: self._get_analytics().top_tool_transitions(since=since, until=until, feature_id=feature_id, limit=limit))})
+            except Exception as e:
+                return self._send_error_json(f"Failed analytics query (transitions): {e}", 500)
+
+        if endpoint == "commits":
+            feature_id = params.get("feature_id") or params.get("feature")
+            if not feature_id:
+                return self._send_error_json("Missing required param: feature_id", 400)
+            limit = int(params.get("limit", 200))
+            try:
+                return self._send_json({"commits": with_rebuild(lambda: self._get_analytics().feature_commits(feature_id=feature_id, limit=limit))})
+            except Exception as e:
+                return self._send_error_json(f"Failed analytics query (commits): {e}", 500)
+
+        if endpoint == "commit-graph":
+            feature_id = params.get("feature_id") or params.get("feature")
+            if not feature_id:
+                return self._send_error_json("Missing required param: feature_id", 400)
+            limit = int(params.get("limit", 200))
+            try:
+                return self._send_json({"graph": with_rebuild(lambda: self._get_analytics().feature_commit_graph(feature_id=feature_id, limit=limit))})
+            except Exception as e:
+                return self._send_error_json(f"Failed analytics query (commit-graph): {e}", 500)
 
         return self._send_error_json(f"Unknown analytics endpoint: {endpoint}", 404)
 
@@ -458,6 +539,12 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
             self._send_error_json(f"Node not found: {node_id}", 404)
             return
 
+        agent = data.get("agent")
+        if agent is not None:
+            agent = str(agent).strip() or None
+
+        old_status = existing.status
+
         if partial:
             # Merge with existing
             existing_data = node_to_dict(existing)
@@ -471,8 +558,34 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         if "complete_step" in data:
             step_idx = data.pop("complete_step")
             if 0 <= step_idx < len(existing.steps):
-                existing.complete_step(step_idx, data.get("agent"))
+                existing.complete_step(step_idx, agent)
                 graph.update(existing)
+                if agent:
+                    try:
+                        from htmlgraph.session_manager import SessionManager
+
+                        sm = SessionManager(self.graph_dir)
+                        session = sm.get_active_session_for_agent(agent) or sm.start_session(agent=agent, title="API session")
+                        step_desc = None
+                        try:
+                            step_desc = existing.steps[step_idx].description
+                        except Exception:
+                            step_desc = None
+                        sm.track_activity(
+                            session_id=session.id,
+                            tool="StepComplete",
+                            summary=f"Completed step {step_idx + 1}: {collection}/{node_id}",
+                            success=True,
+                            feature_id=node_id,
+                            payload={
+                                "collection": collection,
+                                "node_id": node_id,
+                                "step_index": step_idx,
+                                "step_description": step_desc,
+                            },
+                        )
+                    except Exception:
+                        pass
                 self._send_json(node_to_dict(existing))
                 return
 
@@ -483,6 +596,23 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         try:
             node = dict_to_node(data)
             graph.update(node)
+            new_status = node.status
+            if agent and (collection in {"features", "bugs", "spikes", "chores", "epics"}) and (new_status != old_status):
+                try:
+                    from htmlgraph.session_manager import SessionManager
+
+                    sm = SessionManager(self.graph_dir)
+                    session = sm.get_active_session_for_agent(agent) or sm.start_session(agent=agent, title="API session")
+                    sm.track_activity(
+                        session_id=session.id,
+                        tool="WorkItemStatus",
+                        summary=f"Status {old_status} → {new_status}: {collection}/{node_id}",
+                        success=True,
+                        feature_id=node_id,
+                        payload={"collection": collection, "node_id": node_id, "from": old_status, "to": new_status},
+                    )
+                except Exception:
+                    pass
             self._send_json(node_to_dict(node))
         except Exception as e:
             self._send_error_json(str(e), 400)

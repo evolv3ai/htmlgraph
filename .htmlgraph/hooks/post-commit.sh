@@ -1,38 +1,10 @@
 #!/bin/bash
-#
-# HtmlGraph Post-Commit Hook
-# Logs Git commit events for agent-agnostic continuity tracking
-#
-# This hook runs after every git commit and logs the commit
-# metadata to HtmlGraph's event stream.
+# Chained hook - runs existing hook then HtmlGraph hook
 
-# Exit on any error (but don't block commits)
-set +e
-
-# Get the directory where the script is located
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-
-# Change to project root
-cd "$PROJECT_ROOT" || exit 0
-
-# Check if HtmlGraph is initialized
-if [ ! -d ".htmlgraph" ]; then
-    exit 0
+if [ -f ".git/hooks/post-commit.existing" ]; then
+  ".git/hooks/post-commit.existing" || exit $?
 fi
 
-# Check if htmlgraph CLI is available
-if ! command -v htmlgraph &> /dev/null; then
-    # Try python module directly
-    if command -v python3 &> /dev/null; then
-        python3 -m htmlgraph.git_events commit &> /dev/null &
-    fi
-    exit 0
+if [ -f ".htmlgraph/hooks/post-commit.sh" ]; then
+  ".htmlgraph/hooks/post-commit.sh" || true
 fi
-
-# Log the commit event (async, in background)
-# This ensures we don't slow down the commit
-htmlgraph git-event commit &> /dev/null &
-
-# Always exit successfully (never block commits)
-exit 0

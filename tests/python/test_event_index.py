@@ -77,3 +77,90 @@ def test_analytics_index_rebuild_overview(tmp_path: Path):
     assert len(sess_events) == 2
     assert {e["event_id"] for e in sess_events} == {"e1", "e2"}
 
+
+def test_analytics_index_rebuild_supports_legacy_git_hook_events(tmp_path: Path):
+    db = AnalyticsIndex(tmp_path / "index.sqlite")
+
+    legacy = [
+        {
+            "type": "GitCommit",
+            "timestamp": "2025-01-01T12:00:00",
+            "commit_hash": "abc",
+            "commit_hash_short": "abc",
+            "commit_message": "feat: x\n\nImplements: feature-1",
+            "files_changed": ["a.py"],
+            "features": ["feature-1"],
+            "session_id": "s1",
+        }
+    ]
+
+    result = db.rebuild_from_events(legacy)
+    assert result["inserted"] == 1
+
+    overview = db.overview()
+    assert overview["events"] == 1
+
+    sess_events = db.session_events("s1", limit=10)
+    assert len(sess_events) == 1
+    assert sess_events[0]["tool"] == "GitCommit"
+    assert sess_events[0]["feature_id"] == "feature-1"
+
+
+def test_analytics_index_git_commit_tables(tmp_path: Path):
+    db = AnalyticsIndex(tmp_path / "index.sqlite")
+
+    events = [
+        {
+            "event_id": "git-commit-abc-feature-1",
+            "timestamp": "2025-01-01T12:00:00",
+            "session_id": "s1",
+            "agent": "git",
+            "tool": "GitCommit",
+            "summary": "Commit abc: feat: x [feature-1]",
+            "success": True,
+            "feature_id": "feature-1",
+            "drift_score": None,
+            "file_paths": ["a.py"],
+            "payload": {
+                "type": "GitCommit",
+                "commit_hash": "abc",
+                "commit_hash_short": "abc",
+                "parents": ["p1", "p2"],
+                "is_merge": True,
+                "branch": "main",
+                "author_name": "A",
+                "author_email": "a@example.com",
+                "commit_message": "feat: x",
+                "subject": "feat: x",
+                "files_changed": ["a.py"],
+                "insertions": 1,
+                "deletions": 0,
+                "features": ["feature-1"],
+            },
+        }
+    ]
+
+    result = db.rebuild_from_events(events)
+    assert result["inserted"] == 1
+
+    commits = db.feature_commits("feature-1", limit=10)
+    assert len(commits) == 1
+    assert commits[0]["commit_hash"] == "abc"
+    assert commits[0]["parent_count"] == 2
+
+    graph = db.feature_commit_graph("feature-1", limit=10)
+    assert "nodes" in graph and "edges" in graph
+
+
+def test_analytics_index_schema_mismatch_resets(tmp_path: Path):
+    # Create a DB with a bogus schema version and ensure we don't error.
+    import sqlite3
+
+    path = tmp_path / "index.sqlite"
+    with sqlite3.connect(path) as conn:
+        conn.execute("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+        conn.execute("INSERT INTO meta(key,value) VALUES('schema_version', '999')")
+
+    db = AnalyticsIndex(path)
+    overview = db.overview()
+    assert "events" in overview

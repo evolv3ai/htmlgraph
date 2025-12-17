@@ -8,9 +8,9 @@ HtmlGraph uses Git hooks as a universal continuity spine, enabling event trackin
 
 **Current Hooks**:
 - ✅ **post-commit** - Logs every commit with full metadata
-- 🔜 **post-checkout** - Track branch switches
-- 🔜 **post-merge** - Track merge events
-- 🔜 **pre-push** - Track team boundaries
+- ✅ **post-checkout** - Track branch switches / checkouts
+- ✅ **post-merge** - Track merge events
+- ✅ **pre-push** - Track push events / team boundaries
 
 ## Installation
 
@@ -21,10 +21,9 @@ htmlgraph init --install-hooks
 ```
 
 This will:
-1. Create `.htmlgraph/hooks/post-commit.sh`
-2. Install hook to `.git/hooks/post-commit`
-3. Detect and chain existing hooks
-4. Test the installation
+1. Create/update `.htmlgraph/hooks/*.sh`
+2. Install hooks to `.git/hooks/*` (symlink or chained wrapper)
+3. Detect and chain existing hooks (preserves existing behavior)
 
 ### Manual Installation
 
@@ -58,19 +57,32 @@ If you already have a `post-commit` hook, the installer will:
 
 ```json
 {
-  "type": "GitCommit",
-  "timestamp": "2025-12-17T06:45:00Z",
-  "commit_hash": "dc86075abc123...",
-  "commit_hash_short": "dc86075",
-  "branch": "main",
-  "author_name": "John Doe",
-  "author_email": "john@example.com",
-  "commit_message": "feat: add new feature\n\nImplements: feature-xyz",
-  "files_changed": ["src/file.py", "tests/test.py"],
-  "insertions": 45,
-  "deletions": 12,
-  "features": ["feature-xyz"],
-  "session_id": "session-abc-123"
+  "event_id": "git-commit-dc86075abc123...-feature-xyz",
+  "timestamp": "2025-12-17T06:45:00",
+  "session_id": "session-abc-123",
+  "agent": "claude-code",
+  "tool": "GitCommit",
+  "summary": "Commit dc86075: feat: add new feature [feature-xyz]",
+  "success": true,
+  "feature_id": "feature-xyz",
+  "drift_score": null,
+  "start_commit": "abc123",
+  "continued_from": null,
+  "session_status": "active",
+  "file_paths": ["src/file.py", "tests/test.py"],
+  "payload": {
+    "type": "GitCommit",
+    "commit_hash": "dc86075abc123...",
+    "commit_hash_short": "dc86075",
+    "branch": "main",
+    "author_name": "John Doe",
+    "author_email": "john@example.com",
+    "commit_message": "feat: add new feature\\n\\nImplements: feature-xyz",
+    "files_changed": ["src/file.py", "tests/test.py"],
+    "insertions": 45,
+    "deletions": 12,
+    "features": ["feature-xyz"]
+  }
 }
 ```
 
@@ -131,7 +143,7 @@ Events are appended to JSONL files:
 .htmlgraph/
 └── events/
     ├── session-abc-123.jsonl      # Active session's events
-    └── git-events.jsonl            # Fallback if no session
+    └── git.jsonl                  # Fallback if no active HtmlGraph session
 ```
 
 **Format**: One JSON object per line (JSONL)
@@ -181,9 +193,8 @@ tail .htmlgraph/events/*.jsonl
 
 ```json
 {
-  "type": "GitCommit",
-  "commit_hash_short": "abc123d",
-  "commit_message": "test: verify git hook",
+  "tool": "GitCommit",
+  "summary": "Commit abc123d: test: verify git hook",
   ...
 }
 ```
@@ -214,13 +225,7 @@ tail .htmlgraph/events/*.jsonl
    ```bash
    htmlgraph git-event commit
    ```
-
-2. **Check session exists**:
-   ```bash
-   htmlgraph session list
-   ```
-
-3. **Manual test**:
+2. **Manual test**:
    ```bash
    python3 -m htmlgraph.git_events commit
    ```
@@ -229,10 +234,13 @@ tail .htmlgraph/events/*.jsonl
 
 ### Disable Hook
 
-Temporarily:
+Temporarily (for `pre-commit` / `pre-push` style hooks):
 ```bash
-git commit --no-verify -m "skip hooks"
+git commit --no-verify -m "skip pre-commit"
+git push --no-verify
 ```
+
+Note: `post-commit` runs after the commit is created and is not skipped by `--no-verify`.
 
 Permanently:
 ```bash
@@ -264,46 +272,56 @@ This hook works with ANY agent/tool:
 
 **Key advantage**: Works everywhere Git works, no agent-specific setup needed.
 
-## Future Hooks
+## Other Hooks
 
-### post-checkout (Coming Soon)
+### post-checkout
 
-Track branch switches for session continuity:
+Tracks checkouts/switches (payload contains best-effort branch names via `GIT_REFLOG_ACTION`).
 
 ```json
 {
-  "type": "GitCheckout",
-  "from_branch": "feature/auth",
-  "to_branch": "main",
-  "timestamp": "2025-12-17T06:50:00Z"
+  "tool": "GitCheckout",
+  "payload": {
+    "old_head": "…",
+    "new_head": "…",
+    "flag": 1,
+    "from_branch": "feature/auth",
+    "to_branch": "main"
+  }
 }
 ```
 
-### post-merge (Coming Soon)
+### post-merge
 
-Track merge events for collaboration:
+Tracks successful merges (payload includes best-effort `ORIG_HEAD` and `HEAD`).
 
 ```json
 {
-  "type": "GitMerge",
-  "merged_branch": "feature/auth",
-  "into_branch": "main",
-  "conflicts": false,
-  "timestamp": "2025-12-17T06:55:00Z"
+  "tool": "GitMerge",
+  "payload": {
+    "squash": false,
+    "orig_head": "…",
+    "new_head": "…"
+  }
 }
 ```
 
-### pre-push (Coming Soon)
+### pre-push
 
-Track team boundaries (local → shared):
+Tracks pushes (payload includes ref updates parsed from stdin).
 
 ```json
 {
-  "type": "GitPush",
-  "branch": "main",
-  "remote": "origin",
-  "commits_pushed": 3,
-  "timestamp": "2025-12-17T07:00:00Z"
+  "tool": "GitPush",
+  "payload": {
+    "remote_name": "origin",
+    "updates": [
+      {
+        "local_ref": "refs/heads/main",
+        "remote_ref": "refs/heads/main"
+      }
+    ]
+  }
 }
 ```
 
@@ -341,7 +359,7 @@ Track team boundaries (local → shared):
        ↓
 ┌──────────────────────────────────┐
 │ .htmlgraph/events/session-X.jsonl│
-│ {"type":"GitCommit",...}         │
+│ {"event_id":"git-commit-…",...}  │
 └──────────────────────────────────┘
 ```
 

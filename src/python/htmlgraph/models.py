@@ -32,6 +32,13 @@ class Step(BaseModel):
         status = "[x]" if self.completed else "[ ]"
         return f"{status} {self.description}"
 
+    def __getitem__(self, key: str) -> Any:
+        """
+        Backwards-compatible dict-style access for tests/consumers that treat
+        steps as mappings (e.g. step['completed']).
+        """
+        return getattr(self, key)
+
 
 class Edge(BaseModel):
     """A graph edge representing a relationship between nodes."""
@@ -95,8 +102,11 @@ class Node(BaseModel):
     agent_assigned: str | None = None
 
     def model_post_init(self, __context: Any) -> None:
-        """Ensure updated timestamp is current on modification."""
-        pass
+        """Lightweight validation for required fields."""
+        if not self.id or not str(self.id).strip():
+            raise ValueError("Node.id must be non-empty")
+        if not self.title or not str(self.title).strip():
+            raise ValueError("Node.title must be non-empty")
 
     @property
     def completion_percentage(self) -> int:

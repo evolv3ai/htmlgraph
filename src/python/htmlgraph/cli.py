@@ -21,6 +21,7 @@ Feature Management:
 """
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -74,16 +75,63 @@ def cmd_init(args):
         hooks_dir = graph_dir / "hooks"
         hooks_dir.mkdir(exist_ok=True)
 
-        # Copy post-commit hook template
-        hook_src = Path(__file__).parent.parent.parent.parent / ".htmlgraph" / "hooks" / "post-commit.sh"
-        hook_dest = hooks_dir / "post-commit.sh"
+        def install_hook(hook_name: str, hook_dest: Path, hook_content: str | None) -> None:
+            """
+            Install one Git hook:
+              - Ensure `.htmlgraph/hooks/<hook>.sh` exists (copy template if present; else inline)
+              - Install to `.git/hooks/<hook>` (symlink or chained wrapper if existing)
+            """
+            # Try to copy a template from this repo layout (dev), otherwise inline.
+            hook_src = Path(__file__).parent.parent.parent.parent / ".htmlgraph" / "hooks" / f"{hook_name}.sh"
+            if hook_src.exists() and hook_src.resolve() != hook_dest.resolve():
+                shutil.copy(hook_src, hook_dest)
+            elif not hook_dest.exists():
+                if not hook_content:
+                    raise RuntimeError(f"Missing hook content for {hook_name}")
+                hook_dest.write_text(hook_content)
+            # Ensure executable (covers the case where the file already existed)
+            try:
+                hook_dest.chmod(0o755)
+            except Exception:
+                pass
 
-        if hook_src.exists() and hook_src.resolve() != hook_dest.resolve():
-            shutil.copy(hook_src, hook_dest)
-            hook_dest.chmod(0o755)
-        elif not hook_dest.exists():
-            # Create hook inline if template doesn't exist
-            hook_content = '''#!/bin/bash
+            git_hook_path = git_dir / "hooks" / hook_name
+
+            if git_hook_path.exists():
+                print(f"\n⚠️  Existing {hook_name} hook found")
+                backup_path = git_hook_path.with_suffix(".existing")
+                if not backup_path.exists():
+                    shutil.copy(git_hook_path, backup_path)
+                    print(f"   Backed up to: {backup_path}")
+
+                chain_content = f'''#!/bin/bash
+# Chained hook - runs existing hook then HtmlGraph hook
+
+if [ -f "{backup_path}" ]; then
+  "{backup_path}" || exit $?
+fi
+
+if [ -f "{hook_dest}" ]; then
+  "{hook_dest}" || true
+fi
+'''
+                git_hook_path.write_text(chain_content)
+                git_hook_path.chmod(0o755)
+                print(f"   Installed chained hook at: {git_hook_path}")
+                return
+
+            try:
+                git_hook_path.symlink_to(hook_dest.resolve())
+                print(f"\n✓ Git hooks installed")
+                print(f"  {hook_name}: {git_hook_path} -> {hook_dest}")
+            except OSError:
+                shutil.copy(hook_dest, git_hook_path)
+                git_hook_path.chmod(0o755)
+                print(f"\n✓ Git hooks installed")
+                print(f"  {hook_name}: {git_hook_path}")
+
+        # Hook templates (used when htmlgraph is installed without this repo layout).
+        post_commit = """#!/bin/bash
 #
 # HtmlGraph Post-Commit Hook
 # Logs Git commit events for agent-agnostic continuity tracking
@@ -95,65 +143,114 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$PROJECT_ROOT" || exit 0
 
 if [ ! -d ".htmlgraph" ]; then
-    exit 0
+  exit 0
 fi
 
 if ! command -v htmlgraph &> /dev/null; then
-    if command -v python3 &> /dev/null; then
-        python3 -m htmlgraph.git_events commit &> /dev/null &
-    fi
-    exit 0
+  if command -v python3 &> /dev/null; then
+    python3 -m htmlgraph.git_events commit &> /dev/null &
+  fi
+  exit 0
 fi
 
 htmlgraph git-event commit &> /dev/null &
 exit 0
-'''
-            hook_dest.write_text(hook_content)
-            hook_dest.chmod(0o755)
+"""
 
-        # Install hook to .git/hooks/
-        git_hook_path = git_dir / "hooks" / "post-commit"
+        post_checkout = """#!/bin/bash
+#
+# HtmlGraph Post-Checkout Hook
+# Logs branch switches / checkouts for continuity tracking
+#
 
-        # Check if hook already exists
-        if git_hook_path.exists():
-            print(f"\n⚠️  Existing post-commit hook found")
-            # Backup existing hook
-            backup_path = git_hook_path.with_suffix(".existing")
-            if not backup_path.exists():
-                shutil.copy(git_hook_path, backup_path)
-                print(f"   Backed up to: {backup_path}")
+set +e
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT" || exit 0
 
-            # Create chaining hook
-            chain_content = f'''#!/bin/bash
-# Chained hook - runs existing hook then HtmlGraph hook
-
-# Run existing hook
-if [ -f "{backup_path}" ]; then
-    "{backup_path}" || exit $?
+if [ ! -d ".htmlgraph" ]; then
+  exit 0
 fi
 
-# Run HtmlGraph hook
-if [ -f "{hook_dest}" ]; then
-    "{hook_dest}" || true  # Never fail
-fi
-'''
-            git_hook_path.write_text(chain_content)
-            git_hook_path.chmod(0o755)
-            print(f"   Installed chained hook at: {git_hook_path}")
-        else:
-            # No existing hook, just symlink
-            try:
-                git_hook_path.symlink_to(hook_dest.resolve())
-                print(f"\n✓ Git hooks installed")
-                print(f"  post-commit: {git_hook_path} -> {hook_dest}")
-            except OSError:
-                # Symlink failed, copy instead
-                shutil.copy(hook_dest, git_hook_path)
-                git_hook_path.chmod(0o755)
-                print(f"\n✓ Git hooks installed")
-                print(f"  post-commit: {git_hook_path}")
+OLD_HEAD="$1"
+NEW_HEAD="$2"
+FLAG="$3"
 
-        print(f"\nGit commits will now be logged to HtmlGraph automatically.")
+if ! command -v htmlgraph &> /dev/null; then
+  if command -v python3 &> /dev/null; then
+    python3 -m htmlgraph.git_events checkout "$OLD_HEAD" "$NEW_HEAD" "$FLAG" &> /dev/null &
+  fi
+  exit 0
+fi
+
+htmlgraph git-event checkout "$OLD_HEAD" "$NEW_HEAD" "$FLAG" &> /dev/null &
+exit 0
+"""
+
+        post_merge = """#!/bin/bash
+#
+# HtmlGraph Post-Merge Hook
+# Logs successful merges for continuity tracking
+#
+
+set +e
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT" || exit 0
+
+if [ ! -d ".htmlgraph" ]; then
+  exit 0
+fi
+
+SQUASH_FLAG="$1"
+
+if ! command -v htmlgraph &> /dev/null; then
+  if command -v python3 &> /dev/null; then
+    python3 -m htmlgraph.git_events merge "$SQUASH_FLAG" &> /dev/null &
+  fi
+  exit 0
+fi
+
+htmlgraph git-event merge "$SQUASH_FLAG" &> /dev/null &
+exit 0
+"""
+
+        pre_push = """#!/bin/bash
+#
+# HtmlGraph Pre-Push Hook
+# Logs pushes for continuity tracking / team boundary events
+#
+
+set +e
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT" || exit 0
+
+if [ ! -d ".htmlgraph" ]; then
+  exit 0
+fi
+
+REMOTE_NAME="$1"
+REMOTE_URL="$2"
+UPDATES="$(cat)"
+
+if ! command -v htmlgraph &> /dev/null; then
+  if command -v python3 &> /dev/null; then
+    printf "%s" "$UPDATES" | python3 -m htmlgraph.git_events push "$REMOTE_NAME" "$REMOTE_URL" &> /dev/null &
+  fi
+  exit 0
+fi
+
+printf "%s" "$UPDATES" | htmlgraph git-event push "$REMOTE_NAME" "$REMOTE_URL" &> /dev/null &
+exit 0
+"""
+
+        install_hook("post-commit", hooks_dir / "post-commit.sh", post_commit)
+        install_hook("post-checkout", hooks_dir / "post-checkout.sh", post_checkout)
+        install_hook("post-merge", hooks_dir / "post-merge.sh", post_merge)
+        install_hook("pre-push", hooks_dir / "pre-push.sh", pre_push)
+
+        print("\nGit events will now be logged to HtmlGraph automatically.")
 
 
 def cmd_status(args):
@@ -634,20 +731,89 @@ def cmd_watch(args):
 
 def cmd_git_event(args):
     """Log a Git event (commit, checkout, merge, push)."""
-    from htmlgraph.git_events import log_git_commit
+    import sys
+    from htmlgraph.git_events import (
+        log_git_checkout,
+        log_git_commit,
+        log_git_merge,
+        log_git_push,
+    )
 
     if args.event_type == "commit":
         success = log_git_commit()
         if not success:
             sys.exit(1)
+        return
+
+    if args.event_type == "checkout":
+        if len(args.args) < 3:
+            print("Error: checkout requires args: <old_head> <new_head> <flag>", file=sys.stderr)
+            sys.exit(1)
+        old_head, new_head, flag = args.args[0], args.args[1], args.args[2]
+        if not log_git_checkout(old_head, new_head, flag):
+            sys.exit(1)
+        return
+
+    if args.event_type == "merge":
+        squash_flag = args.args[0] if args.args else "0"
+        if not log_git_merge(squash_flag):
+            sys.exit(1)
+        return
+
+    if args.event_type == "push":
+        if len(args.args) < 2:
+            print("Error: push requires args: <remote_name> <remote_url>", file=sys.stderr)
+            sys.exit(1)
+        remote_name, remote_url = args.args[0], args.args[1]
+        updates_text = sys.stdin.read()
+        if not log_git_push(remote_name, remote_url, updates_text):
+            sys.exit(1)
+        return
     else:
-        print(f"Error: Event type '{args.event_type}' not yet implemented")
+        print(f"Error: Unknown event type '{args.event_type}'", file=sys.stderr)
         sys.exit(1)
+
+
+def cmd_mcp_serve(args):
+    """Run the minimal MCP server over stdio."""
+    from htmlgraph.mcp_server import serve_stdio
+
+    serve_stdio(graph_dir=Path(args.graph_dir), default_agent=args.agent)
 
 
 # =============================================================================
 # Feature Management Commands
 # =============================================================================
+
+def cmd_feature_create(args):
+    """Create a new feature."""
+    from htmlgraph.session_manager import SessionManager
+    import json
+
+    manager = SessionManager(args.graph_dir)
+
+    try:
+        node = manager.create_feature(
+            title=args.title,
+            collection=args.collection,
+            description=args.description or "",
+            priority=args.priority,
+            steps=args.steps,
+            agent=args.agent
+        )
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.format == "json":
+        from htmlgraph.converter import node_to_dict
+        print(json.dumps(node_to_dict(node), indent=2))
+    else:
+        print(f"Created: {node.id}")
+        print(f"  Title: {node.title}")
+        print(f"  Status: {node.status}")
+        print(f"  Path: {args.graph_dir}/{args.collection}/{node.id}.html")
+
 
 def cmd_feature_start(args):
     """Start working on a feature."""
@@ -657,8 +823,12 @@ def cmd_feature_start(args):
     manager = SessionManager(args.graph_dir)
 
     try:
-        node = manager.start_feature(args.id, collection=args.collection)
-    except FileNotFoundError:
+        node = manager.start_feature(args.id, collection=args.collection, agent=args.agent)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if node is None:
         print(f"Error: Feature '{args.id}' not found in {args.collection}.", file=sys.stderr)
         sys.exit(1)
 
@@ -683,8 +853,12 @@ def cmd_feature_complete(args):
     manager = SessionManager(args.graph_dir)
 
     try:
-        node = manager.complete_feature(args.id, collection=args.collection)
-    except FileNotFoundError:
+        node = manager.complete_feature(args.id, collection=args.collection, agent=args.agent)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if node is None:
         print(f"Error: Feature '{args.id}' not found in {args.collection}.", file=sys.stderr)
         sys.exit(1)
 
@@ -704,8 +878,12 @@ def cmd_feature_primary(args):
     manager = SessionManager(args.graph_dir)
 
     try:
-        node = manager.set_primary_feature(args.id, collection=args.collection)
-    except FileNotFoundError:
+        node = manager.set_primary_feature(args.id, collection=args.collection, agent=args.agent)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if node is None:
         print(f"Error: Feature '{args.id}' not found in {args.collection}.", file=sys.stderr)
         sys.exit(1)
 
@@ -1084,10 +1262,30 @@ curl Examples:
     feature_parser = subparsers.add_parser("feature", help="Feature management")
     feature_subparsers = feature_parser.add_subparsers(dest="feature_command", help="Feature command")
 
+    # feature create
+    feature_create = feature_subparsers.add_parser("create", help="Create a new feature")
+    feature_create.add_argument("title", help="Feature title")
+    feature_create.add_argument("--collection", "-c", default="features", help="Collection (features, bugs)")
+    feature_create.add_argument("--description", "-d", help="Description")
+    feature_create.add_argument("--priority", "-p", default="medium", choices=["low", "medium", "high", "critical"], help="Priority")
+    feature_create.add_argument("--steps", nargs="*", help="Implementation steps")
+    feature_create.add_argument(
+        "--agent",
+        default=os.environ.get("HTMLGRAPH_AGENT") or "cli",
+        help="Agent name for attribution (default: $HTMLGRAPH_AGENT or 'cli')",
+    )
+    feature_create.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    feature_create.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
     # feature start
     feature_start = feature_subparsers.add_parser("start", help="Start working on a feature")
     feature_start.add_argument("id", help="Feature ID")
     feature_start.add_argument("--collection", "-c", default="features", help="Collection (features, bugs)")
+    feature_start.add_argument(
+        "--agent",
+        default=os.environ.get("HTMLGRAPH_AGENT") or "cli",
+        help="Agent name for attribution (default: $HTMLGRAPH_AGENT or 'cli')",
+    )
     feature_start.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
     feature_start.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
 
@@ -1095,6 +1293,11 @@ curl Examples:
     feature_complete = feature_subparsers.add_parser("complete", help="Mark feature as complete")
     feature_complete.add_argument("id", help="Feature ID")
     feature_complete.add_argument("--collection", "-c", default="features", help="Collection (features, bugs)")
+    feature_complete.add_argument(
+        "--agent",
+        default=os.environ.get("HTMLGRAPH_AGENT") or "cli",
+        help="Agent name for attribution (default: $HTMLGRAPH_AGENT or 'cli')",
+    )
     feature_complete.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
     feature_complete.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
 
@@ -1102,6 +1305,11 @@ curl Examples:
     feature_primary = feature_subparsers.add_parser("primary", help="Set primary feature")
     feature_primary.add_argument("id", help="Feature ID")
     feature_primary.add_argument("--collection", "-c", default="features", help="Collection (features, bugs)")
+    feature_primary.add_argument(
+        "--agent",
+        default=os.environ.get("HTMLGRAPH_AGENT") or "cli",
+        help="Agent name for attribution (default: $HTMLGRAPH_AGENT or 'cli')",
+    )
     feature_primary.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
     feature_primary.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
 
@@ -1148,6 +1356,18 @@ curl Examples:
     # git-event
     git_event_parser = subparsers.add_parser("git-event", help="Log Git events (commit, checkout, merge, push)")
     git_event_parser.add_argument("event_type", choices=["commit", "checkout", "merge", "push"], help="Type of Git event")
+    git_event_parser.add_argument(
+        "args",
+        nargs="*",
+        help="Event-specific args (checkout: old new flag; merge: squash_flag; push: remote_name remote_url)",
+    )
+
+    # mcp
+    mcp_parser = subparsers.add_parser("mcp", help="Minimal MCP server (stdio)")
+    mcp_subparsers = mcp_parser.add_subparsers(dest="mcp_command", help="MCP command")
+    mcp_serve = mcp_subparsers.add_parser("serve", help="Serve MCP over stdio")
+    mcp_serve.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    mcp_serve.add_argument("--agent", default="mcp", help="Agent name for session attribution")
 
     args = parser.parse_args()
 
@@ -1178,7 +1398,9 @@ curl Examples:
     elif args.command == "track":
         cmd_track(args)
     elif args.command == "feature":
-        if args.feature_command == "start":
+        if args.feature_command == "create":
+            cmd_feature_create(args)
+        elif args.feature_command == "start":
             cmd_feature_start(args)
         elif args.feature_command == "complete":
             cmd_feature_complete(args)
@@ -1205,6 +1427,12 @@ curl Examples:
         cmd_watch(args)
     elif args.command == "git-event":
         cmd_git_event(args)
+    elif args.command == "mcp":
+        if args.mcp_command == "serve":
+            cmd_mcp_serve(args)
+        else:
+            mcp_parser.print_help()
+            sys.exit(1)
     else:
         parser.print_help()
         sys.exit(1)

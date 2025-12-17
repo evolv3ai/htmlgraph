@@ -3,8 +3,14 @@ Playwright tests for HtmlGraph dashboard UI.
 
 Run with: uv run pytest tests/python/test_dashboard_ui.py --headed
 """
+import os
 import pytest
 from playwright.sync_api import Page, expect
+
+pytestmark = pytest.mark.skipif(
+    os.environ.get("HTMLGRAPH_UI_TESTS") != "1",
+    reason="UI tests require Playwright browsers + a running server; set HTMLGRAPH_UI_TESTS=1 to enable.",
+)
 
 
 @pytest.fixture(scope="session")
