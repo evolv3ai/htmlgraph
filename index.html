@@ -203,70 +203,12 @@
         }
 
         /* ================================================================
-           STATS BAR
-           ================================================================ */
-        .stats-bar {
-            display: flex;
-            gap: 1px;
-            background: var(--border-strong);
-            border: 2px solid var(--border-strong);
-            margin-bottom: 2rem;
-            overflow: hidden;
-        }
-
-        .stat {
-            flex: 1;
-            background: var(--bg-secondary);
-            padding: 1.25rem 1.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-            position: relative;
-        }
-
-        .stat::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: var(--accent);
-            transform: scaleX(0);
-            transform-origin: left;
-            transition: transform 0.3s var(--ease-out-expo);
-        }
-
-        .stat:hover::after {
-            transform: scaleX(1);
-        }
-
-        .stat-value {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 2rem;
-            font-weight: 700;
-            line-height: 1;
-        }
-
-        .stat-label {
-            font-size: 0.6875rem;
-            text-transform: uppercase;
-            letter-spacing: 0.15em;
-            color: var(--text-muted);
-            font-weight: 500;
-        }
-
-        .stat.highlight .stat-value {
-            color: var(--accent);
-        }
-
-        /* ================================================================
            VIEW TOGGLE
            ================================================================ */
         .view-toggle {
             display: flex;
             gap: 0;
-            margin-bottom: 2rem;
+            margin-bottom: 1rem;
             border: 2px solid var(--border-strong);
             width: fit-content;
         }
@@ -310,7 +252,8 @@
         }
 
         .kanban.active {
-            display: grid;
+            display: block;
+            width: 100%;
         }
 
         /* Dynamic grid: expanded columns grow, collapsed stay fixed */
@@ -573,6 +516,287 @@
         }
 
         /* ================================================================
+           TRACK-GROUPED KANBAN
+           ================================================================ */
+        .track-sections-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .track-section {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-strong);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+            transition: all 0.3s var(--ease-out-expo);
+        }
+
+        .track-header {
+            padding: 1rem 1.5rem;
+            background: var(--bg-tertiary);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            transition: background 0.2s;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .track-header:hover {
+            background: var(--border);
+        }
+
+        .track-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .track-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .track-icon {
+            font-size: 1.5rem;
+        }
+
+        .track-title h3 {
+            margin: 0;
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .track-meta {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .track-link-btn {
+            padding: 0.5rem 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .track-link-btn:hover:not(:disabled):not(.disabled) {
+            background: var(--accent);
+            color: var(--accent-text);
+            border-color: var(--accent);
+            transform: translateY(-1px);
+        }
+
+        .track-link-btn:disabled,
+        .track-link-btn.disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .track-link-full {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 1.25rem;
+            transition: color 0.2s;
+        }
+
+        .track-link-full:hover {
+            color: var(--accent);
+        }
+
+        .track-progress-bar {
+            position: relative;
+            width: 100%;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .progress-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent) 0%, var(--accent-bright) 100%);
+            transition: width 0.4s var(--ease-out-expo);
+            border-radius: 4px;
+            opacity: 0.8;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--bg-primary);
+            font-weight: 700;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+            mix-blend-mode: difference;
+        }
+
+        .expand-icon {
+            transition: transform 0.3s var(--ease-out-expo);
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        .track-section.expanded .expand-icon,
+        .untracked-section.expanded .expand-icon {
+            transform: rotate(180deg);
+        }
+
+        .track-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s var(--ease-out-expo);
+        }
+
+        .track-content.collapsed {
+            max-height: 0;
+        }
+
+        .track-section.expanded .track-content {
+            max-height: 2000px;
+            padding: 1rem;
+        }
+
+        /* Track Kanban Grid */
+        .track-kanban {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+        }
+
+        @media (max-width: 1200px) {
+            .track-kanban {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .track-kanban {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .track-column {
+            background: var(--bg-primary);
+            border: 2px solid var(--border);
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            max-height: 60vh;
+        }
+
+        .track-column-header {
+            padding: 0.75rem 1rem;
+            background: var(--bg-secondary);
+            border-bottom: 2px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .track-column-cards {
+            padding: 0.75rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        /* Untracked Section */
+        .untracked-section {
+            margin-top: 2rem;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-strong);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+        }
+
+        .untracked-header {
+            padding: 1rem 1.5rem;
+            background: var(--bg-tertiary);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            transition: background 0.2s;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .untracked-header:hover {
+            background: var(--border);
+        }
+
+        .untracked-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .untracked-icon {
+            font-size: 1.5rem;
+        }
+
+        .untracked-title h3 {
+            margin: 0;
+            color: #ff9500;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .untracked-meta {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .untracked-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s var(--ease-out-expo);
+        }
+
+        .untracked-content.collapsed {
+            max-height: 0;
+        }
+
+        .untracked-section.expanded .untracked-content {
+            max-height: 2000px;
+            padding: 1rem;
+        }
+
+        /* Empty state */
+        .empty-state {
+            padding: 4rem 2rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 1.125rem;
+        }
+
+        /* ================================================================
            CARDS
            ================================================================ */
         .card {
@@ -775,6 +999,17 @@
         }
 
         .sessions.active {
+            display: block;
+        }
+
+        /* ================================================================
+           TRACKS VIEW
+           ================================================================ */
+        .tracks {
+            display: none;
+        }
+
+        .tracks.active {
             display: block;
         }
 
@@ -1539,6 +1774,217 @@
             color: var(--text-muted);
             font-family: 'JetBrains Mono', monospace;
         }
+
+        /* ================================================================
+           SPEC/PLAN MODAL VIEWER - Slide-in Panel
+           ================================================================ */
+        .spec-plan-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 9999;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s var(--ease-out-expo);
+        }
+
+        .spec-plan-modal.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .spec-plan-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            cursor: pointer;
+        }
+
+        .spec-plan-panel {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 90%;
+            max-width: 1400px;
+            background: var(--bg-primary);
+            box-shadow: -8px 0 32px rgba(0, 0, 0, 0.5);
+            transform: translateX(100%);
+            transition: transform 0.4s var(--ease-out-expo);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .spec-plan-modal.active .spec-plan-panel {
+            transform: translateX(0);
+        }
+
+        .spec-plan-header {
+            background: var(--bg-secondary);
+            border-bottom: 2px solid var(--border);
+            padding: 1.5rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .spec-plan-breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .spec-plan-breadcrumb a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .spec-plan-breadcrumb a:hover {
+            color: var(--accent);
+        }
+
+        .spec-plan-breadcrumb .separator {
+            color: var(--text-muted);
+        }
+
+        .spec-plan-breadcrumb .current {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .spec-plan-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .spec-plan-toggle {
+            display: flex;
+            gap: 0.5rem;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            padding: 4px;
+        }
+
+        .spec-plan-toggle button {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .spec-plan-toggle button:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .spec-plan-toggle button.active {
+            background: var(--accent);
+            color: var(--accent-text);
+            font-weight: 600;
+        }
+
+        .spec-plan-close {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .spec-plan-close:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            transform: scale(1.1);
+        }
+
+        .spec-plan-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+
+        .spec-plan-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .spec-plan-error {
+            text-align: center;
+            padding: 3rem;
+            color: var(--status-blocked);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Content styling within modal */
+        .spec-plan-content article {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Make sure nested styles inherit properly */
+        .spec-plan-content h1,
+        .spec-plan-content h2,
+        .spec-plan-content h3 {
+            color: var(--text-primary);
+        }
+
+        .spec-plan-content .badge {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .spec-plan-panel {
+                width: 100%;
+                max-width: 100%;
+            }
+
+            .spec-plan-header {
+                padding: 1rem 1.5rem;
+            }
+
+            .spec-plan-breadcrumb {
+                font-size: 0.75rem;
+            }
+
+            .spec-plan-toggle {
+                display: none; /* Hide toggle on mobile, show only close */
+            }
+
+            .spec-plan-content {
+                padding: 1rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1556,24 +2002,17 @@
             </div>
         </header>
 
-        <!-- Stats Bar -->
-        <div class="stats-bar" id="stats">
-            <div class="stat"><span class="stat-value">-</span><span class="stat-label">Total</span></div>
-            <div class="stat highlight"><span class="stat-value">-</span><span class="stat-label">Done</span></div>
-            <div class="stat"><span class="stat-value">-</span><span class="stat-label">Active</span></div>
-            <div class="stat"><span class="stat-value">-</span><span class="stat-label">Blocked</span></div>
-        </div>
-
         <!-- View Toggle -->
         <div class="view-toggle">
-            <button class="view-btn active" data-view="kanban">Kanban</button>
+            <button class="view-btn active" data-view="tracks">Tracks</button>
+            <button class="view-btn" data-view="kanban">Features</button>
             <button class="view-btn" data-view="graph">Graph</button>
             <button class="view-btn" data-view="analytics">Analytics</button>
             <button class="view-btn" data-view="sessions">Sessions</button>
         </div>
 
-        <!-- Kanban View -->
-        <div class="kanban active" id="kanban"></div>
+        <!-- Features View (Track-Grouped Kanban) -->
+        <div class="kanban" id="kanban"></div>
 
         <!-- Graph View -->
         <div class="graph-container" id="graph-container">
@@ -1675,6 +2114,11 @@
             </div>
 
             <div id="sessions-list" class="loading">Loading sessions...</div>
+        </div>
+
+        <!-- Tracks View -->
+        <div class="tracks active" id="tracks">
+            <div id="tracks-list" class="loading">Loading tracks...</div>
         </div>
     </div>
 
@@ -1837,17 +2281,6 @@
         // =====================================================================
         // Rendering
         // =====================================================================
-
-        function renderStats(status) {
-            const s = status.by_status || {};
-            const stats = document.getElementById('stats');
-            stats.innerHTML = `
-                <div class="stat"><span class="stat-value">${status.total_nodes}</span><span class="stat-label">Total</span></div>
-                <div class="stat highlight"><span class="stat-value">${s['done'] || 0}</span><span class="stat-label">Done</span></div>
-                <div class="stat"><span class="stat-value">${s['in-progress'] || 0}</span><span class="stat-label">Active</span></div>
-                <div class="stat"><span class="stat-value">${s['blocked'] || 0}</span><span class="stat-label">Blocked</span></div>
-            `;
-        }
 
         function formatPercent(value) {
             if (value === null || value === undefined || Number.isNaN(value)) return '—';
@@ -2600,6 +3033,72 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
             loadAndRenderSessions();
         }
 
+        // =====================================================================
+        // Tracks View
+        // =====================================================================
+
+        async function loadAndRenderTracks() {
+            const tracksListEl = document.getElementById('tracks-list');
+
+            try {
+                // Fetch all tracks from the API
+                const response = await fetch(`${API}/tracks`);
+                if (!response.ok) throw new Error('Failed to load tracks');
+
+                const data = await response.json();
+                const tracks = data.nodes || [];
+
+                if (tracks.length === 0) {
+                    tracksListEl.innerHTML = '<div class="loading">No tracks found.</div>';
+                    return;
+                }
+
+                // Fetch all features to group by track
+                const featuresResponse = await fetch(`${API}/query?type=feature`);
+                const featuresData = await featuresResponse.json();
+                const allFeatures = featuresData.nodes || [];
+
+                // Group features by track_id
+                const featuresByTrack = {};
+                allFeatures.forEach(feature => {
+                    const trackId = feature.track_id || 'untracked';
+                    if (!featuresByTrack[trackId]) {
+                        featuresByTrack[trackId] = [];
+                    }
+                    featuresByTrack[trackId].push(feature);
+                });
+
+                // Prepare track data in the same format as FEATURES view
+                const tracksWithMetadata = tracks.map(track => ({
+                    track: track,
+                    features: featuresByTrack[track.id] || []
+                }));
+
+                // Sort by priority (critical > high > medium > low)
+                const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+                tracksWithMetadata.sort((a, b) => priorityOrder[a.track.priority] - priorityOrder[b.track.priority]);
+
+                // Remove loading class to eliminate padding
+                tracksListEl.className = '';
+
+                // Use the shared renderTrackSections function (same as FEATURES view)
+                tracksListEl.innerHTML = `
+                    <div class="track-sections-container">
+                        ${tracksWithMetadata.map((trackData, idx) => renderTrackSection(trackData, idx === 0)).join('')}
+                    </div>
+                    <div style="margin-top: 1rem; text-align: center; color: var(--text-muted); font-size: 0.875rem;">
+                        ${tracks.length} track${tracks.length !== 1 ? 's' : ''} found
+                    </div>
+                `;
+
+                // Add event listeners using the shared function (same as FEATURES view)
+                attachTrackEventListeners('#tracks-list');
+
+            } catch (err) {
+                tracksListEl.innerHTML = `<div class="loading">Error loading tracks: ${err.message}</div>`;
+            }
+        }
+
         // Get collapsed columns from localStorage
         function getCollapsedColumns() {
             try {
@@ -2673,75 +3172,352 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
             updateKanbanGrid();
         }
 
-        function renderKanban(nodes) {
-            const byStatus = {};
-            STATUSES.forEach(s => byStatus[s] = []);
-            nodes.forEach(n => {
-                if (byStatus[n.status]) byStatus[n.status].push(n);
+        // =====================================================================
+        // Track-Grouped Kanban (Phase 1: Data Preparation)
+        // =====================================================================
+
+        function groupByTrack(nodes) {
+            const tracked = new Map(); // track_id -> {track: metadata, features: []}
+            const untracked = [];
+
+            nodes.forEach(node => {
+                if (node.track_id) {
+                    if (!tracked.has(node.track_id)) {
+                        tracked.set(node.track_id, {
+                            track: null, // Will be populated via API
+                            features: []
+                        });
+                    }
+                    tracked.get(node.track_id).features.push(node);
+                } else {
+                    untracked.push(node);
+                }
             });
 
-            const collapsed = getCollapsedColumns();
+            return { tracked, untracked };
+        }
 
-            document.getElementById('kanban').innerHTML = STATUSES.map((status, colIndex) => `
-                <div class="column ${status} ${collapsed.includes(status) ? 'collapsed' : ''}" data-status="${status}">
-                    <div class="column-header">
-                        <div class="column-header-left">
-                            <span class="column-title">${STATUS_LABELS[status]}</span>
-                            <span class="column-count">${byStatus[status].length}</span>
+        async function loadTrackMetadata(trackIds) {
+            // Fetch track info from /api/tracks/{id} for each track_id
+            const promises = trackIds.map(async (trackId) => {
+                try {
+                    const response = await fetch(`${API}/tracks/${trackId}`);
+                    if (!response.ok) throw new Error(`Track ${trackId} not found`);
+                    const track = await response.json();
+                    return track;
+                } catch (err) {
+                    console.error(`Failed to load track ${trackId}:`, err);
+                    // Return minimal track object on error
+                    return {
+                        id: trackId,
+                        title: trackId,
+                        priority: 'medium',
+                        status: 'unknown',
+                        has_spec: false,
+                        has_plan: false
+                    };
+                }
+            });
+
+            return await Promise.all(promises);
+        }
+
+        async function renderKanban(nodes) {
+            // Filter to only show features in the kanban view
+            const features = nodes.filter(n => n.type === 'feature');
+            const { tracked, untracked } = groupByTrack(features);
+            const tracksWithMetadata = await loadTrackMetadata(Array.from(tracked.keys()));
+
+            // Merge metadata
+            tracksWithMetadata.forEach(track => {
+                if (tracked.has(track.id)) {
+                    tracked.get(track.id).track = track;
+                }
+            });
+
+            // Sort tracks by priority (critical > high > medium > low)
+            const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+            const sortedTracks = Array.from(tracked.values())
+                .filter(t => t.track !== null)
+                .sort((a, b) => priorityOrder[a.track.priority] - priorityOrder[b.track.priority]);
+
+            // Render
+            renderTrackSections(sortedTracks);
+            renderUntrackedSection(untracked);
+        }
+
+        // Shared function to attach event listeners to track sections using event delegation
+        function attachTrackEventListeners(containerSelector = '') {
+            if (!containerSelector) return; // Require a container selector for proper scoping
+
+            const container = document.querySelector(containerSelector);
+            if (!container) {
+                console.warn(`Container ${containerSelector} not found for event listeners`);
+                return;
+            }
+
+            // Check if we've already attached listeners to this container
+            if (container.dataset.listenersAttached === 'true') {
+                return; // Already attached, don't duplicate
+            }
+
+            // Mark as having listeners attached
+            container.dataset.listenersAttached = 'true';
+
+            // Use event delegation - attach single listener to container
+            container.addEventListener('click', (e) => {
+                // Check if click was on a button
+                const button = e.target.closest('.track-link-btn');
+                if (button && container.contains(button)) {
+                    e.stopPropagation(); // Prevent toggle from firing
+
+                    if (button.disabled) return;
+
+                    const trackSection = button.closest('.track-section');
+                    if (trackSection) {
+                        const trackId = trackSection.dataset.trackId;
+                        const trackTitle = trackSection.querySelector('.track-title h3')?.textContent || trackId;
+
+                        // Determine which button was clicked
+                        if (button.classList.contains('spec')) {
+                            openSpecPlanModal(trackId, 'spec', trackTitle);
+                        } else if (button.classList.contains('plan')) {
+                            openSpecPlanModal(trackId, 'plan', trackTitle);
+                        } else {
+                            // The 🔗 button (track link)
+                            openSpecPlanModal(trackId, 'track', trackTitle);
+                        }
+                    }
+                    return;
+                }
+
+                // Check if click was on a track header
+                const trackHeader = e.target.closest('.track-header');
+                if (trackHeader && container.contains(trackHeader)) {
+                    const trackSection = trackHeader.closest('.track-section');
+                    if (trackSection) {
+                        const trackId = trackSection.dataset.trackId;
+                        toggleTrackSection(trackId, containerSelector);
+                    }
+                    return;
+                }
+
+                // Check if click was on a card
+                const card = e.target.closest('.track-section .card');
+                if (card && container.contains(card)) {
+                    openPanel(card.dataset.collection, card.dataset.id);
+                    return;
+                }
+            });
+        }
+
+        function renderTrackSections(sortedTracks) {
+            const container = document.getElementById('kanban');
+
+            // Clear container for fresh render
+            container.innerHTML = '';
+
+            if (sortedTracks.length === 0) {
+                // Don't render track sections, but don't return - let untracked section render
+                return;
+            }
+
+            // Check localStorage for previously expanded track
+            const expandedTrackId = localStorage.getItem('expandedTrackId');
+            let defaultExpandIndex = 0;
+
+            // If we have a saved expanded track, find its index
+            if (expandedTrackId) {
+                const savedIndex = sortedTracks.findIndex(t => t.track.id === expandedTrackId);
+                if (savedIndex !== -1) {
+                    defaultExpandIndex = savedIndex;
+                }
+            }
+
+            container.innerHTML = `
+                <div class="track-sections-container">
+                    ${sortedTracks.map((trackData, idx) => renderTrackSection(trackData, idx === defaultExpandIndex)).join('')}
+                </div>
+            `;
+
+            // Use shared event listener attachment
+            attachTrackEventListeners('#kanban');
+        }
+
+        function renderTrackSection(trackData, isFirstTrack = false) {
+            const { track, features } = trackData;
+
+            // Calculate stats
+            const total = features.length;
+            const done = features.filter(f => f.status === 'done').length;
+            const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+
+            return `
+                <div class="track-section ${isFirstTrack ? 'expanded' : ''}" data-track-id="${track.id}">
+                    <div class="track-header">
+                        <div class="track-title-row">
+                            <div class="track-title">
+                                <span class="track-icon">📦</span>
+                                <h3>${track.title}</h3>
+                                <span class="badge priority-${track.priority}">${track.priority}</span>
+                            </div>
+                            <div class="track-meta">
+                                <button class="track-link-btn spec ${!track.has_spec ? 'disabled' : ''}"
+                                        ${!track.has_spec ? 'disabled' : ''}>
+                                    📝 Spec
+                                </button>
+                                <button class="track-link-btn plan ${!track.has_plan ? 'disabled' : ''}"
+                                        ${!track.has_plan ? 'disabled' : ''}>
+                                    📋 Plan
+                                </button>
+                                <button class="track-link-btn" title="View track">
+                                    🔗
+                                </button>
+                                <span class="expand-icon">▼</span>
+                            </div>
                         </div>
-                        <button class="collapse-btn" data-status="${status}" title="${collapsed.includes(status) ? 'Expand' : 'Collapse'}" aria-label="${collapsed.includes(status) ? 'Expand' : 'Collapse'} column"></button>
+                        <div class="track-progress-bar">
+                            <div class="progress-fill" style="width: ${progress}%"></div>
+                            <span class="progress-text">${done}/${total} features</span>
+                        </div>
                     </div>
-                    <div class="column-cards">
-                        ${byStatus[status].length === 0
-                            ? '<div class="empty-column">No items</div>'
-                            : byStatus[status].map((n, i) => `
-                                <div class="card priority-${n.priority}"
-                                     data-collection="${n._collection}"
-                                     data-id="${n.id}"
-                                     style="animation-delay: ${(colIndex * 50) + (i * 30)}ms">
-                                    <div class="card-title">${n.title}</div>
-                                    <div class="card-meta">
-                                        <span class="badge priority-${n.priority}">${n.priority}</span>
-                                        ${n.type !== 'feature' ? `<span class="badge type">${n.type}</span>` : ''}
-                                        <span class="card-path">${n._collection}/${n.id}</span>
-                                    </div>
-                                </div>
-                            `).join('')}
+                    <div class="track-content ${isFirstTrack ? '' : 'collapsed'}">
+                        ${renderTrackKanban(features)}
                     </div>
                 </div>
-            `).join('');
+            `;
+        }
 
-            // Add card click handlers
-            document.querySelectorAll('.card').forEach(card => {
+        function renderTrackKanban(features) {
+            // Group features by status for this track
+            const byStatus = {};
+            STATUSES.forEach(s => byStatus[s] = []);
+            features.forEach(f => {
+                if (byStatus[f.status]) byStatus[f.status].push(f);
+            });
+
+            return `
+                <div class="track-kanban">
+                    ${STATUSES.map(status => `
+                        <div class="track-column ${status}">
+                            <div class="track-column-header">
+                                <span class="column-title">${STATUS_LABELS[status]}</span>
+                                <span class="column-count">${byStatus[status].length}</span>
+                            </div>
+                            <div class="track-column-cards">
+                                ${byStatus[status].length === 0
+                                    ? '<div class="empty-column">No items</div>'
+                                    : byStatus[status].map(f => `
+                                        <div class="card priority-${f.priority}"
+                                             data-collection="${f._collection}"
+                                             data-id="${f.id}">
+                                            <div class="card-title">${f.title}</div>
+                                            <div class="card-meta">
+                                                <span class="badge priority-${f.priority}">${f.priority}</span>
+                                                ${f.type !== 'feature' ? `<span class="badge type">${f.type}</span>` : ''}
+                                                <span class="card-path">${f._collection}/${f.id}</span>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function toggleTrackSection(trackId, containerSelector = '') {
+            const baseSelector = containerSelector || '';
+            const allSectionsSelector = baseSelector ? `${baseSelector} .track-section` : '.track-section';
+            const targetSelector = baseSelector ? `${baseSelector} .track-section[data-track-id="${trackId}"]` : `.track-section[data-track-id="${trackId}"]`;
+
+            const allSections = document.querySelectorAll(allSectionsSelector);
+            const targetSection = document.querySelector(targetSelector);
+
+            if (!targetSection) return;
+
+            const isCurrentlyExpanded = targetSection.classList.contains('expanded');
+
+            // Collapse all sections in this container
+            allSections.forEach(section => {
+                section.classList.remove('expanded');
+                const content = section.querySelector('.track-content');
+                if (content) content.classList.add('collapsed');
+            });
+
+            // If it wasn't expanded, expand it now
+            if (!isCurrentlyExpanded) {
+                targetSection.classList.add('expanded');
+                const content = targetSection.querySelector('.track-content');
+                if (content) content.classList.remove('collapsed');
+
+                // Store in localStorage
+                localStorage.setItem('expandedTrackId', trackId);
+            } else {
+                // If it was expanded and we collapsed it, clear localStorage
+                localStorage.removeItem('expandedTrackId');
+            }
+        }
+
+        function renderUntrackedSection(untracked) {
+            if (untracked.length === 0) return;
+
+            const container = document.getElementById('kanban');
+            const done = untracked.filter(f => f.status === 'done').length;
+            const total = untracked.length;
+            const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+
+            // Check localStorage for untracked section state
+            const isExpanded = localStorage.getItem('untrackedExpanded') === 'true';
+
+            container.innerHTML += `
+                <div class="untracked-section ${isExpanded ? 'expanded' : ''}" data-section-id="untracked">
+                    <div class="untracked-header" onclick="toggleUntrackedSection()">
+                        <div class="track-title-row">
+                            <div class="untracked-title">
+                                <span class="untracked-icon">⚠️</span>
+                                <h3>Untracked Features</h3>
+                                <span class="badge priority-medium">No Track</span>
+                            </div>
+                            <div class="untracked-meta">
+                                <span class="expand-icon">▼</span>
+                            </div>
+                        </div>
+                        <div class="track-progress-bar">
+                            <div class="progress-fill" style="width: ${progress}%"></div>
+                            <span class="progress-text">${done}/${total} features</span>
+                        </div>
+                    </div>
+                    <div class="untracked-content ${isExpanded ? '' : 'collapsed'}">
+                        ${renderTrackKanban(untracked)}
+                    </div>
+                </div>
+            `;
+
+            // Add card click handlers for untracked section
+            document.querySelectorAll('.untracked-section .card').forEach(card => {
                 card.addEventListener('click', () => {
                     openPanel(card.dataset.collection, card.dataset.id);
                 });
             });
+        }
 
-            // Add collapse button handlers
-            document.querySelectorAll('.collapse-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    toggleColumnCollapse(btn.dataset.status);
-                    // Update button state
-                    const isNowCollapsed = document.querySelector(`.column.${btn.dataset.status}`).classList.contains('collapsed');
-                    btn.title = isNowCollapsed ? 'Expand' : 'Collapse';
-                    btn.setAttribute('aria-label', isNowCollapsed ? 'Expand column' : 'Collapse column');
-                });
-            });
+        function toggleUntrackedSection() {
+            const section = document.querySelector('.untracked-section');
+            if (!section) return;
 
-            // Add click to expand on collapsed columns
-            document.querySelectorAll('.column.collapsed').forEach(col => {
-                col.addEventListener('click', (e) => {
-                    if (e.target.closest('.collapse-btn')) return;
-                    toggleColumnCollapse(col.dataset.status);
-                    const btn = col.querySelector('.collapse-btn');
-                    if (btn) {
-                        btn.title = 'Collapse';
-                        btn.setAttribute('aria-label', 'Collapse column');
-                    }
-                });
-            });
+            const isExpanded = section.classList.contains('expanded');
+            const content = section.querySelector('.untracked-content');
+
+            if (isExpanded) {
+                section.classList.remove('expanded');
+                if (content) content.classList.add('collapsed');
+                localStorage.removeItem('untrackedExpanded');
+            } else {
+                section.classList.add('expanded');
+                if (content) content.classList.remove('collapsed');
+                localStorage.setItem('untrackedExpanded', 'true');
+            }
         }
 
         // =====================================================================
@@ -3210,8 +3986,7 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
 
         async function refreshDashboard() {
             const { status, nodes } = await loadData();
-            renderStats(status);
-            renderKanban(nodes);
+            await renderKanban(nodes);
             updateKanbanGrid();
         }
 
@@ -3434,6 +4209,7 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
             const graph = document.getElementById('graph-container');
             const analytics = document.getElementById('analytics');
             const sessions = document.getElementById('sessions');
+            const tracks = document.getElementById('tracks');
             const buttons = document.querySelectorAll('.view-btn');
 
             buttons.forEach(btn => {
@@ -3445,24 +4221,35 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                 graph.classList.remove('active');
                 analytics.classList.remove('active');
                 sessions.classList.remove('active');
+                tracks.classList.remove('active');
             } else if (view === 'graph') {
                 kanban.classList.remove('active');
                 graph.classList.add('active');
                 analytics.classList.remove('active');
                 sessions.classList.remove('active');
+                tracks.classList.remove('active');
                 renderGraph(allNodes);
             } else if (view === 'analytics') {
                 kanban.classList.remove('active');
                 graph.classList.remove('active');
                 analytics.classList.add('active');
                 sessions.classList.remove('active');
+                tracks.classList.remove('active');
                 ensureAnalyticsLoaded(false);
             } else if (view === 'sessions') {
                 kanban.classList.remove('active');
                 graph.classList.remove('active');
                 analytics.classList.remove('active');
                 sessions.classList.add('active');
+                tracks.classList.remove('active');
                 loadAndRenderSessions();
+            } else if (view === 'tracks') {
+                kanban.classList.remove('active');
+                graph.classList.remove('active');
+                analytics.classList.remove('active');
+                sessions.classList.remove('active');
+                tracks.classList.add('active');
+                loadAndRenderTracks();
             }
         }
 
@@ -3504,13 +4291,217 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
             if (e.key === 'Escape') closePanel();
         });
 
-        loadData().then(({ status, nodes }) => {
-            renderStats(status);
-            renderKanban(nodes);
+        loadData().then(async ({ status, nodes }) => {
+            await renderKanban(nodes);
             updateKanbanGrid();
+            await loadAndRenderTracks(); // Load tracks view (now default)
         }).catch(err => {
-            document.getElementById('stats').innerHTML = `<div class="loading">Error: ${err.message}</div>`;
+            console.error('Error loading data:', err);
+        });
+
+        // =====================================================================
+        // Spec/Plan Modal Viewer
+        // =====================================================================
+
+        let currentModalTrackId = null;
+        let currentModalType = null; // 'spec' or 'plan'
+
+        function openSpecPlanModal(trackId, type, trackTitle) {
+            currentModalTrackId = trackId;
+            currentModalType = type;
+
+            const modal = document.getElementById('spec-plan-modal');
+            const breadcrumbTrack = document.getElementById('modal-breadcrumb-track');
+            const breadcrumbType = document.getElementById('modal-breadcrumb-type');
+            const trackBtn = document.getElementById('modal-toggle-track');
+            const specBtn = document.getElementById('modal-toggle-spec');
+            const planBtn = document.getElementById('modal-toggle-plan');
+            const toggleContainer = specBtn.parentElement;
+
+            // Update breadcrumb
+            breadcrumbTrack.textContent = trackTitle || trackId;
+            breadcrumbType.textContent = type.toUpperCase();
+
+            // Always show toggle buttons
+            toggleContainer.style.display = 'flex';
+
+            // Remove active from all buttons
+            trackBtn.classList.remove('active');
+            specBtn.classList.remove('active');
+            planBtn.classList.remove('active');
+
+            // Set active based on type
+            if (type === 'track') {
+                trackBtn.classList.add('active');
+            } else if (type === 'spec') {
+                specBtn.classList.add('active');
+            } else if (type === 'plan') {
+                planBtn.classList.add('active');
+            }
+
+            // Show modal with animation
+            modal.style.display = 'flex';
+            setTimeout(() => modal.classList.add('active'), 10);
+
+            // Load content
+            loadSpecPlanContent(trackId, type);
+        }
+
+        function closeSpecPlanModal() {
+            const modal = document.getElementById('spec-plan-modal');
+            modal.classList.remove('active');
+            setTimeout(() => {
+                modal.style.display = 'none';
+                currentModalTrackId = null;
+                currentModalType = null;
+            }, 400); // Match CSS transition duration
+        }
+
+        function toggleSpecPlan(type) {
+            if (type === currentModalType || !currentModalTrackId) return;
+
+            currentModalType = type;
+
+            // Update toggle buttons
+            const trackBtn = document.getElementById('modal-toggle-track');
+            const specBtn = document.getElementById('modal-toggle-spec');
+            const planBtn = document.getElementById('modal-toggle-plan');
+
+            // Remove active from all
+            trackBtn.classList.remove('active');
+            specBtn.classList.remove('active');
+            planBtn.classList.remove('active');
+
+            // Add active to current
+            if (type === 'track') {
+                trackBtn.classList.add('active');
+            } else if (type === 'spec') {
+                specBtn.classList.add('active');
+            } else if (type === 'plan') {
+                planBtn.classList.add('active');
+            }
+
+            // Update breadcrumb
+            document.getElementById('modal-breadcrumb-type').textContent = type.toUpperCase();
+
+            // Load new content
+            loadSpecPlanContent(currentModalTrackId, type);
+        }
+
+        async function loadSpecPlanContent(trackId, type) {
+            const contentEl = document.getElementById('spec-plan-content');
+            contentEl.innerHTML = '<div class="spec-plan-loading">Loading...</div>';
+
+            try {
+                // Determine the filename based on type
+                const filename = type === 'track' ? 'index.html' : `${type}.html`;
+                const url = `.htmlgraph/tracks/${trackId}/${filename}`;
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    const typeName = type === 'spec' ? 'Specification' : type === 'plan' ? 'Plan' : 'Track';
+                    throw new Error(`${typeName} not found`);
+                }
+
+                const html = await response.text();
+
+                // Parse HTML and extract the content
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+
+                // Get the article content (or body if no article)
+                const article = doc.querySelector('article') || doc.querySelector('body');
+
+                if (article) {
+                    contentEl.innerHTML = article.innerHTML;
+
+                    // Re-initialize any interactive elements (collapsible sections, etc.)
+                    initializeModalInteractivity();
+                } else {
+                    contentEl.innerHTML = '<div class="spec-plan-error">Failed to load content</div>';
+                }
+
+            } catch (err) {
+                contentEl.innerHTML = `<div class="spec-plan-error">Error: ${err.message}</div>`;
+            }
+        }
+
+        function initializeModalInteractivity() {
+            // Intercept clicks on spec/plan links in track content
+            const specPlanLinks = document.querySelectorAll('.spec-plan-content nav[data-track-components] a');
+            specPlanLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    const href = this.getAttribute('href');
+                    if (href === '#' || href === 'spec.html' || href === 'plan.html') {
+                        e.preventDefault();
+                        // Determine type from link text
+                        const text = this.textContent.toLowerCase();
+                        if (text.includes('spec')) {
+                            toggleSpecPlan('spec');
+                        } else if (text.includes('plan')) {
+                            toggleSpecPlan('plan');
+                        }
+                    }
+                });
+            });
+
+            // Re-initialize collapsible phases if they exist
+            const phaseHeaders = document.querySelectorAll('.spec-plan-content .phase-header');
+            phaseHeaders.forEach(header => {
+                header.style.cursor = 'pointer';
+                header.addEventListener('click', function() {
+                    const phaseContent = this.nextElementSibling;
+                    if (phaseContent && phaseContent.classList.contains('phase-content')) {
+                        phaseContent.classList.toggle('collapsed');
+                    }
+                });
+            });
+
+            // Re-initialize search/filter if it exists
+            const searchInput = document.querySelector('.spec-plan-content input[type="text"]');
+            if (searchInput) {
+                searchInput.addEventListener('input', function(e) {
+                    // Implement search logic here if needed
+                    console.log('Search:', e.target.value);
+                });
+            }
+        }
+
+        // Keyboard shortcut to close modal (Escape key)
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && currentModalTrackId) {
+                closeSpecPlanModal();
+            }
         });
     </script>
+
+    <!-- Spec/Plan Modal -->
+    <div id="spec-plan-modal" class="spec-plan-modal">
+        <div class="spec-plan-backdrop" onclick="closeSpecPlanModal()"></div>
+        <div class="spec-plan-panel">
+            <div class="spec-plan-header">
+                <div class="spec-plan-breadcrumb">
+                    <a href="#" onclick="closeSpecPlanModal(); return false;">TRACKS</a>
+                    <span class="separator">›</span>
+                    <span id="modal-breadcrumb-track">...</span>
+                    <span class="separator">›</span>
+                    <span class="current" id="modal-breadcrumb-type">SPEC</span>
+                </div>
+                <div class="spec-plan-controls">
+                    <div class="spec-plan-toggle">
+                        <button id="modal-toggle-track" onclick="toggleSpecPlan('track')">📦 TRACK</button>
+                        <button id="modal-toggle-spec" onclick="toggleSpecPlan('spec')">📝 SPEC</button>
+                        <button id="modal-toggle-plan" onclick="toggleSpecPlan('plan')">📋 PLAN</button>
+                    </div>
+                    <button class="spec-plan-close" onclick="closeSpecPlanModal()" title="Close (Esc)">
+                        ✕
+                    </button>
+                </div>
+            </div>
+            <div id="spec-plan-content" class="spec-plan-content">
+                <div class="spec-plan-loading">Loading...</div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

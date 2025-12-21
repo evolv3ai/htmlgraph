@@ -101,6 +101,11 @@ class Node(BaseModel):
     content: str = ""
     agent_assigned: str | None = None
 
+    # Vertical integration: Track/Spec/Plan relationships
+    track_id: str | None = None  # Which track this feature belongs to
+    plan_task_id: str | None = None  # Which plan task this feature implements
+    spec_requirements: list[str] = Field(default_factory=list)  # Which spec requirements this satisfies
+
     def model_post_init(self, __context: Any) -> None:
         """Lightweight validation for required fields."""
         if not self.id or not str(self.id).strip():

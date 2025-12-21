@@ -123,7 +123,7 @@ class HtmlParser:
         }
 
         # Standard attributes
-        for attr in ["type", "status", "priority", "agent-assigned"]:
+        for attr in ["type", "status", "priority", "agent-assigned", "track-id", "plan-task-id"]:
             value = self.get_data_attribute(article, attr)
             if value:
                 key = attr.replace("-", "_")

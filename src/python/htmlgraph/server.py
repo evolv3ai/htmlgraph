@@ -38,7 +38,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
     analytics_db: AnalyticsIndex | None = None
 
     # Work item types (subfolders in .htmlgraph/)
-    COLLECTIONS = ["features", "bugs", "spikes", "chores", "epics", "sessions", "agents"]
+    COLLECTIONS = ["features", "bugs", "spikes", "chores", "epics", "sessions", "agents", "tracks"]
 
     def __init__(self, *args, **kwargs):
         # Set directory for static file serving
@@ -50,11 +50,76 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         if collection not in self.graphs:
             collection_dir = self.graph_dir / collection
             collection_dir.mkdir(parents=True, exist_ok=True)
-            self.graphs[collection] = HtmlGraph(
-                collection_dir,
-                stylesheet_path="../styles.css",
-                auto_load=True
-            )
+
+            # Tracks support both file-based (track-xxx.html) and directory-based (track-xxx/index.html)
+            if collection == "tracks":
+                from htmlgraph.planning import Track
+
+                graph = HtmlGraph(
+                    collection_dir,
+                    stylesheet_path="../styles.css",
+                    auto_load=False  # Manual load to handle both patterns
+                )
+
+                # Helper function to convert Node to Track with file existence checks
+                def node_to_track(node: Node, filepath: Path) -> Track:
+                    """Convert a Node to a Track with has_spec/has_plan detection."""
+                    # Determine track directory
+                    if filepath.name == "index.html":
+                        # Directory-based: track-id/index.html
+                        track_dir = filepath.parent
+                    else:
+                        # File-based: track-id.html (no spec/plan support)
+                        track_dir = None
+
+                    # Check for spec and plan files
+                    has_spec = track_dir and (track_dir / "spec.html").exists() if track_dir else False
+                    has_plan = track_dir and (track_dir / "plan.html").exists() if track_dir else False
+
+                    # Create Track object from Node data
+                    track_data = {
+                        "id": node.id,
+                        "title": node.title,
+                        "description": node.content or "",
+                        "status": node.status if node.status in ["planned", "active", "completed", "abandoned"] else "planned",
+                        "priority": node.priority,
+                        "created": node.created,
+                        "updated": node.updated,
+                        "has_spec": has_spec,
+                        "has_plan": has_plan,
+                        "features": [],  # Will be populated from properties if present
+                        "sessions": [],  # Will be populated from properties if present
+                    }
+
+                    return Track(**track_data)
+
+                # Load file-based tracks (track-xxx.html)
+                for filepath in collection_dir.glob("*.html"):
+                    try:
+                        from htmlgraph.converter import html_to_node
+                        node = html_to_node(filepath)
+                        track = node_to_track(node, filepath)
+                        graph._nodes[track.id] = track
+                    except Exception:
+                        continue
+
+                # Load directory-based tracks (track-xxx/index.html)
+                for filepath in collection_dir.glob("*/index.html"):
+                    try:
+                        from htmlgraph.converter import html_to_node
+                        node = html_to_node(filepath)
+                        track = node_to_track(node, filepath)
+                        graph._nodes[track.id] = track
+                    except Exception:
+                        continue
+
+                self.graphs[collection] = graph
+            else:
+                self.graphs[collection] = HtmlGraph(
+                    collection_dir,
+                    stylesheet_path="../styles.css",
+                    auto_load=True
+                )
         return self.graphs[collection]
 
     def _send_json(self, data: Any, status: int = 200):
@@ -134,6 +199,14 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         if collection == "analytics":
             return self._handle_analytics(node_id, params)
 
+        # GET /api/tracks/{track_id}/features - Get features for a track
+        if collection == "tracks" and node_id and params.get("features") == "true":
+            return self._handle_track_features(node_id)
+
+        # GET /api/features/{feature_id}/context - Get track/plan/spec context
+        if collection == "features" and node_id and params.get("context") == "true":
+            return self._handle_feature_context(node_id)
+
         # GET /api/collections - List available collections
         if collection == "collections":
             return self._send_json({"collections": self.COLLECTIONS})
@@ -155,6 +228,24 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         if api != "api":
             self._send_error_json("API endpoint required", 400)
             return
+
+        # POST /api/tracks/{track_id}/generate-features - Generate features from plan
+        if collection == "tracks" and node_id and params.get("generate-features") == "true":
+            try:
+                self._handle_generate_features(node_id)
+                return
+            except Exception as e:
+                self._send_error_json(str(e), 500)
+                return
+
+        # POST /api/tracks/{track_id}/sync - Sync task/spec completion
+        if collection == "tracks" and node_id and params.get("sync") == "true":
+            try:
+                self._handle_sync_track(node_id)
+                return
+            except Exception as e:
+                self._send_error_json(str(e), 500)
+                return
 
         if collection not in self.COLLECTIONS:
             self._send_error_json(f"Unknown collection: {collection}", 404)
@@ -619,6 +710,17 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
 
     def _handle_delete(self, collection: str, node_id: str):
         """Delete a node."""
+        # Special handling for tracks (directories, not single files)
+        if collection == "tracks":
+            from htmlgraph.track_manager import TrackManager
+            manager = TrackManager(self.graph_dir)
+            try:
+                manager.delete_track(node_id)
+                self._send_json({"deleted": node_id, "collection": collection})
+            except ValueError as e:
+                self._send_error_json(str(e), 404)
+            return
+
         graph = self._get_graph(collection)
 
         if node_id not in graph:
@@ -627,6 +729,121 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
 
         graph.remove(node_id)
         self._send_json({"deleted": node_id, "collection": collection})
+
+    # =========================================================================
+    # Track-Feature Integration Handlers
+    # =========================================================================
+
+    def _handle_track_features(self, track_id: str):
+        """Get all features for a track."""
+        features_graph = self._get_graph("features")
+
+        # Filter features by track_id
+        track_features = [
+            node_to_dict(node)
+            for node in features_graph
+            if hasattr(node, 'track_id') and node.track_id == track_id
+        ]
+
+        self._send_json({
+            "track_id": track_id,
+            "features": track_features,
+            "count": len(track_features)
+        })
+
+    def _handle_feature_context(self, feature_id: str):
+        """Get track/plan/spec context for a feature."""
+        features_graph = self._get_graph("features")
+
+        if feature_id not in features_graph:
+            self._send_error_json(f"Feature not found: {feature_id}", 404)
+            return
+
+        feature = features_graph.get(feature_id)
+
+        if not feature:
+            self._send_error_json(f"Feature not found: {feature_id}", 404)
+            return
+
+        context = {
+            "feature_id": feature_id,
+            "feature_title": feature.title,
+            "track_id": feature.track_id if hasattr(feature, 'track_id') else None,
+            "plan_task_id": feature.plan_task_id if hasattr(feature, 'plan_task_id') else None,
+            "spec_requirements": feature.spec_requirements if hasattr(feature, 'spec_requirements') else [],
+        }
+
+        # Load track info if linked
+        if context["track_id"]:
+            from htmlgraph.track_manager import TrackManager
+            manager = TrackManager(self.graph_dir)
+            track_path = manager.tracks_dir / context["track_id"]
+
+            context["track_exists"] = track_path.exists()
+            context["has_spec"] = (track_path / "spec.html").exists()
+            context["has_plan"] = (track_path / "plan.html").exists()
+
+        self._send_json(context)
+
+    def _handle_generate_features(self, track_id: str):
+        """Generate features from plan tasks."""
+        from htmlgraph.track_manager import TrackManager
+        from htmlgraph.planning import Plan
+
+        manager = TrackManager(self.graph_dir)
+
+        # Load the plan
+        try:
+            plan = manager.load_plan(track_id)
+        except FileNotFoundError:
+            self._send_error_json(f"Plan not found for track: {track_id}", 404)
+            return
+
+        # Generate features
+        try:
+            features = manager.generate_features_from_plan(
+                track_id=track_id,
+                plan=plan,
+                features_dir=self.graph_dir / "features"
+            )
+
+            # Reload features graph to include new features
+            self.graphs.pop("features", None)
+
+            self._send_json({
+                "track_id": track_id,
+                "generated": len(features),
+                "feature_ids": [f.id for f in features]
+            })
+        except Exception as e:
+            self._send_error_json(f"Failed to generate features: {str(e)}", 500)
+
+    def _handle_sync_track(self, track_id: str):
+        """Sync task and spec completion based on features."""
+        from htmlgraph.track_manager import TrackManager
+
+        manager = TrackManager(self.graph_dir)
+        features_graph = self._get_graph("features")
+
+        try:
+            # Sync task completion
+            plan = manager.sync_task_completion(track_id, features_graph)
+
+            # Sync spec satisfaction
+            spec = manager.check_spec_satisfaction(track_id, features_graph)
+
+            # Reload tracks graph
+            self.graphs.pop("tracks", None)
+
+            self._send_json({
+                "track_id": track_id,
+                "plan_updated": True,
+                "spec_updated": True,
+                "plan_completion": plan.completion_percentage,
+                "spec_status": spec.status
+            })
+        except Exception as e:
+            self._send_error_json(f"Failed to sync track: {str(e)}", 500)
 
     def log_message(self, format: str, *args):
         """Custom log format."""

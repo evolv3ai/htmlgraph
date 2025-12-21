@@ -12,12 +12,19 @@ Session Management:
     htmlgraph session start [--id ID] [--agent AGENT]
     htmlgraph session end ID
     htmlgraph session list
-    htmlgraph track TOOL SUMMARY [--session ID] [--files FILE...]
+    htmlgraph activity TOOL SUMMARY [--session ID] [--files FILE...]
 
 Feature Management:
     htmlgraph feature start ID
     htmlgraph feature complete ID
     htmlgraph feature primary ID
+
+Track Management (Conductor-Style Planning):
+    htmlgraph track new TITLE [--priority PRIORITY]
+    htmlgraph track list
+    htmlgraph track spec TRACK_ID TITLE
+    htmlgraph track plan TRACK_ID TITLE
+    htmlgraph track delete TRACK_ID
 """
 
 import argparse
@@ -1013,6 +1020,253 @@ def cmd_feature_list(args):
             print(f"{node.id:<25} {node.status:<12} {node.priority:<10} {title}")
 
 
+# =============================================================================
+# Track Management Commands (Conductor-Style Planning)
+# =============================================================================
+
+def cmd_feature_step_complete(args):
+    """Mark one or more feature steps as complete via API."""
+    import json
+    import http.client
+
+    # Parse step indices (support both space-separated and comma-separated)
+    step_indices = []
+    for step_arg in args.steps:
+        if ',' in step_arg:
+            # Comma-separated: "0,1,2"
+            step_indices.extend(int(s.strip()) for s in step_arg.split(',') if s.strip())
+        else:
+            # Space-separated: "0" "1" "2"
+            step_indices.append(int(step_arg))
+
+    # Remove duplicates and sort
+    step_indices = sorted(set(step_indices))
+
+    if not step_indices:
+        print("Error: No step indices provided", file=sys.stderr)
+        sys.exit(1)
+
+    # Make API requests for each step
+    success_count = 0
+    error_count = 0
+    results = []
+
+    for step_index in step_indices:
+        try:
+            conn = http.client.HTTPConnection(args.host, args.port, timeout=5)
+            body = json.dumps({"complete_step": step_index})
+            headers = {"Content-Type": "application/json"}
+            
+            conn.request("PATCH", f"/api/{args.collection}/{args.id}", body, headers)
+            response = conn.getresponse()
+            response_data = response.read().decode()
+            
+            if response.status == 200:
+                success_count += 1
+                results.append({"step": step_index, "status": "success"})
+                if args.format != "json":
+                    print(f"✓ Marked step {step_index} complete")
+            else:
+                error_count += 1
+                results.append({"step": step_index, "status": "error", "message": response_data})
+                if args.format != "json":
+                    print(f"✗ Failed to mark step {step_index} complete: {response_data}", file=sys.stderr)
+            
+            conn.close()
+        except Exception as e:
+            error_count += 1
+            results.append({"step": step_index, "status": "error", "message": str(e)})
+            if args.format != "json":
+                print(f"✗ Error marking step {step_index} complete: {e}", file=sys.stderr)
+
+    # Output results
+    if args.format == "json":
+        output = {
+            "feature_id": args.id,
+            "total_steps": len(step_indices),
+            "success": success_count,
+            "errors": error_count,
+            "results": results
+        }
+        print(json.dumps(output, indent=2))
+    else:
+        print(f"\nCompleted {success_count}/{len(step_indices)} steps for feature '{args.id}'")
+        if error_count > 0:
+            sys.exit(1)
+
+
+
+def cmd_track_new(args):
+    """Create a new track."""
+    from htmlgraph.track_manager import TrackManager
+    import json
+
+    manager = TrackManager(args.graph_dir)
+
+    try:
+        track = manager.create_track(
+            title=args.title,
+            description=args.description or "",
+            priority=args.priority,
+        )
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.format == "json":
+        data = {
+            "id": track.id,
+            "title": track.title,
+            "status": track.status,
+            "priority": track.priority,
+            "path": f"{args.graph_dir}/tracks/{track.id}/"
+        }
+        print(json.dumps(data, indent=2))
+    else:
+        print(f"Created track: {track.id}")
+        print(f"  Title: {track.title}")
+        print(f"  Status: {track.status}")
+        print(f"  Priority: {track.priority}")
+        print(f"  Path: {args.graph_dir}/tracks/{track.id}/")
+        print(f"\nNext steps:")
+        print(f"  - Create spec: htmlgraph track spec {track.id} 'Spec Title'")
+        print(f"  - Create plan: htmlgraph track plan {track.id} 'Plan Title'")
+
+
+def cmd_track_list(args):
+    """List all tracks."""
+    from htmlgraph.track_manager import TrackManager
+    import json
+
+    manager = TrackManager(args.graph_dir)
+    track_ids = manager.list_tracks()
+
+    if args.format == "json":
+        print(json.dumps({"tracks": track_ids}, indent=2))
+    else:
+        if not track_ids:
+            print("No tracks found.")
+            print(f"\nCreate a track with: htmlgraph track new 'Track Title'")
+            return
+
+        print(f"Tracks in {args.graph_dir}/tracks/:")
+        print("=" * 60)
+        for track_id in track_ids:
+            track_path = Path(args.graph_dir) / "tracks" / track_id
+            has_spec = (track_path / "spec.html").exists()
+            has_plan = (track_path / "plan.html").exists()
+
+            components = []
+            if has_spec:
+                components.append("spec")
+            if has_plan:
+                components.append("plan")
+
+            components_str = f" [{', '.join(components)}]" if components else " [empty]"
+            print(f"  {track_id}{components_str}")
+
+
+def cmd_track_spec(args):
+    """Create a spec for a track."""
+    from htmlgraph.track_manager import TrackManager
+    import json
+
+    manager = TrackManager(args.graph_dir)
+
+    try:
+        spec = manager.create_spec(
+            track_id=args.track_id,
+            title=args.title,
+            overview=args.overview or "",
+            context=args.context or "",
+            author=args.author,
+        )
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.format == "json":
+        data = {
+            "id": spec.id,
+            "title": spec.title,
+            "track_id": spec.track_id,
+            "status": spec.status,
+            "path": f"{args.graph_dir}/tracks/{args.track_id}/spec.html"
+        }
+        print(json.dumps(data, indent=2))
+    else:
+        print(f"Created spec: {spec.id}")
+        print(f"  Title: {spec.title}")
+        print(f"  Track: {spec.track_id}")
+        print(f"  Status: {spec.status}")
+        print(f"  Path: {args.graph_dir}/tracks/{args.track_id}/spec.html")
+        print(f"\nView spec: open {args.graph_dir}/tracks/{args.track_id}/spec.html")
+
+
+def cmd_track_plan(args):
+    """Create a plan for a track."""
+    from htmlgraph.track_manager import TrackManager
+    import json
+
+    manager = TrackManager(args.graph_dir)
+
+    try:
+        plan = manager.create_plan(
+            track_id=args.track_id,
+            title=args.title,
+        )
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.format == "json":
+        data = {
+            "id": plan.id,
+            "title": plan.title,
+            "track_id": plan.track_id,
+            "status": plan.status,
+            "path": f"{args.graph_dir}/tracks/{args.track_id}/plan.html"
+        }
+        print(json.dumps(data, indent=2))
+    else:
+        print(f"Created plan: {plan.id}")
+        print(f"  Title: {plan.title}")
+        print(f"  Track: {plan.track_id}")
+        print(f"  Status: {plan.status}")
+        print(f"  Path: {args.graph_dir}/tracks/{args.track_id}/plan.html")
+        print(f"\nView plan: open {args.graph_dir}/tracks/{args.track_id}/plan.html")
+
+
+def cmd_track_delete(args):
+    """Delete a track."""
+    from htmlgraph.track_manager import TrackManager
+    import json
+
+    manager = TrackManager(args.graph_dir)
+
+    try:
+        manager.delete_track(args.track_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.format == "json":
+        data = {
+            "deleted": True,
+            "track_id": args.track_id
+        }
+        print(json.dumps(data, indent=2))
+    else:
+        print(f"✓ Deleted track: {args.track_id}")
+        print(f"  Removed: {args.graph_dir}/tracks/{args.track_id}/")
+
+
 def create_default_index(path: Path):
     """
     Create a default index.html for new projects.
@@ -1053,13 +1307,20 @@ Session Management:
   htmlgraph session start --id my-session --title "Bug fixes"
   htmlgraph session end my-session  # End a session
   htmlgraph session list            # List all sessions
-  htmlgraph track Edit "Edit: src/app.py:45-60" --files src/app.py
+  htmlgraph activity Edit "Edit: src/app.py:45-60" --files src/app.py
 
 Feature Management:
   htmlgraph feature list            # List all features
   htmlgraph feature start feat-001  # Start working on a feature
   htmlgraph feature primary feat-001  # Set primary feature
+  htmlgraph feature step-complete feat-001 0 1 2  # Mark steps complete
   htmlgraph feature complete feat-001  # Mark feature as done
+
+Track Management (Conductor-Style Planning):
+  htmlgraph track new "User Authentication"  # Create a new track
+  htmlgraph track list              # List all tracks
+  htmlgraph track spec track-001-auth "Auth Specification"  # Create spec
+  htmlgraph track plan track-001-auth "Auth Implementation Plan"  # Create plan
 
 curl Examples:
   curl localhost:8080/api/status
@@ -1157,15 +1418,15 @@ curl Examples:
     session_validate.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
     session_validate.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
 
-    # track
-    track_parser = subparsers.add_parser("track", help="Track an activity")
-    track_parser.add_argument("tool", help="Tool name (Edit, Bash, Read, etc.)")
-    track_parser.add_argument("summary", help="Activity summary")
-    track_parser.add_argument("--session", help="Session ID (uses active session if not provided)")
-    track_parser.add_argument("--files", nargs="*", help="Files involved")
-    track_parser.add_argument("--failed", action="store_true", help="Mark as failed")
-    track_parser.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    track_parser.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    # activity (legacy: was "track")
+    activity_parser = subparsers.add_parser("activity", help="Track an activity (legacy: use 'htmlgraph track' for new features)")
+    activity_parser.add_argument("tool", help="Tool name (Edit, Bash, Read, etc.)")
+    activity_parser.add_argument("summary", help="Activity summary")
+    activity_parser.add_argument("--session", help="Session ID (uses active session if not provided)")
+    activity_parser.add_argument("--files", nargs="*", help="Files involved")
+    activity_parser.add_argument("--failed", action="store_true", help="Mark as failed")
+    activity_parser.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    activity_parser.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
 
     # =========================================================================
     # Feature Management
@@ -1232,6 +1493,65 @@ curl Examples:
     feature_list.add_argument("--collection", "-c", default="features", help="Collection (features, bugs)")
     feature_list.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
     feature_list.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # feature step-complete
+    feature_step_complete = feature_subparsers.add_parser("step-complete", help="Mark feature step(s) as complete")
+    feature_step_complete.add_argument("id", help="Feature ID")
+    feature_step_complete.add_argument("steps", nargs="+", help="Step index(es) to mark complete (0-based, supports: 0 1 2 or 0,1,2)")
+    feature_step_complete.add_argument("--collection", "-c", default="features", help="Collection (features, bugs)")
+    feature_step_complete.add_argument(
+        "--agent",
+        default=os.environ.get("HTMLGRAPH_AGENT") or "cli",
+        help="Agent name for attribution (default: $HTMLGRAPH_AGENT or 'cli')",
+    )
+    feature_step_complete.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    feature_step_complete.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    feature_step_complete.add_argument("--host", default="localhost", help="API host (default: localhost)")
+    feature_step_complete.add_argument("--port", type=int, default=8080, help="API port (default: 8080)")
+
+    # =========================================================================
+    # Track Management (Conductor-Style Planning)
+    # =========================================================================
+
+    # track (with subcommands)
+    track_parser = subparsers.add_parser("track", help="Track management (Conductor-style planning)")
+    track_subparsers = track_parser.add_subparsers(dest="track_command", help="Track command")
+
+    # track new
+    track_new = track_subparsers.add_parser("new", help="Create a new track")
+    track_new.add_argument("title", help="Track title")
+    track_new.add_argument("--description", "-d", help="Track description")
+    track_new.add_argument("--priority", "-p", default="medium", choices=["low", "medium", "high", "critical"], help="Priority")
+    track_new.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    track_new.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # track list
+    track_list = track_subparsers.add_parser("list", help="List all tracks")
+    track_list.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    track_list.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # track spec
+    track_spec = track_subparsers.add_parser("spec", help="Create a spec for a track")
+    track_spec.add_argument("track_id", help="Track ID")
+    track_spec.add_argument("title", help="Spec title")
+    track_spec.add_argument("--overview", "-o", help="Spec overview")
+    track_spec.add_argument("--context", "-c", help="Context/rationale")
+    track_spec.add_argument("--author", "-a", default="claude-code", help="Spec author")
+    track_spec.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    track_spec.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # track plan
+    track_plan = track_subparsers.add_parser("plan", help="Create a plan for a track")
+    track_plan.add_argument("track_id", help="Track ID")
+    track_plan.add_argument("title", help="Plan title")
+    track_plan.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    track_plan.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # track delete
+    track_delete = track_subparsers.add_parser("delete", help="Delete a track")
+    track_delete.add_argument("track_id", help="Track ID to delete")
+    track_delete.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    track_delete.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
 
     # =========================================================================
     # Events & Analytics Index
@@ -1308,8 +1628,24 @@ curl Examples:
         else:
             session_parser.print_help()
             sys.exit(1)
-    elif args.command == "track":
+    elif args.command == "activity":
+        # Legacy activity tracking command
         cmd_track(args)
+    elif args.command == "track":
+        # New track management commands
+        if args.track_command == "new":
+            cmd_track_new(args)
+        elif args.track_command == "list":
+            cmd_track_list(args)
+        elif args.track_command == "spec":
+            cmd_track_spec(args)
+        elif args.track_command == "plan":
+            cmd_track_plan(args)
+        elif args.track_command == "delete":
+            cmd_track_delete(args)
+        else:
+            track_parser.print_help()
+            sys.exit(1)
     elif args.command == "feature":
         if args.feature_command == "create":
             cmd_feature_create(args)
@@ -1320,6 +1656,11 @@ curl Examples:
         elif args.feature_command == "primary":
             cmd_feature_primary(args)
         elif args.feature_command == "list":
+            cmd_feature_list(args)
+        elif args.feature_command == "step-complete":
+            cmd_feature_step_complete(args)
+        elif args.feature_command == "step-complete":
+            cmd_feature_step_complete(args)
             cmd_feature_list(args)
         else:
             feature_parser.print_help()

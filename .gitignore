@@ -47,3 +47,4 @@ Thumbs.db
 .htmlgraph/index.sqlite
 .htmlgraph/index.sqlite-wal
 .htmlgraph/index.sqlite-shm
+.env

@@ -21,19 +21,50 @@ Use this skill when HtmlGraph is tracking the session to ensure proper activity 
 
 ## Core Responsibilities
 
-### 1. Feature Awareness
+### 1. **NEVER Edit .htmlgraph Files Directly** (CRITICAL)
+
+**ABSOLUTE RULE: You must NEVER use Read, Write, or Edit tools on `.htmlgraph/` HTML files.**
+
+❌ **FORBIDDEN:**
+- `Write('/path/to/.htmlgraph/features/feature-123.html', ...)`
+- `Edit('/path/to/.htmlgraph/sessions/session-456.html', ...)`
+- `Write('/path/to/.htmlgraph/tracks/track-789/plan.html', ...)`
+
+✅ **REQUIRED - Use API/CLI instead:**
+- `curl -X POST localhost:8080/api/features -d '{"title": "..."}'`
+- `curl -X PATCH localhost:8080/api/features/feat-123 -d '{"status": "done"}'`
+- `htmlgraph feature create/start/complete/step-complete`
+- `htmlgraph track new/list/spec/plan`
+- `htmlgraph session start/end`
+
+**Why this matters:**
+- Direct file edits bypass validation and schema checks
+- Bypasses event logging and activity tracking
+- Breaks the SQLite index sync
+- Can corrupt graph structure and relationships
+
+**Exception:** You MAY read `.htmlgraph/` files to view content, but NEVER write or edit them.
+
+### 2. Feature Awareness
 Always be aware of which feature(s) are currently in progress:
 - Check active features at session start
 - Reference the current feature when discussing work
 - Alert if work appears to drift from the assigned feature
 
-### 2. Activity Attribution
+### 3. Step Completion (CRITICAL)
+**Mark each step complete IMMEDIATELY after finishing it:**
+- Use curl PATCH to `/api/features/<id>` with `{"complete_step": index}`
+- Step 0 = first step, step 1 = second step (0-based indexing)
+- Do NOT wait until all steps are done - mark each one as you finish
+- See "How to Mark Steps Complete" section below for exact commands
+
+### 4. Activity Attribution
 HtmlGraph automatically tracks tool usage, but you should:
 - Use descriptive summaries in Bash `description` parameter
 - Reference feature IDs in commit messages
 - Mention the feature context when starting new tasks
 
-### 3. Documentation Habits
+### 5. Documentation Habits
 For every significant piece of work:
 - Summarize what was done and why
 - Note any decisions made and alternatives considered
@@ -131,10 +162,43 @@ See `docs/WORKFLOW.md` for the complete decision framework with detailed criteri
 
 ### During Work
 - [ ] Feature marked "in-progress" before coding
-- [ ] Mark steps complete via API as you finish
+- [ ] **CRITICAL: Mark each step complete IMMEDIATELY after finishing it** (see below)
 - [ ] Document decisions with `uv run htmlgraph track`
 - [ ] Test incrementally
 - [ ] Watch for drift warnings
+
+#### How to Mark Steps Complete
+
+**IMPORTANT:** After finishing each step, mark it complete using curl:
+
+```bash
+# Mark step 0 (first step) as complete
+curl -X PATCH http://localhost:8080/api/features/<feature-id> \
+  -H "Content-Type: application/json" \
+  -d '{"complete_step": 0}'
+
+# Mark step 1 (second step) as complete
+curl -X PATCH http://localhost:8080/api/features/<feature-id> \
+  -H "Content-Type: application/json" \
+  -d '{"complete_step": 1}'
+```
+
+**Step numbering is 0-based** (first step = 0, second step = 1, etc.)
+
+**When to mark complete:**
+- ✅ IMMEDIATELY after finishing a step
+- ✅ Even if you continue working on the feature
+- ✅ Before moving to the next step
+- ❌ NOT at the end when all steps are done (too late!)
+
+**Example workflow:**
+1. Start feature: `uv run htmlgraph feature start feature-123`
+2. Work on step 0 (e.g., "Design models")
+3. **MARK STEP 0 COMPLETE** → `curl -X PATCH ...`
+4. Work on step 1 (e.g., "Create templates")
+5. **MARK STEP 1 COMPLETE** → `curl -X PATCH ...`
+6. Continue until all steps done
+7. Complete feature: `uv run htmlgraph feature complete feature-123`
 
 ### Session End (Before Completion)
 - [ ] All tests pass: `uv run pytest`
