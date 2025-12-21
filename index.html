@@ -927,6 +927,114 @@
             margin-bottom: 0.75rem;
         }
 
+        .analytics-card-wide {
+            grid-column: 1 / -1;
+        }
+
+        /* Commit DAG Visualization */
+        .commit-dag-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        .commit-dag-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .commit-dag-svg .commit-node {
+            cursor: pointer;
+            transition: transform 0.15s ease;
+        }
+
+        .commit-dag-svg .commit-node:hover {
+            transform: scale(1.1);
+        }
+
+        .commit-dag-svg .commit-node circle {
+            stroke-width: 2px;
+            stroke: var(--border-strong);
+        }
+
+        .commit-dag-svg .commit-node.merge circle {
+            stroke-width: 3px;
+            stroke: var(--priority-medium);
+        }
+
+        .commit-dag-svg .commit-node.external circle {
+            stroke-dasharray: 4 2;
+            opacity: 0.6;
+        }
+
+        .commit-dag-svg .commit-node text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            fill: var(--text-primary);
+            text-anchor: middle;
+            dominant-baseline: middle;
+            pointer-events: none;
+        }
+
+        .commit-dag-svg .commit-edge {
+            stroke: var(--text-muted);
+            stroke-width: 2px;
+            fill: none;
+        }
+
+        .commit-dag-svg .commit-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            fill: var(--text-secondary);
+        }
+
+        .commit-dag-svg .branch-label {
+            font-family: 'Outfit', sans-serif;
+            font-size: 11px;
+            fill: var(--accent-dim);
+            font-weight: 600;
+        }
+
+        .commit-dag-legend {
+            display: flex;
+            gap: 1rem;
+            margin-top: 0.75rem;
+            font-size: 0.7rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-muted);
+        }
+
+        .commit-dag-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .commit-dag-legend-item .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 2px solid var(--border-strong);
+        }
+
+        .commit-dag-legend-item .dot.large {
+            background: var(--status-active);
+        }
+
+        .commit-dag-legend-item .dot.small {
+            background: var(--status-todo);
+            width: 8px;
+            height: 8px;
+        }
+
+        .commit-dag-legend-item .dot.external {
+            border-style: dashed;
+            opacity: 0.6;
+        }
+
         .analytics-kpis {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -1513,6 +1621,9 @@
                 <div class="analytics-card" id="analytics-commits">
                     <div class="loading">Select a feature to see commits…</div>
                 </div>
+                <div class="analytics-card analytics-card-wide" id="analytics-commit-dag">
+                    <div class="loading">Select a feature to see commit graph…</div>
+                </div>
             </div>
         </div>
 
@@ -1888,6 +1999,247 @@
             `;
         }
 
+        // =====================================================================
+        // Commit DAG Visualization
+        // =====================================================================
+        let commitDagSimulation = null;
+
+        function renderCommitDag(featureId, graph) {
+            const el = document.getElementById('analytics-commit-dag');
+            const nodes = graph?.nodes || [];
+            const edges = graph?.edges || [];
+
+            if (nodes.length === 0) {
+                el.innerHTML = `
+                    <h3>Commit Graph: ${featureId}</h3>
+                    <p class="analytics-note">No commits found for this feature yet. Make commits with this feature active to populate the graph.</p>
+                `;
+                return;
+            }
+
+            // Build the visualization HTML
+            el.innerHTML = `
+                <h3>Commit Graph: ${featureId}</h3>
+                <p class="analytics-note">DAG visualization of commits advancing this feature. Larger nodes = more changes. Hover for details.</p>
+                <div class="commit-dag-container">
+                    <svg class="commit-dag-svg" id="commit-dag-svg">
+                        <defs>
+                            <marker id="commit-arrowhead" viewBox="0 0 10 10" refX="25" refY="5"
+                                markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+                                <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-muted)" />
+                            </marker>
+                        </defs>
+                        <g class="edges-group"></g>
+                        <g class="nodes-group"></g>
+                    </svg>
+                </div>
+                <div class="commit-dag-legend">
+                    <div class="commit-dag-legend-item">
+                        <div class="dot large"></div>
+                        <span>Many changes</span>
+                    </div>
+                    <div class="commit-dag-legend-item">
+                        <div class="dot small"></div>
+                        <span>Few changes</span>
+                    </div>
+                    <div class="commit-dag-legend-item">
+                        <div class="dot external"></div>
+                        <span>Parent (external)</span>
+                    </div>
+                </div>
+            `;
+
+            // Now render the DAG with d3-force
+            const svg = document.getElementById('commit-dag-svg');
+            const edgesGroup = svg.querySelector('.edges-group');
+            const nodesGroup = svg.querySelector('.nodes-group');
+            const rect = svg.getBoundingClientRect();
+            const width = rect.width || 800;
+            const height = rect.height || 400;
+
+            // Create node map for quick lookup
+            const nodeById = new Map();
+            const graphNodes = nodes.map((n, i) => {
+                const node = {
+                    id: n.id,
+                    hash: n.commit_hash_short || n.id.slice(0, 7),
+                    subject: n.subject || '',
+                    branch: n.branch || '',
+                    ts: n.ts || '',
+                    isMerge: n.is_merge || false,
+                    external: n.external || false,
+                    insertions: n.insertions || 0,
+                    deletions: n.deletions || 0,
+                    x: width * 0.1 + (i * width * 0.8 / Math.max(1, nodes.length - 1)),
+                    y: height / 2
+                };
+                nodeById.set(node.id, node);
+                return node;
+            });
+
+            // Build edges with source/target references
+            const graphEdges = edges.map(e => ({
+                source: e.from,
+                target: e.to
+            })).filter(e => nodeById.has(e.source) && nodeById.has(e.target));
+
+            // Calculate node radius based on changes
+            function getCommitRadius(node) {
+                if (node.external) return 12;
+                const changes = (node.insertions || 0) + (node.deletions || 0);
+                return Math.max(15, Math.min(35, 15 + Math.sqrt(changes) * 0.5));
+            }
+
+            // Get node color
+            function getCommitColor(node) {
+                if (node.external) return 'var(--bg-tertiary)';
+                if (node.isMerge) return 'var(--priority-medium)';
+                return 'var(--status-active)';
+            }
+
+            // Stop any previous simulation
+            if (commitDagSimulation) commitDagSimulation.stop();
+
+            // Create force simulation
+            commitDagSimulation = d3.forceSimulation(graphNodes)
+                .force('link', d3.forceLink(graphEdges)
+                    .id(d => d.id)
+                    .distance(80)
+                    .strength(0.8))
+                .force('charge', d3.forceManyBody()
+                    .strength(-200))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force('collision', d3.forceCollide().radius(d => getCommitRadius(d) + 10))
+                .force('x', d3.forceX(width / 2).strength(0.05))
+                .force('y', d3.forceY(height / 2).strength(0.1))
+                .on('tick', updateDagPositions);
+
+            // Render edges
+            graphEdges.forEach(edge => {
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                line.classList.add('commit-edge');
+                line.setAttribute('marker-end', 'url(#commit-arrowhead)');
+                line.dataset.source = typeof edge.source === 'object' ? edge.source.id : edge.source;
+                line.dataset.target = typeof edge.target === 'object' ? edge.target.id : edge.target;
+                edgesGroup.appendChild(line);
+            });
+
+            // Render nodes
+            graphNodes.forEach(node => {
+                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                g.classList.add('commit-node');
+                if (node.isMerge) g.classList.add('merge');
+                if (node.external) g.classList.add('external');
+                g.dataset.id = node.id;
+
+                const radius = getCommitRadius(node);
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('r', radius);
+                circle.setAttribute('fill', getCommitColor(node));
+
+                // Add hash label inside node
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.textContent = node.hash;
+
+                g.appendChild(circle);
+                g.appendChild(text);
+
+                // Add subject label below node
+                if (node.subject && !node.external) {
+                    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    label.classList.add('commit-label');
+                    label.setAttribute('dy', radius + 12);
+                    label.setAttribute('text-anchor', 'middle');
+                    const truncated = node.subject.length > 30 ? node.subject.slice(0, 27) + '...' : node.subject;
+                    label.textContent = truncated;
+                    g.appendChild(label);
+                }
+
+                // Add branch label above node
+                if (node.branch && !node.external) {
+                    const branchLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    branchLabel.classList.add('branch-label');
+                    branchLabel.setAttribute('dy', -(radius + 8));
+                    branchLabel.setAttribute('text-anchor', 'middle');
+                    branchLabel.textContent = node.branch;
+                    g.appendChild(branchLabel);
+                }
+
+                nodesGroup.appendChild(g);
+
+                // Add tooltip on hover
+                g.addEventListener('mouseenter', (e) => {
+                    const tooltip = `${node.hash}
+${node.branch || 'no branch'}
+${node.subject || 'external parent'}
++${node.insertions}/-${node.deletions}
+${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
+                    g.setAttribute('title', tooltip);
+                });
+
+                // Make nodes draggable
+                let isDragging = false;
+                let dragOffset = { x: 0, y: 0 };
+
+                g.addEventListener('mousedown', (e) => {
+                    isDragging = true;
+                    const svgRect = svg.getBoundingClientRect();
+                    dragOffset = {
+                        x: e.clientX - svgRect.left - node.x,
+                        y: e.clientY - svgRect.top - node.y
+                    };
+                    commitDagSimulation.alphaTarget(0.3).restart();
+                    e.preventDefault();
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if (isDragging) {
+                        const svgRect = svg.getBoundingClientRect();
+                        node.fx = e.clientX - svgRect.left - dragOffset.x;
+                        node.fy = e.clientY - svgRect.top - dragOffset.y;
+                    }
+                });
+
+                document.addEventListener('mouseup', () => {
+                    if (isDragging) {
+                        isDragging = false;
+                        node.fx = null;
+                        node.fy = null;
+                        commitDagSimulation.alphaTarget(0);
+                    }
+                });
+            });
+
+            function updateDagPositions() {
+                // Update node positions
+                nodesGroup.querySelectorAll('.commit-node').forEach(g => {
+                    const node = nodeById.get(g.dataset.id);
+                    if (node) {
+                        node.x = Math.max(40, Math.min(width - 40, node.x));
+                        node.y = Math.max(40, Math.min(height - 40, node.y));
+                        g.setAttribute('transform', `translate(${node.x}, ${node.y})`);
+                    }
+                });
+
+                // Update edge paths (curved for visual appeal)
+                edgesGroup.querySelectorAll('.commit-edge').forEach(path => {
+                    const source = nodeById.get(path.dataset.source);
+                    const target = nodeById.get(path.dataset.target);
+                    if (source && target) {
+                        const dx = target.x - source.x;
+                        const dy = target.y - source.y;
+                        const dr = Math.sqrt(dx * dx + dy * dy) * 0.5;
+                        path.setAttribute('d', `M${source.x},${source.y} Q${(source.x + target.x) / 2},${(source.y + target.y) / 2 - dr * 0.3} ${target.x},${target.y}`);
+                    }
+                });
+            }
+        }
+
+        async function loadAndRenderCommitDag(featureId) {
+            const data = await fetchAnalytics('commit-graph', { feature_id: featureId });
+            renderCommitDag(featureId, data.graph || {});
+        }
+
         function renderAnalyticsError(err) {
             const msg = err && err.message ? err.message : String(err);
             const overview = document.getElementById('analytics-overview');
@@ -1895,6 +2247,7 @@
             const features = document.getElementById('analytics-features');
             const continuity = document.getElementById('analytics-continuity');
             const commits = document.getElementById('analytics-commits');
+            const commitDag = document.getElementById('analytics-commit-dag');
             const hint = window.location.protocol === 'file:'
                 ? 'You opened this dashboard as a local file. Run <span class="mono">htmlgraph serve</span> and open <span class="mono">http://localhost:8080</span>, or pass <span class="mono">?api=http://localhost:8080/api</span>.'
                 : 'Ensure <span class="mono">htmlgraph serve</span> is running and accessible from this page.';
@@ -1911,6 +2264,7 @@
             features.innerHTML = html;
             continuity.innerHTML = html;
             commits.innerHTML = html;
+            if (commitDag) commitDag.innerHTML = html;
         }
 
         async function loadAndRenderAnalyticsBase() {
@@ -1941,14 +2295,22 @@
             renderAnalyticsCommits(featureId, data.commits || []);
         }
 
+        async function loadFeatureAnalytics(featureId) {
+            analyticsCache.selectedFeatureId = featureId;
+            await Promise.all([
+                loadAndRenderContinuity(featureId),
+                loadAndRenderCommits(featureId),
+                loadAndRenderCommitDag(featureId)
+            ]);
+        }
+
         async function ensureAnalyticsLoaded(force = false) {
             const stale = (Date.now() - analyticsLoadedAt) > 60_000;
             if (!force && analyticsCache.overview && !stale) return;
             try {
                 await loadAndRenderAnalyticsBase();
                 if (!analyticsCache.selectedFeatureId && analyticsCache.features && analyticsCache.features.length) {
-                    await loadAndRenderContinuity(analyticsCache.features[0].feature_id);
-                    await loadAndRenderCommits(analyticsCache.features[0].feature_id);
+                    await loadFeatureAnalytics(analyticsCache.features[0].feature_id);
                 }
             } catch (err) {
                 renderAnalyticsError(err);
@@ -3122,8 +3484,7 @@
         document.getElementById('analytics-features').addEventListener('click', (e) => {
             const btn = e.target.closest && e.target.closest('button[data-feature]');
             if (!btn) return;
-            loadAndRenderContinuity(btn.dataset.feature).catch(err => renderAnalyticsError(err));
-            loadAndRenderCommits(btn.dataset.feature).catch(err => renderAnalyticsError(err));
+            loadFeatureAnalytics(btn.dataset.feature).catch(err => renderAnalyticsError(err));
         });
 
         // Session filter event listeners
