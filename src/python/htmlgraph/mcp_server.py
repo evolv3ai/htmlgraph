@@ -10,6 +10,18 @@ Tools:
 - log_event(tool, summary, files?, success?, feature_id?, payload?, agent?)
 - get_active_feature()
 - set_active_feature(feature_id, collection?)
+
+For AI agents working with HtmlGraph:
+- Use the Python SDK for feature management (see AGENTS.md)
+- Use these MCP tools only for low-level event logging and session tracking
+- NEVER edit .htmlgraph HTML files directly - use SDK/API/CLI instead
+
+Example SDK usage:
+    from htmlgraph import SDK
+    sdk = SDK(agent="claude")
+    feature = sdk.features.create("Title").add_steps([...]).save()
+    with sdk.features.edit(feature.id) as f:
+        f.status = "done"
 """
 
 from __future__ import annotations

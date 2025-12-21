@@ -25,25 +25,56 @@ Use this skill when HtmlGraph is tracking the session to ensure proper activity 
 
 **ABSOLUTE RULE: You must NEVER use Read, Write, or Edit tools on `.htmlgraph/` HTML files.**
 
-❌ **FORBIDDEN:**
-- `Write('/path/to/.htmlgraph/features/feature-123.html', ...)`
-- `Edit('/path/to/.htmlgraph/sessions/session-456.html', ...)`
-- `Write('/path/to/.htmlgraph/tracks/track-789/plan.html', ...)`
+This is the most important architectural principle of HtmlGraph. AI agents MUST use the SDK, API, or CLI to ensure all HTML is validated through Pydantic + justhtml.
 
-✅ **REQUIRED - Use API/CLI instead:**
-- `curl -X POST localhost:8080/api/features -d '{"title": "..."}'`
-- `curl -X PATCH localhost:8080/api/features/feat-123 -d '{"status": "done"}'`
-- `htmlgraph feature create/start/complete/step-complete`
-- `htmlgraph track new/list/spec/plan`
-- `htmlgraph session start/end`
+❌ **FORBIDDEN:**
+```python
+# NEVER DO THIS
+Write('/path/to/.htmlgraph/features/feature-123.html', ...)
+Edit('/path/to/.htmlgraph/sessions/session-456.html', ...)
+with open('.htmlgraph/features/feature-123.html', 'w') as f:
+    f.write('<html>...</html>')
+```
+
+✅ **REQUIRED - Use SDK (recommended):**
+```python
+from htmlgraph import SDK
+
+sdk = SDK(agent="claude")
+
+# Create features
+feature = sdk.features.create("Title") \
+    .set_priority("high") \
+    .add_steps(["Step 1", "Step 2"]) \
+    .save()
+
+# Edit features (auto-saves)
+with sdk.features.edit("feature-123") as f:
+    f.status = "done"
+```
+
+✅ **ALTERNATIVE - Use API/CLI:**
+```bash
+# API
+curl -X POST localhost:8080/api/features -d '{"title": "..."}'
+curl -X PATCH localhost:8080/api/features/feat-123 -d '{"status": "done"}'
+
+# CLI
+htmlgraph feature create/start/complete/step-complete
+htmlgraph track new/list/spec/plan
+htmlgraph session start/end
+```
 
 **Why this matters:**
-- Direct file edits bypass validation and schema checks
-- Bypasses event logging and activity tracking
-- Breaks the SQLite index sync
+- Direct file edits bypass Pydantic validation
+- Bypass justhtml HTML generation (can create invalid HTML)
+- Break the SQLite index sync
+- Skip event logging and activity tracking
 - Can corrupt graph structure and relationships
 
 **Exception:** You MAY read `.htmlgraph/` files to view content, but NEVER write or edit them.
+
+**Documentation:** See `AGENTS.md` for complete SDK guide and best practices.
 
 ### 2. Feature Awareness
 Always be aware of which feature(s) are currently in progress:
@@ -72,26 +103,55 @@ For every significant piece of work:
 
 ## Working with Features
 
+**RECOMMENDED:** Use the Python SDK for AI agents (cleanest, most powerful)
+
+### Python SDK (Recommended for AI Agents)
+
+```python
+from htmlgraph import SDK
+
+# Initialize (auto-discovers .htmlgraph)
+sdk = SDK(agent="claude")
+
+# Create a feature
+feature = sdk.features.create("User Authentication") \
+    .set_priority("high") \
+    .add_steps([
+        "Create login endpoint",
+        "Add JWT middleware",
+        "Write tests"
+    ]) \
+    .save()
+
+# Edit a feature (auto-saves!)
+with sdk.features.edit(feature.id) as f:
+    f.status = "in-progress"
+    f.steps[0].completed = True
+
+# Query features
+todos = sdk.features.where(status="todo", priority="high")
+
+# Get project summary
+summary = sdk.summary()
+print(summary)
+```
+
+### CLI (Alternative)
+
 **IMPORTANT:** Always use `uv run` when running htmlgraph commands to ensure the correct environment.
 
-### Check Current Status
 ```bash
+# Check Current Status
 uv run htmlgraph status
 uv run htmlgraph feature list
-```
 
-### Start Working on a Feature
-```bash
+# Start Working on a Feature
 uv run htmlgraph feature start <feature-id>
-```
 
-### Set Primary Feature (when multiple are active)
-```bash
+# Set Primary Feature (when multiple are active)
 uv run htmlgraph feature primary <feature-id>
-```
 
-### Complete a Feature
-```bash
+# Complete a Feature
 uv run htmlgraph feature complete <feature-id>
 ```
 
