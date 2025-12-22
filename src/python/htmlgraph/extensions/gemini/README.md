@@ -18,26 +18,9 @@ This extension enables HtmlGraph tracking in Google Gemini CLI, ensuring proper 
 
 ## Installation
 
-### Option 1: Auto-Install from Python Package (Recommended)
+**Note:** Gemini CLI does not support installing from subdirectories in GitHub repos. You must clone the repo and install from a local path.
 
-The easiest way is to use the built-in installation command:
-
-```bash
-# Install htmlgraph Python package
-uv pip install htmlgraph
-
-# Auto-install the Gemini extension
-htmlgraph install-gemini-extension
-```
-
-This command automatically:
-- Finds the bundled extension in your Python package
-- Runs `gemini extensions install` with the correct path
-- Handles all the details for you
-
-### Option 2: Install from Local Clone
-
-If you're developing or want to use the latest version:
+### Option 1: Install from Local Clone (Recommended)
 
 ```bash
 # Clone the HtmlGraph repository
@@ -46,6 +29,14 @@ cd htmlgraph
 
 # Install the extension from the local path
 gemini extensions install packages/gemini-extension
+```
+
+### Option 2: Install from Absolute Path
+
+If you already have the repo cloned elsewhere:
+
+```bash
+gemini extensions install /path/to/htmlgraph/packages/gemini-extension
 ```
 
 ### Option 3: Link for Development
@@ -60,8 +51,6 @@ cd htmlgraph
 # Link the extension (changes reflect immediately)
 gemini extensions link packages/gemini-extension
 ```
-
-**Note:** Gemini CLI does not support installing directly from GitHub subdirectories. Use one of the methods above instead.
 
 ## Features
 

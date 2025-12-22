@@ -30,7 +30,45 @@ Track Management (Conductor-Style Planning):
 import argparse
 import os
 import sys
+import subprocess
 from pathlib import Path
+
+
+def cmd_install_gemini_extension(args):
+    """Install the Gemini CLI extension from the bundled package files."""
+    import htmlgraph
+
+    # Find the extension path in the installed package
+    package_dir = Path(htmlgraph.__file__).parent
+    extension_dir = package_dir / "extensions" / "gemini"
+
+    if not extension_dir.exists():
+        print(f"Error: Gemini extension not found at {extension_dir}", file=sys.stderr)
+        print("The extension may not be bundled with this version of htmlgraph.", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Installing Gemini extension from: {extension_dir}")
+
+    # Run gemini extensions install with the bundled path
+    try:
+        result = subprocess.run(
+            ["gemini", "extensions", "install", str(extension_dir), "--consent"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        print(result.stdout)
+        print("\n✅ Gemini extension installed successfully!")
+        print("\nTo verify installation:")
+        print("  gemini extensions list")
+    except subprocess.CalledProcessError as e:
+        print(f"Error installing extension: {e.stderr}", file=sys.stderr)
+        sys.exit(1)
+    except FileNotFoundError:
+        print("Error: 'gemini' command not found.", file=sys.stderr)
+        print("Please install Gemini CLI first:", file=sys.stderr)
+        print("  npm install -g @google/gemini-cli", file=sys.stderr)
+        sys.exit(1)
 
 
 def cmd_serve(args):
@@ -1696,6 +1734,12 @@ curl Examples:
     setup_all_parser = setup_subparsers.add_parser("all", help="Set up for all supported platforms")
     setup_all_parser.add_argument("--auto-install", action="store_true", help="Automatically install when possible")
 
+    # install-gemini-extension
+    install_gemini_parser = subparsers.add_parser(
+        "install-gemini-extension",
+        help="Install the Gemini CLI extension from the bundled package"
+    )
+
     args = parser.parse_args()
 
     if args.command == "serve":
@@ -1795,6 +1839,8 @@ curl Examples:
         else:
             setup_parser.print_help()
             sys.exit(1)
+    elif args.command == "install-gemini-extension":
+        cmd_install_gemini_extension(args)
     else:
         parser.print_help()
         sys.exit(1)
