@@ -11,6 +11,8 @@ exclude_docs: |
 
 theme:
   name: material
+  logo: assets/logo.jpg
+  favicon: assets/favicon.jpg
 
   features:
     - navigation.instant        # Fast navigation without page reload

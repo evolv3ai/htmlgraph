@@ -4,7 +4,9 @@
 A lightweight graph database framework built entirely on web standards
 </div>
 
-<div id="graph-viz"></div>
+<div style="text-align: center; margin: 2rem 0;">
+![HtmlGraph - Graph Database Visualization](assets/graph-hero.jpg)
+</div>
 
 <div class="quick-start">
 
