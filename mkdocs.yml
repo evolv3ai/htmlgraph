@@ -179,6 +179,7 @@ nav:
     - Agents: api/agents.md
     - Server: api/server.md
     - TrackBuilder: api/track-builder.md
+    - ID Generation: api/ids.md
   - Examples:
     - Overview: examples/index.md
     - Basic Usage: examples/basic.md

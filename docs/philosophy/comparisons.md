@@ -20,7 +20,8 @@ Detailed comparisons with alternative approaches.
 - Complex deployment
 
 **HtmlGraph Approach:**
-- Zero dependencies (`pip install`)
+- Minimal dependencies (`pip install htmlgraph`)
+- No infrastructure (no Docker, JVM, or database servers)
 - CSS selectors (already know them)
 - Plain text HTML files
 - Free, MIT license
@@ -108,6 +109,42 @@ Similar to JSON, with more readable syntax but same limitations for graph data.
 
 Similar to Notion but with better graph features. Still cloud-based with same limitations.
 
+## vs AI Agent Memory Systems
+
+### Beads
+
+[Beads](https://github.com/steveyegge/beads) by Steve Yegge is a similar project focused on AI agent task management.
+
+**Beads Strengths:**
+
+- Hash-based IDs prevent conflicts
+- Semantic memory decay
+- Ready task detection
+- Multiple frontends (TUI, web, VS Code)
+
+**Beads Weaknesses:**
+
+- Requires CLI daemon
+- JSONL storage format
+- Needs viewer tools
+
+**HtmlGraph Approach:**
+
+- Adopted hash-based IDs (inspired by Beads)
+- Minimal Python dependencies (pydantic, justhtml, watchdog)
+- Uses SQLite for indexing, JSONL for event logs
+- No daemon process required
+- HTML renders in any browser
+- Web standards-based
+
+**Shared Design Goals:**
+
+Both projects aim to give AI agents persistent, structured memory beyond a single context window. HtmlGraph's hash-based ID system was directly inspired by Beads' approach to multi-agent collision resistance.
+
+**When to use Beads:** CLI-first workflow, multiple frontends needed, semantic memory decay.
+
+**When to use HtmlGraph:** Browser-first workflow, minimal infrastructure, web standards preference.
+
 ## vs AI Agent Frameworks
 
 ### LangChain/LangGraph
@@ -189,7 +226,7 @@ Similar to Notion but with better graph features. Still cloud-based with same li
 - Offline-first required
 - Simplicity is priority
 - Own your data
-- Zero dependencies
+- Minimal infrastructure (no Docker, databases, or daemons)
 
 ## Next Steps
 

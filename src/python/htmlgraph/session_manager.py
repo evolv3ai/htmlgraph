@@ -20,6 +20,7 @@ from htmlgraph.models import Node, Session, ActivityEntry
 from htmlgraph.graph import HtmlGraph
 from htmlgraph.converter import session_to_html, html_to_session, SessionConverter, dict_to_node
 from htmlgraph.event_log import JsonlEventLog, EventRecord
+from htmlgraph.ids import generate_id
 
 
 class SessionManager:
@@ -191,9 +192,9 @@ class SessionManager:
         """
         now = datetime.now()
 
-        # Auto-generate session ID if not provided
+        # Auto-generate collision-resistant session ID if not provided
         if session_id is None:
-            session_id = f"session-{now.strftime('%Y%m%d-%H%M%S')}"
+            session_id = generate_id(node_type="session", title=title or agent)
 
         desired_commit = start_commit or self._get_current_commit()
 
@@ -909,9 +910,11 @@ class SessionManager:
         Returns:
             Created Node
         """
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        prefix = collection[:-1] if collection.endswith("s") else collection
-        node_id = f"{prefix}-{timestamp}"
+        # Derive node type from collection name (features -> feature)
+        node_type = collection[:-1] if collection.endswith("s") else collection
+
+        # Generate collision-resistant hash-based ID
+        node_id = generate_id(node_type=node_type, title=title)
 
         # Default steps if none provided
         if steps is None:
@@ -927,7 +930,7 @@ class SessionManager:
 
         node_data = {
             "id": node_id,
-            "type": prefix,
+            "type": node_type,
             "title": title,
             "status": "todo",
             "priority": priority,
