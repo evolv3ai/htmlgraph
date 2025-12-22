@@ -13,7 +13,7 @@ from htmlgraph.session_manager import SessionManager
 from htmlgraph.sdk import SDK
 from htmlgraph.ids import generate_id, generate_hierarchical_id, parse_id, is_valid_id, is_legacy_id
 
-__version__ = "0.3.3"
+__version__ = "0.4.0"
 __all__ = [
     # Core models
     "Node",
