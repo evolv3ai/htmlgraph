@@ -1680,6 +1680,22 @@ curl Examples:
     mcp_serve.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
     mcp_serve.add_argument("--agent", default="mcp", help="Agent name for session attribution")
 
+    # setup
+    setup_parser = subparsers.add_parser("setup", help="Set up HtmlGraph for AI CLI platforms")
+    setup_subparsers = setup_parser.add_subparsers(dest="setup_command", help="Platform to set up")
+
+    setup_claude = setup_subparsers.add_parser("claude", help="Set up for Claude Code")
+    setup_claude.add_argument("--auto-install", action="store_true", help="Automatically install when possible")
+
+    setup_codex = setup_subparsers.add_parser("codex", help="Set up for Codex CLI")
+    setup_codex.add_argument("--auto-install", action="store_true", help="Automatically install when possible")
+
+    setup_gemini = setup_subparsers.add_parser("gemini", help="Set up for Gemini CLI")
+    setup_gemini.add_argument("--auto-install", action="store_true", help="Automatically install when possible")
+
+    setup_all_parser = setup_subparsers.add_parser("all", help="Set up for all supported platforms")
+    setup_all_parser.add_argument("--auto-install", action="store_true", help="Automatically install when possible")
+
     args = parser.parse_args()
 
     if args.command == "serve":
@@ -1764,6 +1780,20 @@ curl Examples:
             cmd_mcp_serve(args)
         else:
             mcp_parser.print_help()
+            sys.exit(1)
+    elif args.command == "setup":
+        from htmlgraph.setup import setup_claude, setup_codex, setup_gemini, setup_all
+
+        if args.setup_command == "claude":
+            setup_claude(args)
+        elif args.setup_command == "codex":
+            setup_codex(args)
+        elif args.setup_command == "gemini":
+            setup_gemini(args)
+        elif args.setup_command == "all":
+            setup_all(args)
+        else:
+            setup_parser.print_help()
             sys.exit(1)
     else:
         parser.print_help()
