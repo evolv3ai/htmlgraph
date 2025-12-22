@@ -1018,12 +1018,17 @@ class Track(BaseModel):
 
     id: str
     title: str
+    type: str = "track"
     description: str = ""
     status: Literal["planned", "active", "completed", "abandoned"] = "planned"
     priority: Literal["low", "medium", "high", "critical"] = "medium"
 
     created: datetime = Field(default_factory=datetime.now)
     updated: datetime = Field(default_factory=datetime.now)
+
+    properties: dict[str, Any] = Field(default_factory=dict)
+    edges: dict[str, list] = Field(default_factory=dict)
+    content: str = ""
 
     # Component files
     has_spec: bool = False

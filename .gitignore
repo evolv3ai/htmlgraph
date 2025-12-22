@@ -48,3 +48,6 @@ Thumbs.db
 .htmlgraph/index.sqlite-wal
 .htmlgraph/index.sqlite-shm
 .env
+
+# MkDocs build output
+site/

@@ -6,10 +6,11 @@ repo_name: Shakes-tzd/htmlgraph
 edit_uri: edit/main/docs/
 copyright: Copyright &copy; 2025 Shakes Tzedakis
 
+exclude_docs: |
+  archive/
+
 theme:
   name: material
-  logo: assets/logo.svg
-  favicon: assets/favicon.ico
 
   features:
     - navigation.instant        # Fast navigation without page reload
@@ -135,9 +136,6 @@ markdown_extensions:
 
 extra_css:
   - stylesheets/extra.css
-
-extra_javascript:
-  - javascripts/graph-viz.js
 
 extra:
   analytics:

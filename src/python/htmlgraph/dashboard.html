@@ -2004,15 +2004,14 @@
 
         <!-- View Toggle -->
         <div class="view-toggle">
-            <button class="view-btn active" data-view="tracks">Tracks</button>
-            <button class="view-btn" data-view="kanban">Features</button>
+            <button class="view-btn active" data-view="kanban">Work</button>
             <button class="view-btn" data-view="graph">Graph</button>
             <button class="view-btn" data-view="analytics">Analytics</button>
             <button class="view-btn" data-view="sessions">Sessions</button>
         </div>
 
         <!-- Features View (Track-Grouped Kanban) -->
-        <div class="kanban" id="kanban"></div>
+        <div class="kanban active" id="kanban"></div>
 
         <!-- Graph View -->
         <div class="graph-container" id="graph-container">
@@ -2116,10 +2115,6 @@
             <div id="sessions-list" class="loading">Loading sessions...</div>
         </div>
 
-        <!-- Tracks View -->
-        <div class="tracks active" id="tracks">
-            <div id="tracks-list" class="loading">Loading tracks...</div>
-        </div>
     </div>
 
     <!-- Detail Panel -->
@@ -3223,8 +3218,11 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
         }
 
         async function renderKanban(nodes) {
-            // Filter to only show features in the kanban view
-            const features = nodes.filter(n => n.type === 'feature');
+            // Filter to show all work items (exclude sessions, agents, tracks, events)
+            const features = nodes.filter(n => {
+                const excludedTypes = ['session', 'agent', 'track', 'event'];
+                return !excludedTypes.includes(n.type);
+            });
             const { tracked, untracked } = groupByTrack(features);
             const tracksWithMetadata = await loadTrackMetadata(Array.from(tracked.keys()));
 
@@ -4209,7 +4207,6 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
             const graph = document.getElementById('graph-container');
             const analytics = document.getElementById('analytics');
             const sessions = document.getElementById('sessions');
-            const tracks = document.getElementById('tracks');
             const buttons = document.querySelectorAll('.view-btn');
 
             buttons.forEach(btn => {
@@ -4221,35 +4218,25 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                 graph.classList.remove('active');
                 analytics.classList.remove('active');
                 sessions.classList.remove('active');
-                tracks.classList.remove('active');
+                renderKanban(allNodes);
             } else if (view === 'graph') {
                 kanban.classList.remove('active');
                 graph.classList.add('active');
                 analytics.classList.remove('active');
                 sessions.classList.remove('active');
-                tracks.classList.remove('active');
                 renderGraph(allNodes);
             } else if (view === 'analytics') {
                 kanban.classList.remove('active');
                 graph.classList.remove('active');
                 analytics.classList.add('active');
                 sessions.classList.remove('active');
-                tracks.classList.remove('active');
                 ensureAnalyticsLoaded(false);
             } else if (view === 'sessions') {
                 kanban.classList.remove('active');
                 graph.classList.remove('active');
                 analytics.classList.remove('active');
                 sessions.classList.add('active');
-                tracks.classList.remove('active');
                 loadAndRenderSessions();
-            } else if (view === 'tracks') {
-                kanban.classList.remove('active');
-                graph.classList.remove('active');
-                analytics.classList.remove('active');
-                sessions.classList.remove('active');
-                tracks.classList.add('active');
-                loadAndRenderTracks();
             }
         }
 
@@ -4294,7 +4281,6 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
         loadData().then(async ({ status, nodes }) => {
             await renderKanban(nodes);
             updateKanbanGrid();
-            await loadAndRenderTracks(); // Load tracks view (now default)
         }).catch(err => {
             console.error('Error loading data:', err);
         });
