@@ -1228,6 +1228,67 @@ def cmd_feature_auto_release(args):
                 print(f"  - {node_id}")
 
 
+def cmd_publish(args):
+    """Build and publish the package to PyPI (Interoperable)."""
+    import shutil
+    import subprocess
+
+    # Ensure we are in project root
+    if not Path("pyproject.toml").exists():
+        print("Error: pyproject.toml not found. Run this from the project root.", file=sys.stderr)
+        sys.exit(1)
+
+    # 1. Clean dist/
+    dist_dir = Path("dist")
+    if dist_dir.exists():
+        print("Cleaning dist/...")
+        shutil.rmtree(dist_dir)
+
+    # 2. Build
+    print("Building package with uv...")
+    try:
+        subprocess.run(["uv", "build"], check=True)
+    except subprocess.CalledProcessError:
+        print("Error: Build failed.", file=sys.stderr)
+        sys.exit(1)
+    except FileNotFoundError:
+        print("Error: 'uv' command not found.", file=sys.stderr)
+        sys.exit(1)
+
+    # 3. Publish
+    if args.dry_run:
+        print("Dry run: Skipping publish.")
+        return
+
+    print("Publishing to PyPI...")
+    env = os.environ.copy()
+
+    # Smart credential loading from .env
+    # Maps PyPI_API_TOKEN (common in .env) to UV_PUBLISH_TOKEN (needed by uv)
+    if "UV_PUBLISH_TOKEN" not in env:
+        dotenv = Path(".env")
+        if dotenv.exists():
+            try:
+                content = dotenv.read_text()
+                for line in content.splitlines():
+                    if line.strip() and not line.startswith("#") and "=" in line:
+                        key, val = line.split("=", 1)
+                        key = key.strip()
+                        val = val.strip().strip("'").strip('"')
+                        if key == "PyPI_API_TOKEN":
+                            env["UV_PUBLISH_TOKEN"] = val
+                            print("Loaded credentials from .env")
+            except Exception:
+                pass
+
+    try:
+        subprocess.run(["uv", "publish"], env=env, check=True)
+        print("\n✅ Successfully published!")
+    except subprocess.CalledProcessError:
+        print("\n❌ Publish failed.", file=sys.stderr)
+        sys.exit(1)
+
+
 def cmd_feature_list(args):
     """List features by status."""
     from htmlgraph.sdk import SDK
@@ -1912,6 +1973,10 @@ curl Examples:
     setup_all_parser = setup_subparsers.add_parser("all", help="Set up for all supported platforms")
     setup_all_parser.add_argument("--auto-install", action="store_true", help="Automatically install when possible")
 
+    # publish
+    publish_parser = subparsers.add_parser("publish", help="Build and publish package to PyPI")
+    publish_parser.add_argument("--dry-run", action="store_true", help="Build only, do not publish")
+
     # install-gemini-extension
     install_gemini_parser = subparsers.add_parser(
         "install-gemini-extension",
@@ -2025,6 +2090,8 @@ curl Examples:
         else:
             setup_parser.print_help()
             sys.exit(1)
+    elif args.command == "publish":
+        cmd_publish(args)
     elif args.command == "install-gemini-extension":
         cmd_install_gemini_extension(args)
     else:

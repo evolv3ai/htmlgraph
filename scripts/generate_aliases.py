@@ -16,6 +16,7 @@ ALIASES = {
     "hg-feat-release": "uv run htmlgraph feature release",
     "hg-track": "uv run htmlgraph activity", # Legacy mapping
     "hg-serve": "uv run htmlgraph serve",
+    "hg-publish": "uv run htmlgraph publish",
 }
 
 def generate_bash():
