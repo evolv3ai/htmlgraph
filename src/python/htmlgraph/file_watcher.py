@@ -99,7 +99,9 @@ class GraphWatcher:
             self.handlers[collection] = handler
 
             # Watch the collection directory
-            self.observer.schedule(handler, str(collection_dir), recursive=False)
+            # Use recursive=True for tracks since they're stored in subdirectories
+            recursive = (collection == "tracks")
+            self.observer.schedule(handler, str(collection_dir), recursive=recursive)
 
         self.observer.start()
         print(f"[FileWatcher] Watching {self.graph_dir} for changes...")
