@@ -64,20 +64,27 @@ Optimizing for human readability has unexpected benefits:
 - **Trust**: See exactly what's stored
 - **Portability**: Works in any environment
 
-### 3. Zero Dependencies
+### 3. Minimal Infrastructure
 
-Everything works with just:
+**The HTML files themselves** work with just:
 
 - A file system
 - A web browser
 
-No need for:
+**The SDK** requires minimal Python dependencies:
+
+- `pydantic` - Data validation and models
+- `justhtml` - HTML parsing
+- `watchdog` - File watching for live updates
+- `sqlite3` - Indexing (Python standard library)
+
+**What you don't need:**
 
 - Docker containers
-- Database servers
-- Build tools
-- Package managers
-- Cloud services
+- External database servers (Neo4j, Redis, PostgreSQL)
+- Build tools or compilation
+- Cloud services or API keys
+- Daemon processes
 
 ### 4. Offline First
 
@@ -145,7 +152,7 @@ HTML is ideal for AI agents:
 - Simplicity
 - Portability
 - Human readability
-- Zero dependencies
+- Minimal infrastructure (no Docker, databases, or daemons)
 - Git integration
 - Universal compatibility
 

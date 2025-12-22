@@ -20,7 +20,8 @@ Detailed comparisons with alternative approaches.
 - Complex deployment
 
 **HtmlGraph Approach:**
-- Zero dependencies (`pip install`)
+- Minimal dependencies (`pip install htmlgraph`)
+- No infrastructure (no Docker, JVM, or database servers)
 - CSS selectors (already know them)
 - Plain text HTML files
 - Free, MIT license
@@ -130,7 +131,9 @@ Similar to Notion but with better graph features. Still cloud-based with same li
 **HtmlGraph Approach:**
 
 - Adopted hash-based IDs (inspired by Beads)
-- Zero dependencies
+- Minimal Python dependencies (pydantic, justhtml, watchdog)
+- Uses SQLite for indexing, JSONL for event logs
+- No daemon process required
 - HTML renders in any browser
 - Web standards-based
 
@@ -138,9 +141,9 @@ Similar to Notion but with better graph features. Still cloud-based with same li
 
 Both projects aim to give AI agents persistent, structured memory beyond a single context window. HtmlGraph's hash-based ID system was directly inspired by Beads' approach to multi-agent collision resistance.
 
-**When to use Beads:** CLI-first workflow, multiple frontends needed.
+**When to use Beads:** CLI-first workflow, multiple frontends needed, semantic memory decay.
 
-**When to use HtmlGraph:** Browser-first workflow, zero-dependency requirement, web standards preference.
+**When to use HtmlGraph:** Browser-first workflow, minimal infrastructure, web standards preference.
 
 ## vs AI Agent Frameworks
 
@@ -223,7 +226,7 @@ Both projects aim to give AI agents persistent, structured memory beyond a singl
 - Offline-first required
 - Simplicity is priority
 - Own your data
-- Zero dependencies
+- Minimal infrastructure (no Docker, databases, or daemons)
 
 ## Next Steps
 

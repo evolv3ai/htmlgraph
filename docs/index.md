@@ -69,9 +69,9 @@ Open any node in a browser. View relationships visually. Git diffs work perfectl
 
 <div class="feature-card">
 <span class="feature-icon">&#9889;</span>
-<div class="feature-title">Zero Dependencies</div>
+<div class="feature-title">Minimal Infrastructure</div>
 <div class="feature-desc">
-Works everywhere: Python, JavaScript, any browser. Offline-first. No build tools required. Pure HTML + CSS + JS.
+No Docker, JVM, or external database servers. HTML files work in any browser. SDK uses pydantic, justhtml, SQLite. Offline-first.
 </div>
 </div>
 

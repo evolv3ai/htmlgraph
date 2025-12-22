@@ -207,9 +207,9 @@ Open any node in a browser and see it beautifully rendered with CSS styling. No 
 
 HTML is plain text. Git diffs show exactly what changed. Merge conflicts are readable.
 
-### Zero Dependencies
+### Minimal Infrastructure
 
-No Docker, no JVM, no external databases. HTML works everywhere: browsers, Python, JavaScript, any language.
+No Docker, no JVM, no external database servers. The SDK has minimal Python dependencies (pydantic, justhtml, watchdog) and uses SQLite for indexing and JSONL for event logs. HTML files work everywhere: browsers, Python, JavaScript, any language.
 
 ### Standards-Based
 
