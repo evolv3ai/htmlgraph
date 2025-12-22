@@ -10,6 +10,7 @@ from typing import Literal
 
 from htmlgraph.planning import Track, Spec, Plan, Phase, Task, Requirement, AcceptanceCriterion
 from htmlgraph.graph import HtmlGraph
+from htmlgraph.ids import generate_id
 
 
 class TrackManager:
@@ -43,8 +44,8 @@ class TrackManager:
         Returns:
             Created Track instance
         """
-        # Generate ID from timestamp
-        track_id = f"track-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+        # Generate collision-resistant track ID
+        track_id = generate_id(node_type="track", title=title)
 
         track = Track(
             id=track_id,

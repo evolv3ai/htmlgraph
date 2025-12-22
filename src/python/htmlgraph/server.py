@@ -26,6 +26,7 @@ from htmlgraph.converter import node_to_dict, dict_to_node
 from htmlgraph.analytics_index import AnalyticsIndex
 from htmlgraph.event_log import JsonlEventLog
 from htmlgraph.file_watcher import GraphWatcher
+from htmlgraph.ids import generate_id
 
 
 class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
@@ -576,24 +577,24 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
 
     def _handle_create(self, collection: str, data: dict):
         """Create a new node."""
-        # Generate ID if not provided
-        if "id" not in data:
-            prefix = collection[:-1] if collection.endswith("s") else collection
-            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-            data["id"] = f"{prefix}-{timestamp}"
-
         # Set defaults based on collection
+        type_map = {
+            "features": "feature",
+            "bugs": "bug",
+            "spikes": "spike",
+            "chores": "chore",
+            "epics": "epic",
+            "sessions": "session",
+            "agents": "agent",
+        }
         if "type" not in data:
-            type_map = {
-                "features": "feature",
-                "bugs": "bug",
-                "spikes": "spike",
-                "chores": "chore",
-                "epics": "epic",
-                "sessions": "session",
-                "agents": "agent",
-            }
             data["type"] = type_map.get(collection, "node")
+
+        # Generate collision-resistant ID if not provided
+        if "id" not in data:
+            node_type = data.get("type", type_map.get(collection, "node"))
+            title = data.get("title", "")
+            data["id"] = generate_id(node_type=node_type, title=title)
 
         # Require title
         if "title" not in data:

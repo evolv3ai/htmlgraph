@@ -48,6 +48,7 @@ from htmlgraph.models import Node, Step, Edge
 from htmlgraph.graph import HtmlGraph
 from htmlgraph.agents import AgentInterface
 from htmlgraph.track_builder import TrackCollection
+from htmlgraph.ids import generate_id
 
 
 @dataclass
@@ -121,10 +122,12 @@ class FeatureBuilder:
 
     def save(self) -> Node:
         """Save the feature and return the Node."""
-        # Generate ID if not provided
+        # Generate collision-resistant ID if not provided
         if "id" not in self._data:
-            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-            self._data["id"] = f"feature-{timestamp}"
+            self._data["id"] = generate_id(
+                node_type=self._data.get("type", "feature"),
+                title=self._data.get("title", ""),
+            )
 
         node = Node(**self._data)
         self._sdk._graph.add(node)

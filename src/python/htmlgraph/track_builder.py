@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
 
 from htmlgraph.planning import Track, Spec, Plan, Phase, Task, Requirement, AcceptanceCriterion
+from htmlgraph.ids import generate_id
 
 
 class TrackBuilder:
@@ -136,8 +137,8 @@ class TrackBuilder:
         if not self._title:
             raise ValueError("Track title is required")
 
-        # Generate track ID
-        track_id = f"track-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+        # Generate collision-resistant track ID
+        track_id = generate_id(node_type="track", title=self._title)
 
         # Create track
         track = Track(
