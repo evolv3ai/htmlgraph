@@ -448,7 +448,9 @@ with sdk.features.edit('feature-123') as f:
 2. ✅ **VERIFY ATTRIBUTION:** Check that activities are linked to correct feature
 3. ✅ **CHECK STEPS:** ALL feature steps MUST be marked complete
 4. ✅ **CLEAN CODE:** Remove all debug code, console.logs, TODOs
-5. ✅ **COMMIT:** Git commit with feature ID in message
+5. ✅ **COMMIT WORK:** Git commit your changes IMMEDIATELY (allows user rollback)
+   - Do this BEFORE marking the feature complete
+   - Include the feature ID in the commit message
 6. ✅ **COMPLETE FEATURE:** `uv run htmlgraph feature complete <id>`
 7. ✅ **UPDATE EPIC:** If part of epic, mark epic step complete
 
