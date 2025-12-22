@@ -235,6 +235,9 @@ class Node(BaseModel):
         # Agent attribute
         agent_attr = f' data-agent-assigned="{self.agent_assigned}"' if self.agent_assigned else ""
 
+        # Track ID attribute
+        track_attr = f' data-track-id="{self.track_id}"' if self.track_id else ""
+
         return f'''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -250,7 +253,7 @@ class Node(BaseModel):
              data-status="{self.status}"
              data-priority="{self.priority}"
              data-created="{self.created.isoformat()}"
-             data-updated="{self.updated.isoformat()}"{agent_attr}>
+             data-updated="{self.updated.isoformat()}"{agent_attr}{track_attr}>
 
         <header>
             <h1>{self.title}</h1>
