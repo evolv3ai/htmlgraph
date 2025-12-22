@@ -94,10 +94,23 @@ Sessions are automatically created and managed by HtmlGraph hooks.
 
 Every HTML file in HtmlGraph is a graph node. Nodes have:
 
-- **ID**: Unique identifier (e.g., `feature-20241216-103045`)
+- **ID**: Unique, collision-resistant identifier (e.g., `feat-a1b2c3d4`)
 - **Type**: `feature`, `track`, `session`, or custom
 - **Properties**: Stored in `data-*` attributes
 - **Content**: Human-readable description in HTML
+
+#### Hash-Based IDs
+
+HtmlGraph uses hash-based IDs for multi-agent collaboration:
+
+| Type | Prefix | Example |
+|------|--------|---------|
+| Feature | `feat-` | `feat-a1b2c3d4` |
+| Bug | `bug-` | `bug-12345678` |
+| Track | `trk-` | `trk-abcdef12` |
+| Session | `sess-` | `sess-7890abcd` |
+
+These IDs are collision-resistant, meaning multiple agents can create nodes simultaneously without conflicts. Hierarchical sub-tasks are supported: `feat-a1b2c3d4.1.2`. See [ID Generation](../api/ids.md) for details.
 
 Example node structure:
 

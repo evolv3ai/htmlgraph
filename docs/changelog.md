@@ -5,6 +5,30 @@ All notable changes to HtmlGraph will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4] - 2024-12-22
+
+### Added
+
+- **Hash-Based ID System**: Collision-resistant IDs for multi-agent collaboration
+  - Short, readable format: `{prefix}-{hash}` (e.g., `feat-a1b2c3d4`)
+  - Content-addressable with entropy for collision resistance
+  - Hierarchical sub-task support (e.g., `feat-a1b2c3d4.1.2`)
+  - Type-specific prefixes for visual identification
+  - Inspired by [Beads](https://github.com/steveyegge/beads)
+- **New `htmlgraph.ids` module**: `generate_id()`, `parse_id()`, `is_valid_id()`, etc.
+- **ID Generation API documentation**: Complete guide with examples
+
+### Changed
+
+- SDK `FeatureBuilder` now generates hash-based IDs
+- CLI `feature create` now generates hash-based IDs
+- Server API creates hash-based IDs for new nodes
+- Session IDs now use hash-based format
+
+### Fixed
+
+- mkdocstrings configuration updated for newer versions (inventories option)
+
 ## [0.3.0] - 2024-12-22
 
 ### Added

@@ -108,6 +108,40 @@ Similar to JSON, with more readable syntax but same limitations for graph data.
 
 Similar to Notion but with better graph features. Still cloud-based with same limitations.
 
+## vs AI Agent Memory Systems
+
+### Beads
+
+[Beads](https://github.com/steveyegge/beads) by Steve Yegge is a similar project focused on AI agent task management.
+
+**Beads Strengths:**
+
+- Hash-based IDs prevent conflicts
+- Semantic memory decay
+- Ready task detection
+- Multiple frontends (TUI, web, VS Code)
+
+**Beads Weaknesses:**
+
+- Requires CLI daemon
+- JSONL storage format
+- Needs viewer tools
+
+**HtmlGraph Approach:**
+
+- Adopted hash-based IDs (inspired by Beads)
+- Zero dependencies
+- HTML renders in any browser
+- Web standards-based
+
+**Shared Design Goals:**
+
+Both projects aim to give AI agents persistent, structured memory beyond a single context window. HtmlGraph's hash-based ID system was directly inspired by Beads' approach to multi-agent collision resistance.
+
+**When to use Beads:** CLI-first workflow, multiple frontends needed.
+
+**When to use HtmlGraph:** Browser-first workflow, zero-dependency requirement, web standards preference.
+
 ## vs AI Agent Frameworks
 
 ### LangChain/LangGraph

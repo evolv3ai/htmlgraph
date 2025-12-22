@@ -11,6 +11,7 @@ Complete API documentation for HtmlGraph.
 - **[Agents](agents.md)** - Agent interface
 - **[Server](server.md)** - Dashboard server
 - **[TrackBuilder](track-builder.md)** - Fluent track creation API
+- **[ID Generation](ids.md)** - Collision-resistant IDs for multi-agent collaboration
 
 ## Quick Reference
 
@@ -20,6 +21,9 @@ Complete API documentation for HtmlGraph.
 from htmlgraph import SDK, HtmlGraph
 from htmlgraph.models import Feature, Track, Session
 from htmlgraph.planning import Spec, Plan
+
+# ID generation utilities
+from htmlgraph import generate_id, parse_id, is_valid_id
 ```
 
 ### SDK Initialization
