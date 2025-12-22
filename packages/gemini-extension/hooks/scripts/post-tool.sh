@@ -34,12 +34,9 @@ else
   HTMLGRAPH_CMD="htmlgraph"
 fi
 
+export HTMLGRAPH_AGENT=gemini
+
 # Track the tool usage event
-# This is a simplified version - just log to events
-$HTMLGRAPH_CMD session track-activity \
-  --type tool_use \
-  --tool "$TOOL_NAME" \
-  --timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  &> /dev/null &
+$HTMLGRAPH_CMD activity "$TOOL_NAME" "Tool used: $TOOL_NAME" &> /dev/null &
 
 exit 0

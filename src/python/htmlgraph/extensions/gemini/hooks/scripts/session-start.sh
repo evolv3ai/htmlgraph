@@ -26,6 +26,8 @@ else
   HTMLGRAPH_CMD="htmlgraph"
 fi
 
+export HTMLGRAPH_AGENT=gemini
+
 # Start a new session (or resume if one exists)
 SESSION_ID=$($HTMLGRAPH_CMD session start --agent gemini 2>/dev/null | grep -o 'session-[a-z0-9-]*' | head -1)
 

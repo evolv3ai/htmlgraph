@@ -24,6 +24,8 @@ else
   HTMLGRAPH_CMD="htmlgraph"
 fi
 
+export HTMLGRAPH_AGENT=gemini
+
 # Get active session ID
 SESSION_ID=$($HTMLGRAPH_CMD session list 2>/dev/null | grep -o 'session-[a-z0-9-]*' | head -1)
 
