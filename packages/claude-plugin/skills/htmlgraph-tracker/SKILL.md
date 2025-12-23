@@ -7,6 +7,25 @@ description: HtmlGraph session tracking and documentation skill. Activated autom
 
 Use this skill when HtmlGraph is tracking the session to ensure proper activity attribution and documentation. This skill should be activated at session start via the SessionStart hook.
 
+---
+
+## 📚 REQUIRED READING
+
+**→ READ [../../../AGENTS.md](../../../AGENTS.md) FOR COMPLETE SDK DOCUMENTATION**
+
+The root AGENTS.md file contains:
+- ✅ **Python SDK Quick Start** - Installation, initialization, basic operations
+- ✅ **Deployment Instructions** - Using `deploy-all.sh` script
+- ✅ **API & CLI Reference** - Alternative interfaces
+- ✅ **Best Practices** - Patterns for AI agents
+- ✅ **Complete Workflow Examples** - End-to-end scenarios
+
+**This file (SKILL.md) contains Claude Code-specific instructions only.**
+
+**For SDK usage, deployment, and general agent workflows → USE AGENTS.md**
+
+---
+
 ## When to Activate This Skill
 
 - At the start of every session when HtmlGraph plugin is enabled

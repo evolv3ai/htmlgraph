@@ -164,16 +164,28 @@ def check_all_files(project_root: Path) -> Dict[str, bool]:
     """Check all platform files for AGENTS.md references."""
     results = {}
 
-    # Check known platform files
+    # Check AGENTS.md exists (required)
+    agents_file = project_root / "AGENTS.md"
+    results["AGENTS.md"] = agents_file.exists()
+
+    # Check root-level platform files
     for platform, template in PLATFORM_TEMPLATES.items():
         filepath = project_root / template["filename"]
         if filepath.exists():
             has_reference = check_file_references_agents(filepath)
-            results[template["filename"]] = has_reference
+            results[f"root:{template['filename']}"] = has_reference
 
-    # Check AGENTS.md exists
-    agents_file = project_root / "AGENTS.md"
-    results["AGENTS.md"] = agents_file.exists()
+    # Check package-specific skill files (actual locations)
+    skill_files = {
+        "claude-plugin": project_root / "packages/claude-plugin/skills/htmlgraph-tracker/SKILL.md",
+        "gemini-extension": project_root / "packages/gemini-extension/GEMINI.md",
+        "codex-skill": project_root / "packages/codex-skill/SKILL.md",
+    }
+
+    for platform_name, filepath in skill_files.items():
+        if filepath.exists():
+            has_reference = check_file_references_agents(filepath)
+            results[f"package:{platform_name}"] = has_reference
 
     return results
 

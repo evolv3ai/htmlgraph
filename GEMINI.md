@@ -1,37 +1,49 @@
 # HtmlGraph for Gemini
 
-**Platform-specific instructions for Google Gemini AI agents.**
+**MANDATORY instructions for Google Gemini AI agents working with HtmlGraph projects.**
 
 ---
 
-## Core Documentation
+## 📚 REQUIRED READING - DO THIS FIRST
 
-**→ See [AGENTS.md](./AGENTS.md) for complete AI agent documentation**
+**→ READ [AGENTS.md](./AGENTS.md) BEFORE USING HTMLGRAPH**
 
-The main AGENTS.md file contains:
-- Python SDK quick start
-- API and CLI alternatives
-- Best practices for AI agents
-- Complete workflow examples
-- Deployment instructions
-- API reference
+The AGENTS.md file contains ALL core documentation:
+- ✅ **Python SDK Quick Start** - REQUIRED installation and usage
+- ✅ **Deployment Instructions** - How to use `deploy-all.sh`
+- ✅ **API & CLI Alternatives** - When SDK isn't available
+- ✅ **Best Practices** - MUST-FOLLOW patterns for AI agents
+- ✅ **Complete Workflow Examples** - Copy these patterns
+- ✅ **API Reference** - Full method documentation
+
+**DO NOT proceed without reading AGENTS.md first.**
 
 ---
 
-## Gemini-Specific Notes
+## Gemini-Specific REQUIREMENTS
 
-### Using HtmlGraph with Gemini Code Assist
+### ABSOLUTE RULE: Use SDK, Never Direct File Edits
 
+**CRITICAL: NEVER use file operations on `.htmlgraph/` HTML files.**
+
+❌ **FORBIDDEN:**
+```python
+# NEVER DO THIS
+Write('/path/to/.htmlgraph/features/feature-123.html', ...)
+Edit('/path/to/.htmlgraph/sessions/session-456.html', ...)
+```
+
+✅ **REQUIRED - Use SDK:**
 ```python
 from htmlgraph import SDK
 
-# Initialize SDK
+# ALWAYS initialize with agent="gemini"
 sdk = SDK(agent="gemini")
 
-# Get project summary
+# Get project summary (DO THIS at session start)
 print(sdk.summary(max_items=10))
 
-# Create a feature
+# Create features (USE builder pattern)
 feature = sdk.features.create("Implement Search") \
     .set_priority("high") \
     .add_steps([
@@ -41,7 +53,7 @@ feature = sdk.features.create("Implement Search") \
     ]) \
     .save()
 
-# Work on it
+# Update features (USE context manager for auto-save)
 with sdk.features.edit(feature.id) as f:
     f.status = "in-progress"
     f.agent_assigned = "gemini"
