@@ -180,6 +180,19 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
 
         return "api", collection, node_id, query_params
 
+    def _serve_packaged_dashboard(self) -> bool:
+        """Serve the bundled dashboard HTML if available."""
+        dashboard_path = Path(__file__).parent / "dashboard.html"
+        if not dashboard_path.exists():
+            return False
+        body = dashboard_path.read_text(encoding="utf-8").encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+        return True
+
     def do_OPTIONS(self):
         """Handle CORS preflight."""
         self.send_response(200)
@@ -194,6 +207,14 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
 
         # Not an API request - serve static files
         if api != "api":
+            path = urllib.parse.urlparse(self.path).path
+            if path in ("", "/"):
+                path = "/index.html"
+            if path == "/index.html":
+                index_path = Path(self.static_dir) / "index.html"
+                if not index_path.exists():
+                    if self._serve_packaged_dashboard():
+                        return
             return super().do_GET()
 
         # GET /api/status - Overall status

@@ -551,7 +551,7 @@ class AgentInterface:
             >>> for bn in bottlenecks:
             ...     print(f"{bn['title']} blocks {bn['blocks_count']} tasks")
         """
-        from htmlgraph.dependency_analytics import DependencyAnalytics
+        from htmlgraph.analytics.dependency import DependencyAnalytics
 
         analytics = DependencyAnalytics(self.graph)
         bottlenecks = analytics.find_bottlenecks(
@@ -593,7 +593,7 @@ class AgentInterface:
             >>> print(f"Can work on {parallel['max_parallelism']} tasks at once")
             >>> print(f"Ready now: {parallel['ready_now']}")
         """
-        from htmlgraph.dependency_analytics import DependencyAnalytics
+        from htmlgraph.analytics.dependency import DependencyAnalytics
 
         analytics = DependencyAnalytics(self.graph)
         report = analytics.find_parallelizable_work(status=status)
@@ -631,7 +631,7 @@ class AgentInterface:
             ...     print(f"{rec['title']} (score: {rec['score']})")
             ...     print(f"  Reasons: {rec['reasons']}")
         """
-        from htmlgraph.dependency_analytics import DependencyAnalytics
+        from htmlgraph.analytics.dependency import DependencyAnalytics
 
         analytics = DependencyAnalytics(self.graph)
         recommendations = analytics.recommend_next_tasks(
@@ -670,7 +670,7 @@ class AgentInterface:
             >>> if risks['circular_dependencies']:
             ...     print(f"Found {len(risks['circular_dependencies'])} cycles")
         """
-        from htmlgraph.dependency_analytics import DependencyAnalytics
+        from htmlgraph.analytics.dependency import DependencyAnalytics
 
         analytics = DependencyAnalytics(self.graph)
         risk = analytics.assess_dependency_risk()
@@ -709,7 +709,7 @@ class AgentInterface:
             >>> print(f"Completing this unlocks {impact['unlocks_count']} tasks")
             >>> print(f"Impact: {impact['completion_impact']}% of remaining work")
         """
-        from htmlgraph.dependency_analytics import DependencyAnalytics
+        from htmlgraph.analytics.dependency import DependencyAnalytics
 
         analytics = DependencyAnalytics(self.graph)
         impact = analytics.impact_analysis(node_id)

@@ -65,6 +65,51 @@ class BaseCollection(Generic[CollectionT]):
             self._graph = HtmlGraph(collection_path, auto_load=True)
         return self._graph
 
+    def create(
+        self,
+        title: str,
+        priority: str = "medium",
+        status: str = "todo",
+        **kwargs
+    ) -> Node:
+        """
+        Create a new node in this collection.
+
+        Args:
+            title: Node title
+            priority: Priority level (low, medium, high, critical)
+            status: Status (todo, in-progress, blocked, done)
+            **kwargs: Additional node properties
+
+        Returns:
+            Created Node instance
+
+        Example:
+            >>> bug = sdk.bugs.create("Login fails", priority="critical")
+            >>> chore = sdk.chores.create("Update dependencies", priority="medium")
+        """
+        from htmlgraph.ids import generate_id
+        from htmlgraph.models import Node
+
+        # Generate ID based on node type
+        node_id = generate_id(node_type=self._node_type, title=title)
+
+        # Create node
+        node = Node(
+            id=node_id,
+            title=title,
+            type=self._node_type,
+            priority=priority,
+            status=status,
+            **kwargs
+        )
+
+        # Add to graph
+        graph = self._ensure_graph()
+        graph.add(node)
+
+        return node
+
     def get(self, node_id: str) -> Node | None:
         """
         Get a node by ID.
