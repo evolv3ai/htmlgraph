@@ -772,29 +772,32 @@ class SDK:
             ...     timebox_hours=3.0
             ... )
         """
-        from htmlgraph.models import SpikeType
+        from htmlgraph.models import Spike, SpikeType
+        from htmlgraph.ids import generate_id
 
-        spike = self.spikes.create(title) \
-            .set_spike_type(SpikeType.ARCHITECTURAL) \
-            .set_timebox_hours(timebox_hours) \
-            .add_steps([
-                "Research existing solutions and patterns",
-                "Define requirements and constraints",
-                "Design high-level architecture",
-                "Identify dependencies and risks",
-                "Create implementation plan"
-            ]) \
-            .save()
+        # Create spike directly (SpikeBuilder doesn't exist yet)
+        spike_id = generate_id(node_type="spike", title=title)
+        spike = Spike(
+            id=spike_id,
+            title=title,
+            type="spike",
+            status="in-progress" if auto_start and self._agent_id else "todo",
+            spike_type=SpikeType.ARCHITECTURAL,
+            timebox_hours=int(timebox_hours),
+            agent_assigned=self._agent_id if auto_start and self._agent_id else None,
+            steps=[
+                Step(description="Research existing solutions and patterns"),
+                Step(description="Define requirements and constraints"),
+                Step(description="Design high-level architecture"),
+                Step(description="Identify dependencies and risks"),
+                Step(description="Create implementation plan")
+            ],
+            content=f"<p>{context}</p>" if context else "",
+            edges={},
+            properties={}
+        )
 
-        if context:
-            with self.spikes.edit(spike.id) as s:
-                s.content = f"<p>{context}</p>"
-
-        if auto_start and self._agent_id:
-            with self.spikes.edit(spike.id) as s:
-                s.status = "in-progress"
-                s.agent_assigned = self._agent_id
-
+        self._graph.add(spike)
         return spike
 
     def create_track_from_plan(
