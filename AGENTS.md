@@ -6,6 +6,29 @@ Use the Python SDK, API, or CLI instead. This ensures all HTML is validated thro
 
 ---
 
+## 🔄 NOTE: Dogfooding in Action
+
+**IF YOU'RE WORKING ON THE HTMLGRAPH PROJECT ITSELF:**
+
+This project uses HtmlGraph to track its own development. The `.htmlgraph/` directory in this repo is:
+- ✅ **Real usage** - Not a demo, actual development tracking
+- ✅ **Live examples** - Learn from these patterns for YOUR projects
+- ✅ **Our roadmap** - Features we're building for HtmlGraph
+
+**See [CLAUDE.md#dogfooding-context](./CLAUDE.md#dogfooding-context) for full details** on:
+- What's general-purpose vs project-specific
+- Workflows we should package for all users
+- How to distinguish HtmlGraph development from HtmlGraph usage
+
+**IF YOU'RE USING HTMLGRAPH IN YOUR OWN PROJECT:**
+
+Ignore the HtmlGraph-specific features in `.htmlgraph/`. Focus on:
+- ✅ SDK patterns shown below
+- ✅ Workflow examples (they work for ANY project)
+- ✅ Best practices (universal)
+
+---
+
 ## Quick Start (Python SDK)
 
 ```python
