@@ -228,15 +228,34 @@ class Collection:
         """
         Delete a node.
 
+        Args:
+            node_id: Node ID to delete
+
         Returns:
             True if deleted, False if not found
+
+        Example:
+            sdk.features.delete("feature-001")
         """
         graph = self._ensure_graph()
-        node = graph.get(node_id)
-        if not node:
-            return False
-        graph.delete(node_id)
-        return True
+        return graph.delete(node_id)
+
+    def batch_delete(self, node_ids: list[str]) -> int:
+        """
+        Delete multiple nodes in batch.
+
+        Args:
+            node_ids: List of node IDs to delete
+
+        Returns:
+            Number of nodes successfully deleted
+
+        Example:
+            count = sdk.features.batch_delete(["feat-001", "feat-002", "feat-003"])
+            print(f"Deleted {count} features")
+        """
+        graph = self._ensure_graph()
+        return graph.batch_delete(node_ids)
 
     def update(self, node: Node) -> Node:
         """

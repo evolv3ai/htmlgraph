@@ -87,8 +87,32 @@ feature.save()
 ### Deleting Features
 
 ```python
-sdk.features.delete("feature-20241216-103045")
+# Delete a single feature
+deleted = sdk.features.delete("feature-20241216-103045")
+# Returns: True if deleted, False if not found
+
+# Delete multiple features (batch operation)
+count = sdk.features.batch_delete([
+    "feature-001",
+    "feature-002",
+    "feature-003"
+])
+# Returns: Number of features successfully deleted
+
+# Delete works across all collections
+sdk.bugs.delete("bug-001")
+sdk.chores.delete("chore-001")
+sdk.spikes.delete("spike-001")
+
+# Batch delete with edge cleanup
+# Edges involving deleted nodes are automatically cleaned up
+sdk.features.batch_delete(["duplicate-1", "duplicate-2"])
 ```
+
+**Note:** Delete operations automatically:
+- Remove the HTML file from disk
+- Clean up all edges involving the node (incoming and outgoing)
+- Update the in-memory edge index
 
 ## Tracks API
 

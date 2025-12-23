@@ -208,6 +208,40 @@ class HtmlGraph:
             return self._converter.delete(node_id)
         return False
 
+    def delete(self, node_id: str) -> bool:
+        """
+        Delete a node from the graph (CRUD-style alias for remove).
+
+        Args:
+            node_id: Node to delete
+
+        Returns:
+            True if node was deleted
+
+        Example:
+            graph.delete("feature-001")
+        """
+        return self.remove(node_id)
+
+    def batch_delete(self, node_ids: list[str]) -> int:
+        """
+        Delete multiple nodes in batch.
+
+        Args:
+            node_ids: List of node IDs to delete
+
+        Returns:
+            Number of nodes successfully deleted
+
+        Example:
+            count = graph.batch_delete(["feat-001", "feat-002", "feat-003"])
+        """
+        count = 0
+        for node_id in node_ids:
+            if self.delete(node_id):
+                count += 1
+        return count
+
     # =========================================================================
     # CSS Selector Queries
     # =========================================================================
