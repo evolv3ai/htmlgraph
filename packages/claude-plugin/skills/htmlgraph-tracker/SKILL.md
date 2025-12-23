@@ -5,7 +5,7 @@ description: HtmlGraph session tracking and documentation skill. Activated autom
 
 # HtmlGraph Tracker Skill
 
-Use this skill when HtmlGraph is tracking the session to ensure proper activity attribution and documentation. This skill should be activated at session start via the SessionStart hook.
+Use this skill when HtmlGraph is tracking the session to ensure proper activity attribution and documentation. Activate this skill at session start via the SessionStart hook.
 
 ---
 
@@ -53,9 +53,9 @@ The root AGENTS.md file contains:
 
 The SDK provides access to ALL HtmlGraph operations without adding tool definitions to your context.
 
-**ABSOLUTE RULE: You must NEVER use Read, Write, or Edit tools on `.htmlgraph/` HTML files.**
+**ABSOLUTE RULE: DO NOT use Read, Write, or Edit tools on `.htmlgraph/` HTML files.**
 
-AI agents MUST use the SDK (or API/CLI for special cases) to ensure all HTML is validated through Pydantic + justhtml.
+Use the SDK (or API/CLI for special cases) to ensure all HTML is validated through Pydantic + justhtml.
 
 ❌ **FORBIDDEN:**
 ```python
@@ -184,10 +184,10 @@ tail -10 .htmlgraph/events/session-123.jsonl
 - Agent best practices: `docs/AGENTS.md`
 
 ### 2. Feature Awareness (MANDATORY)
-You MUST always know which feature(s) are currently in progress:
-- Check active features at session start (use `uv run htmlgraph status`)
+Always know which feature(s) are currently in progress:
+- Check active features at session start: run `uv run htmlgraph status`
 - Reference the current feature when discussing work
-- Alert immediately if work appears to drift from the assigned feature
+- Alert immediately if work drifts from the assigned feature
 
 ### 3. Step Completion (CRITICAL)
 **Mark each step complete IMMEDIATELY after finishing it:**
@@ -198,11 +198,11 @@ You MUST always know which feature(s) are currently in progress:
 
 ### 4. Continuous Tracking (CRITICAL)
 
-**ABSOLUTE REQUIREMENT: ALL work MUST be tracked in HtmlGraph.**
+**ABSOLUTE REQUIREMENT: Track ALL work in HtmlGraph.**
 
-Think of HtmlGraph tracking like Git commits - you wouldn't do work without committing it, and you shouldn't do work without tracking it.
+HtmlGraph tracking is like Git commits - never do work without tracking it.
 
-**Every time you complete work, update HtmlGraph immediately:**
+**Update HtmlGraph immediately after completing each piece of work:**
 - ✅ Finished a step? → Mark it complete in SDK
 - ✅ Fixed a bug? → Update bug status
 - ✅ Discovered a decision? → Document it in the feature
@@ -221,7 +221,7 @@ Think of HtmlGraph tracking like Git commits - you wouldn't do work without comm
 3. Complete features when done (`uv run htmlgraph feature complete <id>`)
 
 ### 5. Activity Attribution
-HtmlGraph automatically tracks tool usage, but you should:
+HtmlGraph automatically tracks tool usage. Action items:
 - Use descriptive summaries in Bash `description` parameter
 - Reference feature IDs in commit messages
 - Mention the feature context when starting new tasks
