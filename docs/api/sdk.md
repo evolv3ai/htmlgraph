@@ -218,6 +218,121 @@ transitive_deps = sdk.graph.transitive_deps("feature-001")
 bottlenecks = sdk.graph.find_bottlenecks()
 ```
 
+## SDK Architecture & Module Organization
+
+### Module Structure
+
+The SDK is organized into modular components for better maintainability and separation of concerns:
+
+```
+htmlgraph/
+├── builders/          # Fluent builders for node creation
+│   ├── base.py       # BaseBuilder with common methods
+│   ├── feature.py    # FeatureBuilder
+│   ├── spike.py      # SpikeBuilder
+│   └── track.py      # TrackBuilder
+├── collections/       # Collection interfaces for querying/updating
+│   ├── base.py       # BaseCollection with CRUD operations
+│   ├── feature.py    # FeatureCollection with builder support
+│   └── spike.py      # SpikeCollection with builder support
+├── analytics/         # Analytics and strategic planning
+│   ├── work_type.py  # Work type analytics (Analytics class)
+│   ├── dependency.py # Dependency analytics (DependencyAnalytics class)
+│   └── cli.py        # CLI analytics helpers
+├── sdk.py            # Main SDK class (single entry point)
+└── session_manager.py # Session and activity tracking
+```
+
+### Import Paths
+
+**Recommended imports:**
+
+```python
+from htmlgraph import SDK, Analytics, DependencyAnalytics
+from htmlgraph.builders import FeatureBuilder, SpikeBuilder, TrackBuilder
+from htmlgraph.collections import BaseCollection, FeatureCollection
+from htmlgraph.models import SpikeType, MaintenanceType, WorkType
+
+# Direct module imports (advanced usage)
+from htmlgraph.analytics import Analytics, DependencyAnalytics
+from htmlgraph.analytics.work_type import Analytics
+from htmlgraph.analytics.dependency import DependencyAnalytics
+```
+
+### SDK Components
+
+**1. Collections** - Query and manage nodes
+
+```python
+sdk.features   # FeatureCollection - features with builder support
+sdk.bugs       # BaseCollection - bug reports
+sdk.chores     # BaseCollection - maintenance tasks
+sdk.spikes     # SpikeCollection - investigation spikes
+sdk.epics      # BaseCollection - large bodies of work
+sdk.tracks     # TrackCollection - multi-feature initiatives
+```
+
+**2. Builders** - Fluent interfaces for node creation
+
+```python
+# Features
+feature = sdk.features.create("Add auth") \
+    .set_priority("high") \
+    .add_steps(["Step 1", "Step 2"]) \
+    .save()
+
+# Spikes
+spike = sdk.spikes.create("Research OAuth") \
+    .set_spike_type(SpikeType.TECHNICAL) \
+    .set_timebox_hours(4) \
+    .save()
+
+# Tracks
+track = sdk.tracks.builder() \
+    .title("User Management") \
+    .with_spec(overview="...") \
+    .with_plan_phases([...]) \
+    .create()
+```
+
+**3. Analytics** - Strategic planning and insights
+
+```python
+# Work type analytics
+distribution = sdk.analytics.work_type_distribution(session_id="...")
+ratio = sdk.analytics.spike_to_feature_ratio()
+
+# Dependency analytics
+bottlenecks = sdk.dep_analytics.find_bottlenecks(top_n=5)
+recommendations = sdk.dep_analytics.recommend_next_work(agent_count=3)
+parallel_work = sdk.dep_analytics.get_parallel_work(max_agents=5)
+```
+
+**4. Session Management** - Activity tracking
+
+```python
+# Sessions are managed automatically via SDK
+# Access SessionManager through SDK if needed
+session = sdk.session_manager.get_active_session(agent="claude")
+sdk.start_session(title="Feature implementation")
+sdk.end_session(session_id="...", handoff_notes="...")
+```
+
+### Design Philosophy
+
+**Separation of Concerns:**
+- **Builders** - Node creation (immutable, fluent API)
+- **Collections** - Node querying and updates (CRUD operations)
+- **Analytics** - Strategic insights (read-only, computational)
+- **SessionManager** - Activity tracking (event logging)
+- **SDK** - Single entry point (coordinates all components)
+
+**Benefits:**
+- Clear responsibilities for each module
+- Easy to test and maintain
+- Consistent API across all node types
+- Extensible for new node types
+
 ## Complete API Reference
 
 For detailed API documentation with type signatures and docstrings, see the Python source code in `src/python/htmlgraph/sdk.py`.
