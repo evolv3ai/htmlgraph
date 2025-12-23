@@ -82,24 +82,24 @@ def main():
     print("\n✨ Creating new task programmatically...")
 
     new_task = Node(
-        id="task-005",
-        title="Write documentation",
+        id="task-006",
+        title="Optimize performance",
         type="task",
         status="todo",
         priority="medium",
-        content="<p>Create comprehensive documentation for HtmlGraph.</p>",
+        content="<p>Improve graph query performance for large datasets.</p>",
         steps=[
-            Step(description="Write README.md"),
-            Step(description="Create API reference"),
-            Step(description="Add usage examples"),
+            Step(description="Profile current performance"),
+            Step(description="Implement caching layer"),
+            Step(description="Add benchmark tests"),
         ],
         edges={
             "blocked_by": [Edge(target_id="task-002", title="Implement core models")]
         }
     )
 
-    # Save to HTML file
-    filepath = graph.add(new_task)
+    # Save to HTML file (use overwrite=True to allow re-running the demo)
+    filepath = graph.add(new_task, overwrite=True)
     print(f"   Created: {filepath}")
 
     # Show the generated HTML
