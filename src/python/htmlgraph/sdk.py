@@ -47,7 +47,7 @@ from htmlgraph.graph import HtmlGraph
 from htmlgraph.agents import AgentInterface
 from htmlgraph.track_builder import TrackCollection
 from htmlgraph.collections import BaseCollection, FeatureCollection, SpikeCollection
-from htmlgraph.analytics import Analytics
+from htmlgraph.analytics import Analytics, DependencyAnalytics
 from htmlgraph.session_manager import SessionManager
 
 
@@ -133,7 +133,6 @@ class SDK:
         self.analytics = Analytics(self)
 
         # Dependency analytics interface (Advanced graph analytics)
-        from htmlgraph.dependency_analytics import DependencyAnalytics
         self.dep_analytics = DependencyAnalytics(self._graph)
 
     @staticmethod
