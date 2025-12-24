@@ -187,7 +187,20 @@ def get_htmlgraph_context(htmlgraph_dir: Path, input_data: dict | None = None) -
 
             # Get worked on features
             if active_session.worked_on:
-                context["feature"] = active_session.worked_on[-1]  # Most recent (last)
+                feature_id = active_session.worked_on[-1]  # Most recent (last)
+                context["feature"] = feature_id
+
+                # Load feature details for display
+                try:
+                    feature = sdk.features.get(feature_id)
+                    if feature:
+                        context["feature_data"] = {
+                            "id": feature.id,
+                            "title": feature.title,
+                            "status": feature.status,
+                        }
+                except Exception:
+                    pass  # Silently fail if feature can't be loaded
 
             # Record context snapshot if we have input data
             if input_data:
@@ -276,10 +289,26 @@ def format_status_line(data: dict) -> str:
             parts.append(f"{BRIGHT_BLUE}[{agent}:{event_count}]{RESET}")
 
         # Current feature
-        feature = hg_context.get("feature")
-        if feature:
-            feat_short = feature[:12] + "..." if len(feature) > 15 else feature
-            parts.append(f"{YELLOW}{feat_short}{RESET}")
+        feature_data = hg_context.get("feature_data")
+        if feature_data:
+            title = feature_data.get("title", "")
+            status = feature_data.get("status", "")
+
+            # Truncate long titles
+            if len(title) > 35:
+                title = title[:32] + "..."
+
+            # Color based on status
+            if status == "done":
+                color = GREEN
+            elif status == "in-progress":
+                color = YELLOW
+            elif status == "blocked":
+                color = RED
+            else:
+                color = BRIGHT_BLACK
+
+            parts.append(f"{color}{title}{RESET}")
 
         # Work type
         work_type = hg_context.get("work_type")
