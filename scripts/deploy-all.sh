@@ -92,7 +92,7 @@ done
 
 # Get version from argument or detect from pyproject.toml
 if [ -z "$VERSION" ]; then
-    VERSION=$(python -c "import toml; print(toml.load('pyproject.toml')['project']['version'])" 2>/dev/null || echo "unknown")
+    VERSION=$(uv run python -c "import toml; print(toml.load('pyproject.toml')['project']['version'])" 2>/dev/null || echo "unknown")
 fi
 
 # Colors for output
@@ -297,7 +297,7 @@ if [ "$SKIP_INSTALL" != true ]; then
 
     # Verify installation
     if [ "$DRY_RUN" != true ]; then
-        INSTALLED_VERSION=$(python -c "import htmlgraph; print(htmlgraph.__version__)" 2>/dev/null || echo "unknown")
+        INSTALLED_VERSION=$(uv run python -c "import htmlgraph; print(htmlgraph.__version__)" 2>/dev/null || echo "unknown")
         if [ "$INSTALLED_VERSION" = "$VERSION" ]; then
             log_success "Verified: htmlgraph $INSTALLED_VERSION is installed"
         else
@@ -347,7 +347,7 @@ if [ "$SKIP_PLUGINS" != true ]; then
             if [ "$DRY_RUN" = true ]; then
                 log_info "[DRY-RUN] Would update gemini-extension.json to version $VERSION"
             else
-                python -c "
+                uv run python -c "
 import json
 with open('$GEMINI_EXTENSION_DIR/gemini-extension.json', 'r') as f:
     data = json.load(f)
@@ -420,5 +420,5 @@ echo ""
 echo "Verify deployment:"
 echo "  - PyPI: https://pypi.org/project/htmlgraph/$VERSION/"
 echo "  - GitHub: https://github.com/Shakes-tzd/htmlgraph"
-echo "  - Local: python -c 'import htmlgraph; print(htmlgraph.__version__)'"
+echo "  - Local: uv run python -c 'import htmlgraph; print(htmlgraph.__version__)'"
 echo ""

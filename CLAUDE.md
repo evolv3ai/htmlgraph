@@ -650,8 +650,20 @@ tasks/
 
 **CRITICAL: Use `./scripts/deploy-all.sh` for all deployment operations.**
 
+**IMPORTANT PRE-DEPLOYMENT CHECKLIST:**
+1. ✅ **MUST be in project root directory** - Script will fail if run from subdirectories like `dist/`
+2. ✅ **Commit all changes first** - Script checks for uncommitted changes and refuses to deploy
+3. ✅ **Verify version numbers** - Ensure all files have consistent version numbers
+4. ✅ **Run tests** - `uv run pytest` must pass before deployment
+
 **Quick Usage:**
 ```bash
+# CRITICAL: Always run from project root
+cd /Users/shakes/DevProjects/htmlgraph
+
+# Commit any uncommitted changes first
+git add . && git commit -m "chore: pre-deployment commit"
+
 # Documentation changes only (commit + push)
 ./scripts/deploy-all.sh --docs-only
 
