@@ -644,6 +644,40 @@ tasks/
 
 ---
 
+## Common Workflows & Scripts
+
+### Quick Git Commit and Push
+
+**IMPORTANT: Use `./scripts/git-commit-push.sh` to systematize the common git workflow.**
+
+This script reduces 3 separate bash calls to 1:
+
+```bash
+# Instead of:
+# git add -A
+# git commit -m "message"
+# git push origin main
+
+# Use this:
+./scripts/git-commit-push.sh "chore: update session tracking"
+
+# With confirmation skip:
+./scripts/git-commit-push.sh "fix: deployment issues" --no-confirm
+
+# Preview changes:
+./scripts/git-commit-push.sh "feat: new feature" --dry-run
+```
+
+**Features:**
+- ✅ Shows files to be committed before proceeding
+- ✅ Confirms action (unless `--no-confirm`)
+- ✅ Stages all changes (`git add -A`)
+- ✅ Commits with provided message
+- ✅ Pushes to origin/main
+- ✅ Supports `--dry-run` for preview
+
+---
+
 ## Deployment & Release
 
 ### Using the Deployment Script (FLEXIBLE OPTIONS)
