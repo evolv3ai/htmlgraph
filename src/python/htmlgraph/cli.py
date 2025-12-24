@@ -12,6 +12,7 @@ Session Management:
     htmlgraph session start [--id ID] [--agent AGENT]
     htmlgraph session end ID [--notes NOTES] [--recommend NEXT] [--blocker BLOCKER]
     htmlgraph session list
+    htmlgraph session start-info [--agent AGENT] [--format json]  # Optimized session start (1 call)
     htmlgraph session handoff [--session-id ID] [--notes NOTES] [--recommend NEXT] [--blocker BLOCKER] [--show]
     htmlgraph activity TOOL SUMMARY [--session ID] [--files FILE...]
 
@@ -679,6 +680,88 @@ def cmd_session_list(args):
         for session in sessions:
             started = session.started_at.strftime("%Y-%m-%d %H:%M")
             print(f"{session.id:<30} {session.status:<10} {session.agent:<15} {session.event_count:<8} {started}")
+
+
+def cmd_session_start_info(args):
+    """Get comprehensive session start information (optimized for AI agents)."""
+    from htmlgraph.sdk import SDK
+    import json
+
+    sdk = SDK(directory=args.graph_dir, agent=args.agent)
+
+    info = sdk.get_session_start_info(
+        include_git_log=not args.no_git,
+        git_log_count=args.git_count,
+        analytics_top_n=args.top_n,
+        analytics_max_agents=args.max_agents
+    )
+
+    if args.format == "json":
+        print(json.dumps(info, indent=2, default=str))
+    else:
+        # Human-readable format
+        status = info["status"]
+        print("=" * 80)
+        print("SESSION START INFO")
+        print("=" * 80)
+
+        # Project status
+        print(f"\nProject: {status.get('project_name', 'HtmlGraph')}")
+        print(f"Total nodes: {status.get('total_nodes', 0)}")
+        print(f"In progress: {status.get('in_progress_count', 0)}")
+        print(f"Completed: {status.get('done_count', 0)}")
+
+        # Active features
+        active_features = [f for f in info["features"] if f["status"] == "in-progress"]
+        if active_features:
+            print(f"\nACTIVE FEATURES ({len(active_features)}):")
+            for feat in active_features:
+                progress = f"{feat['steps_completed']}/{feat['steps_total']}" if feat['steps_total'] > 0 else "no steps"
+                print(f"  - {feat['id']}: {feat['title']} ({progress})")
+
+        # Recent sessions
+        recent_sessions = info["sessions"][:5]
+        if recent_sessions:
+            print(f"\nRECENT SESSIONS ({len(recent_sessions)}):")
+            for sess in recent_sessions:
+                print(f"  - {sess['id']}: {sess['agent']} ({sess['event_count']} events)")
+
+        # Git log
+        if info.get("git_log"):
+            print(f"\nRECENT COMMITS:")
+            for commit in info["git_log"]:
+                print(f"  {commit}")
+
+        # Analytics
+        analytics = info["analytics"]
+
+        # Bottlenecks
+        bottlenecks = analytics.get("bottlenecks", [])
+        if bottlenecks:
+            print(f"\nBOTTLENECKS ({len(bottlenecks)}):")
+            for bn in bottlenecks:
+                print(f"  - {bn['title']} (blocks {bn['blocks_count']} tasks, impact: {bn['impact_score']:.1f})")
+
+        # Recommendations
+        recommendations = analytics.get("recommendations", [])
+        if recommendations:
+            print(f"\nRECOMMENDATIONS:")
+            for rec in recommendations[:3]:
+                reasons_str = ", ".join(rec["reasons"][:2])
+                print(f"  - {rec['title']} (score: {rec['score']:.1f})")
+                print(f"    Why: {reasons_str}")
+                if rec.get("unlocks_count", 0) > 0:
+                    print(f"    Unlocks: {rec['unlocks_count']} tasks")
+
+        # Parallel capacity
+        parallel = analytics.get("parallel", {})
+        if parallel:
+            print(f"\nPARALLEL CAPACITY:")
+            print(f"  Max parallelism: {parallel.get('max_parallelism', 0)}")
+            print(f"  Ready now: {parallel.get('ready_now', 0)}")
+            print(f"  Total ready: {parallel.get('total_ready', 0)}")
+
+        print("\n" + "=" * 80)
 
 
 def cmd_session_status_report(args):
@@ -2034,6 +2117,16 @@ curl Examples:
     session_list.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
     session_list.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
 
+    # session start-info (optimized for AI agents)
+    session_start_info = session_subparsers.add_parser("start-info", help="Get comprehensive session start information (optimized)")
+    session_start_info.add_argument("--agent", default="claude", help="Agent name")
+    session_start_info.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    session_start_info.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    session_start_info.add_argument("--no-git", action="store_true", help="Skip git log")
+    session_start_info.add_argument("--git-count", type=int, default=5, help="Number of git commits to include")
+    session_start_info.add_argument("--top-n", type=int, default=3, help="Number of bottlenecks/recommendations")
+    session_start_info.add_argument("--max-agents", type=int, default=3, help="Max agents for parallel work analysis")
+
     # session status-report (and resume alias)
     session_report = session_subparsers.add_parser("status-report", help="Print comprehensive session status report")
     session_report.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
@@ -2421,6 +2514,8 @@ curl Examples:
             cmd_session_end(args)
         elif args.session_command == "list":
             cmd_session_list(args)
+        elif args.session_command == "start-info":
+            cmd_session_start_info(args)
         elif args.session_command == "status-report" or args.session_command == "resume":
             cmd_session_status_report(args)
         elif args.session_command == "dedupe":

@@ -715,3 +715,97 @@ class SDK:
                     "Start implementation"
                 ]
             }
+
+    # =========================================================================
+    # Session Management Optimization
+    # =========================================================================
+
+    def get_session_start_info(
+        self,
+        include_git_log: bool = True,
+        git_log_count: int = 5,
+        analytics_top_n: int = 3,
+        analytics_max_agents: int = 3
+    ) -> dict[str, Any]:
+        """
+        Get comprehensive session start information in a single call.
+
+        Consolidates all information needed for session start into one method,
+        reducing context usage from 6+ tool calls to 1.
+
+        Args:
+            include_git_log: Include recent git commits (default: True)
+            git_log_count: Number of recent commits to include (default: 5)
+            analytics_top_n: Number of bottlenecks/recommendations (default: 3)
+            analytics_max_agents: Max agents for parallel work analysis (default: 3)
+
+        Returns:
+            Dict with comprehensive session start context:
+                - status: Project status (nodes, collections, WIP)
+                - features: List of features with status
+                - sessions: Recent sessions
+                - git_log: Recent commits (if include_git_log=True)
+                - analytics: Strategic insights (bottlenecks, recommendations, parallel)
+
+        Example:
+            >>> sdk = SDK(agent="claude")
+            >>> info = sdk.get_session_start_info()
+            >>> print(f"Project: {info['status']['total_nodes']} nodes")
+            >>> print(f"WIP: {info['status']['in_progress_count']}")
+            >>> for bn in info['analytics']['bottlenecks']:
+            ...     print(f"Bottleneck: {bn['title']}")
+        """
+        import subprocess
+
+        result = {}
+
+        # 1. Project status
+        result["status"] = self.get_status()
+
+        # 2. Features list (simplified)
+        features_list = []
+        for feature in self.features.all():
+            features_list.append({
+                "id": feature.id,
+                "title": feature.title,
+                "status": feature.status,
+                "priority": feature.priority,
+                "steps_total": len(feature.steps),
+                "steps_completed": sum(1 for s in feature.steps if s.completed)
+            })
+        result["features"] = features_list
+
+        # 3. Sessions list (recent 20)
+        sessions_list = []
+        for session in self.sessions.all()[:20]:
+            sessions_list.append({
+                "id": session.id,
+                "status": session.status,
+                "agent": session.properties.get("agent", "unknown"),
+                "event_count": session.properties.get("event_count", 0),
+                "started": session.created.isoformat() if hasattr(session, "created") else None
+            })
+        result["sessions"] = sessions_list
+
+        # 4. Git log (if requested)
+        if include_git_log:
+            try:
+                git_result = subprocess.run(
+                    ["git", "log", f"--oneline", f"-{git_log_count}"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    cwd=self._directory.parent
+                )
+                result["git_log"] = git_result.stdout.strip().split("\n")
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                result["git_log"] = []
+
+        # 5. Strategic analytics
+        result["analytics"] = {
+            "bottlenecks": self.find_bottlenecks(top_n=analytics_top_n),
+            "recommendations": self.recommend_next_work(agent_count=analytics_top_n),
+            "parallel": self.get_parallel_work(max_agents=analytics_max_agents)
+        }
+
+        return result

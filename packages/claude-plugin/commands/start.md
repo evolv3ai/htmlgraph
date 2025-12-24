@@ -23,7 +23,7 @@ Begin a new development session and choose what to work on
 
 ## Instructions for Claude
 
-This command uses the SDK's `None()` method.
+This command uses the SDK's `get_session_start_info()` method.
 
 ### Implementation:
 
@@ -33,56 +33,53 @@ from htmlgraph import SDK
 sdk = SDK(agent="claude")
 
 # Parse arguments
-**DO THIS:**
+**DO THIS (OPTIMIZED - 1 CALL INSTEAD OF 6):**
 
-1. **Run CLI commands to get basic status:**
+1. **Get comprehensive session start info in a single call:**
    ```bash
-   htmlgraph status
-   htmlgraph feature list
-   htmlgraph session list
-   git log --oneline -5
+   uv run htmlgraph session start-info
    ```
 
-2. **Run SDK analytics to get strategic insights:**
-   ```python
-   from htmlgraph import SDK
+   This replaces 6 separate calls:
+   - htmlgraph status
+   - htmlgraph feature list
+   - htmlgraph session list
+   - git log --oneline -5
+   - SDK analytics (bottlenecks)
+   - SDK analytics (recommendations, parallel)
 
-   sdk = SDK(agent="claude")
+   **Context usage: <5% instead of 30%**
 
-   # Get strategic insights
-   recommendations = sdk.recommend_next_work(agent_count=3)
-   bottlenecks = sdk.find_bottlenecks(top_n=3)
-   parallel = sdk.get_parallel_work(max_agents=3)
-   ```
+2. **Parse the output** to extract:
+   - Project status: nodes, WIP count, completion %
+   - Active features with step progress
+   - Recent sessions
+   - Git commit history
+   - Strategic insights:
+     - Bottlenecks (count, titles, impact scores)
+     - Recommendations (top 3 with scores and reasons)
+     - Parallel capacity (max parallelism, ready tasks)
 
-3. **Parse all outputs** to extract:
-   - Basic status: project name, completion %, active features
-   - Currently in-progress features with step progress
-   - Recent commit history
-   - Bottlenecks: count, titles, impact scores
-   - Recommendations: top 3 with scores and reasons
-   - Parallel capacity: max parallelism, ready tasks
+3. **Present the comprehensive summary** using the output template above
 
-4. **Present the comprehensive summary** using the output template above
-
-5. **Recommend specific next action** based on analytics:
+4. **Recommend specific next action** based on analytics:
    - If bottlenecks exist → Highlight them as priority
    - If recommendations available → Show top recommendation with score
    - If parallel capacity > 1 → Mention coordination opportunity
    - Default → Continue current work or start new
 
-6. **Ask the user what they want to work on** with data-driven options
+5. **Ask the user what they want to work on** with data-driven options
 
-7. **Wait for user direction** before taking any action
+6. **Wait for user direction** before taking any action
 
-8. **Apply constraints:**
+7. **Apply constraints:**
    - Maximum 3 features can be in progress (WIP limit)
    - Prioritize unblocking bottlenecks
    - Prioritize finishing existing work over starting new
    - Use SDK for all operations
    - Mark steps complete immediately after finishing
 
-9. **Remind the user:**
+8. **Remind the user:**
    - All activity is automatically tracked to features
    - View progress in browser: `htmlgraph serve` → http://localhost:8080
    - Use `/htmlgraph:plan` to start new work with proper planning

@@ -929,7 +929,9 @@ See `docs/WORKFLOW.md` for the complete decision framework with detailed criteri
 
 ### Session Start (DO THESE FIRST)
 1. ✅ Activate this skill (done automatically)
-2. ✅ **RUN:** `uv run htmlgraph status` - Check what's active
+2. ✅ **RUN:** `uv run htmlgraph session start-info` - Get comprehensive session context (optimized, 1 call)
+   - Replaces: status + feature list + session list + git log + analytics
+   - Reduces context usage from 30% to <5%
 3. ✅ Review active features and decide if you need to create a new one
 4. ✅ Greet user with brief status update
 5. ✅ **DECIDE:** Create feature or implement directly? (use decision framework below)
