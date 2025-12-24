@@ -149,3 +149,63 @@ cd /Users/shakes/DevProjects/htmlgraph
 ./scripts/git-commit-push.sh "chore: commit" --no-confirm
 ./scripts/deploy-all.sh 0.9.1
 ```
+
+### Pre-Deployment Checklist
+
+**CRITICAL - Do these first:**
+
+1. ✅ **MUST be in project root directory** - Script fails from subdirectories
+2. ✅ **Commit all changes first** - Script checks for uncommitted changes
+3. ~~✅ **Verify version numbers**~~ - **AUTOMATED!** Script now updates all version numbers automatically
+4. ✅ **Run tests** - `uv run pytest` must pass before deployment
+
+---
+
+### Version Management (AUTOMATED!)
+
+**NEW:** The script now automatically updates version numbers in all files!
+
+Just provide the version number and the script handles the rest:
+
+```bash
+./scripts/deploy-all.sh 0.9.3
+```
+
+**Files Updated Automatically:**
+- ✅ `pyproject.toml` - Python package version
+- ✅ `src/python/htmlgraph/__init__.py` - `__version__` variable
+- ✅ `packages/claude-plugin/.claude-plugin/plugin.json` - Claude plugin version
+- ✅ `packages/gemini-extension/gemini-extension.json` - Gemini extension version
+
+**How it works:**
+1. Script detects version from command line argument
+2. Updates all 4 files before git push (Step 0)
+3. Commits include correct version numbers
+4. Build uses updated version numbers
+5. No more manual version updates needed!
+
+**Example workflow:**
+```bash
+# Old way (manual):
+# 1. Edit pyproject.toml version
+# 2. Edit __init__.py version
+# 3. Edit plugin.json versions
+# 4. Commit version changes
+# 5. Run deployment
+
+# New way (automatic):
+./scripts/deploy-all.sh 0.9.3  # That's it!
+```
+
+---
+
+### Environment Variables
+
+Required for PyPI publishing:
+```bash
+# In .env file:
+PyPI_API_TOKEN=pypi-YOUR_TOKEN_HERE
+
+# Or as environment variable:
+export UV_PUBLISH_TOKEN="pypi-YOUR_TOKEN_HERE"
+```
