@@ -129,6 +129,7 @@ project_dir_for_import = _resolve_project_dir()
 _bootstrap_pythonpath(project_dir_for_import)
 
 try:
+    from htmlgraph import SDK
     from htmlgraph.graph import HtmlGraph
     from htmlgraph.session_manager import SessionManager
     from htmlgraph.converter import node_to_dict
@@ -338,6 +339,113 @@ def get_session_summary(graph_dir: Path) -> Optional[dict]:
     return None
 
 
+def get_strategic_recommendations(graph_dir: Path, agent_count: int = 1) -> dict:
+    """Get strategic recommendations using SDK analytics."""
+    try:
+        sdk = SDK(directory=graph_dir, agent="claude-code")
+
+        # Get recommendations
+        recs = sdk.recommend_next_work(agent_count=agent_count)
+
+        # Get bottlenecks
+        bottlenecks = sdk.find_bottlenecks(top_n=3)
+
+        # Get parallel work capacity
+        parallel = sdk.get_parallel_work(max_agents=5)
+
+        return {
+            "recommendations": recs[:3] if recs else [],
+            "bottlenecks": bottlenecks,
+            "parallel_capacity": parallel
+        }
+    except Exception as e:
+        print(f"Warning: Could not get strategic recommendations: {e}", file=sys.stderr)
+        return {
+            "recommendations": [],
+            "bottlenecks": [],
+            "parallel_capacity": {"max_parallelism": 0, "ready_now": 0, "total_ready": 0}
+        }
+
+
+def get_active_agents(graph_dir: Path) -> list[dict]:
+    """Get information about other active agents."""
+    try:
+        manager = SessionManager(graph_dir)
+
+        # Get all active sessions
+        sessions_dir = graph_dir / "sessions"
+        if not sessions_dir.exists():
+            return []
+
+        from htmlgraph.converter import SessionConverter
+        converter = SessionConverter(sessions_dir)
+        all_sessions = converter.load_all()
+
+        active_agents = []
+        for session in all_sessions:
+            if session.status == "active":
+                active_agents.append({
+                    "agent": session.agent,
+                    "session_id": session.id,
+                    "started_at": session.started_at.isoformat() if session.started_at else None,
+                    "event_count": session.event_count,
+                    "worked_on": list(session.worked_on) if hasattr(session, 'worked_on') else []
+                })
+
+        return active_agents
+    except Exception as e:
+        print(f"Warning: Could not get active agents: {e}", file=sys.stderr)
+        return []
+
+
+def detect_feature_conflicts(features: list[dict], active_agents: list[dict]) -> list[dict]:
+    """Detect features being worked on by multiple agents simultaneously."""
+    conflicts = []
+
+    try:
+        # Build map of feature -> agents
+        feature_agents = {}
+
+        for agent_info in active_agents:
+            for feature_id in agent_info.get("worked_on", []):
+                if feature_id not in feature_agents:
+                    feature_agents[feature_id] = []
+                feature_agents[feature_id].append(agent_info["agent"])
+
+        # Find features with multiple agents
+        for feature_id, agents in feature_agents.items():
+            if len(agents) > 1:
+                # Get feature details
+                feature = next((f for f in features if f.get("id") == feature_id), None)
+                if feature:
+                    conflicts.append({
+                        "feature_id": feature_id,
+                        "title": feature.get("title", "Unknown"),
+                        "agents": agents
+                    })
+    except Exception as e:
+        print(f"Warning: Could not detect conflicts: {e}", file=sys.stderr)
+
+    return conflicts
+
+
+def get_recent_commits(project_dir: str, count: int = 5) -> list[str]:
+    """Get recent git commits."""
+    try:
+        result = subprocess.run(
+            ['git', 'log', '--oneline', f'-{count}'],
+            capture_output=True,
+            text=True,
+            cwd=project_dir,
+            timeout=5
+        )
+        if result.returncode == 0:
+            return result.stdout.strip().split('\n')
+    except Exception:
+        pass
+    return []
+
+
 def output_response(context: str, status_summary: Optional[str] = None) -> None:
     """Output JSON response with context."""
     if status_summary:
@@ -433,13 +541,23 @@ Or create features manually in `.htmlgraph/features/`
     active_features = [f for f in features if f.get("status") == "in-progress"]
     pending_features = [f for f in features if f.get("status") == "todo"]
 
+    # Get strategic recommendations (analytics)
+    analytics = get_strategic_recommendations(graph_dir, agent_count=1)
+
+    # Get active agents and detect conflicts
+    active_agents = get_active_agents(graph_dir)
+    conflicts = detect_feature_conflicts(features, active_agents)
+
+    # Get recent commits
+    recent_commits = get_recent_commits(project_dir, count=5)
+
     # Build context (prepend version warning if outdated)
     context_parts = []
     if version_warning:
         context_parts.append(version_warning.strip())
     context_parts.append(HTMLGRAPH_PROCESS_NOTICE)
 
-    # Previous session summary
+    # Previous session summary (enhanced with more detail)
     prev_session = get_session_summary(graph_dir)
     if prev_session:
         handoff_lines = []
@@ -453,13 +571,19 @@ Or create features manually in `.htmlgraph/features/`
 
         handoff_text = ""
         if handoff_lines:
-            handoff_text = "\n\n**Handoff Context:**\n" + "\n".join(handoff_lines)
+            handoff_text = "\n\n" + "\n".join(handoff_lines)
+
+        # Format worked_on list
+        worked_on = prev_session.get('worked_on', [])
+        worked_on_text = ', '.join(worked_on[:3]) if worked_on else 'N/A'
+        if len(worked_on) > 3:
+            worked_on_text += f" (+{len(worked_on) - 3} more)"
 
         context_parts.append(f"""## Previous Session
 
-**Session:** {prev_session.get('id', 'unknown')}
+**Session:** {prev_session.get('id', 'unknown')[:12]}...
 **Events:** {prev_session.get('event_count', 0)}
-**Worked On:** {', '.join(prev_session.get('worked_on', [])) or 'N/A'}
+**Worked On:** {worked_on_text}
 {handoff_text}
 """)
 
@@ -492,6 +616,85 @@ htmlgraph feature start <feature-id>
         context_parts.append(f"""## Pending Features
 
 {pending_list}
+""")
+
+    # Add recent commits
+    if recent_commits:
+        commits_text = "\n".join([f"  {commit}" for commit in recent_commits])
+        context_parts.append(f"""## Recent Commits
+
+{commits_text}
+""")
+
+    # Add strategic insights
+    recommendations = analytics.get("recommendations", [])
+    bottlenecks = analytics.get("bottlenecks", [])
+    parallel = analytics.get("parallel_capacity", {})
+
+    if recommendations or bottlenecks or parallel.get("max_parallelism", 0) > 0:
+        insights_parts = []
+
+        # Bottlenecks
+        if bottlenecks:
+            bottleneck_count = len(bottlenecks)
+            bottleneck_list = "\n".join([
+                f"  - **{bn['title']}** (blocks {bn['blocks_count']} tasks, impact: {bn['impact_score']:.1f})"
+                for bn in bottlenecks[:3]
+            ])
+            insights_parts.append(f"""#### Bottlenecks ({bottleneck_count})
+{bottleneck_list}""")
+
+        # Recommendations
+        if recommendations:
+            rec_list = "\n".join([
+                f"  {i+1}. **{rec['title']}** (score: {rec['score']:.1f})\n     - Why: {', '.join(rec['reasons'][:2])}"
+                for i, rec in enumerate(recommendations[:3])
+            ])
+            insights_parts.append(f"""#### Top Recommendations
+{rec_list}""")
+
+        # Parallel capacity
+        if parallel.get("max_parallelism", 0) > 0:
+            ready_now = parallel.get("ready_now", 0)
+            total_ready = parallel.get("total_ready", 0)
+            insights_parts.append(f"""#### Parallel Work
+**Can work on {parallel['max_parallelism']} tasks simultaneously**
+- {ready_now} tasks ready now
+- {total_ready} total tasks ready""")
+
+        if insights_parts:
+            context_parts.append(f"""## 🎯 Strategic Insights
+
+{chr(10).join(insights_parts)}
+""")
+
+    # Add active agents section (multi-agent awareness)
+    other_agents = [a for a in active_agents if a["agent"] != "claude-code"]
+    if other_agents:
+        agents_list = "\n".join([
+            f"  - **{agent['agent']}**: {agent['event_count']} events, working on {', '.join(agent.get('worked_on', [])[:2]) or 'unknown'}"
+            for agent in other_agents[:5]
+        ])
+        context_parts.append(f"""## 👥 Other Active Agents
+
+{agents_list}
+
+**Note:** Coordinate with other agents to avoid conflicts.
+""")
+
+    # Add conflict warnings
+    if conflicts:
+        conflict_list = "\n".join([
+            f"  - **{conf['title']}** ({conf['feature_id']}): {', '.join(conf['agents'])}"
+            for conf in conflicts
+        ])
+        context_parts.append(f"""## ⚠️ CONFLICT DETECTED
+
+**Multiple agents working on the same features:**
+
+{conflict_list}
+
+**Action required:** Coordinate with other agents or choose a different feature.
 """)
 
     context_parts.append("""## Session Continuity & Checklist
