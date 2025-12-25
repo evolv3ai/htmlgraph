@@ -25,7 +25,7 @@ import json
 import sys
 import os
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # ANSI color codes
 RESET = "\033[0m"
@@ -221,17 +221,38 @@ def get_htmlgraph_context(htmlgraph_dir: Path, input_data: dict | None = None) -
             if input_data:
                 record_context_snapshot(htmlgraph_dir, input_data, context.get("feature"))
 
-        # Check drift queue for high-drift activities
+        # Check drift queue for high-drift activities (and clean up stale entries)
         drift_queue_path = htmlgraph_dir / "drift-queue.json"
         if drift_queue_path.exists():
             with open(drift_queue_path) as f:
                 drift_data = json.load(f)
                 activities = drift_data.get("activities", [])
-                if activities:
+
+                # Filter out stale activities (older than 48 hours)
+                cutoff_time = datetime.now() - timedelta(hours=48)
+                fresh_activities = []
+                for activity in activities:
+                    try:
+                        activity_time = datetime.fromisoformat(activity.get("timestamp", ""))
+                        if activity_time >= cutoff_time:
+                            fresh_activities.append(activity)
+                    except (ValueError, TypeError):
+                        fresh_activities.append(activity)
+
+                # Save cleaned queue if we removed stale entries
+                if len(fresh_activities) < len(activities):
+                    drift_data["activities"] = fresh_activities
+                    try:
+                        with open(drift_queue_path, "w") as f_out:
+                            json.dump(drift_data, f_out, indent=2)
+                    except Exception:
+                        pass
+
+                if fresh_activities:
                     # Average drift score of pending items
-                    total_drift = sum(a.get("drift_score", 0) for a in activities)
-                    context["drift_score"] = total_drift / len(activities) if activities else None
-                    context["drift_count"] = len(activities)
+                    total_drift = sum(a.get("drift_score", 0) for a in fresh_activities)
+                    context["drift_score"] = total_drift / len(fresh_activities) if fresh_activities else None
+                    context["drift_count"] = len(fresh_activities)
 
     except ImportError:
         # SDK not available, try direct file access

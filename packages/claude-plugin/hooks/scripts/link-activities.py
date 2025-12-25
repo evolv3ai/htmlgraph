@@ -43,13 +43,49 @@ def resolve_project_path(cwd: Optional[str] = None) -> str:
     return start_dir
 
 
-def load_drift_queue(graph_dir: Path) -> dict:
-    """Load the drift queue from file."""
+def load_drift_queue(graph_dir: Path, max_age_hours: int = 48) -> dict:
+    """
+    Load the drift queue from file and clean up stale entries.
+
+    Args:
+        graph_dir: Path to .htmlgraph directory
+        max_age_hours: Maximum age in hours before activities are removed (default: 48)
+
+    Returns:
+        Drift queue dict with only recent activities
+    """
     queue_path = graph_dir / DRIFT_QUEUE_FILE
     if queue_path.exists():
         try:
             with open(queue_path) as f:
-                return json.load(f)
+                queue = json.load(f)
+
+            # Filter out stale activities
+            from datetime import timedelta
+            cutoff_time = datetime.now() - timedelta(hours=max_age_hours)
+            original_count = len(queue.get("activities", []))
+
+            fresh_activities = []
+            for activity in queue.get("activities", []):
+                try:
+                    activity_time = datetime.fromisoformat(activity.get("timestamp", ""))
+                    if activity_time >= cutoff_time:
+                        fresh_activities.append(activity)
+                except (ValueError, TypeError):
+                    # Keep activities with invalid timestamps to avoid data loss
+                    fresh_activities.append(activity)
+
+            # Update queue if we removed stale entries
+            if len(fresh_activities) < original_count:
+                queue["activities"] = fresh_activities
+                # Save cleaned queue
+                try:
+                    with open(queue_path, "w") as f:
+                        json.dump(queue, f, indent=2)
+                except Exception:
+                    pass
+
+            return queue
         except Exception:
             pass
     return {"activities": [], "last_classification": None}

@@ -115,6 +115,7 @@ def load_drift_config() -> dict:
         },
         "queue": {
             "max_pending_classifications": 5,
+            "max_age_hours": 48,
             "process_on_stop": True,
             "process_on_threshold": True
         }
@@ -157,13 +158,45 @@ def save_parent_activity(graph_dir: Path, parent_id: str | None, tool: str | Non
         print(f"Warning: Could not save parent activity: {e}", file=sys.stderr)
 
 
-def load_drift_queue(graph_dir: Path) -> dict:
-    """Load the drift queue from file."""
+def load_drift_queue(graph_dir: Path, max_age_hours: int = 48) -> dict:
+    """
+    Load the drift queue from file and clean up stale entries.
+
+    Args:
+        graph_dir: Path to .htmlgraph directory
+        max_age_hours: Maximum age in hours before activities are removed (default: 48)
+
+    Returns:
+        Drift queue dict with only recent activities
+    """
     queue_path = graph_dir / DRIFT_QUEUE_FILE
     if queue_path.exists():
         try:
             with open(queue_path) as f:
-                return json.load(f)
+                queue = json.load(f)
+
+            # Filter out stale activities
+            cutoff_time = datetime.now() - timedelta(hours=max_age_hours)
+            original_count = len(queue.get("activities", []))
+
+            fresh_activities = []
+            for activity in queue.get("activities", []):
+                try:
+                    activity_time = datetime.fromisoformat(activity.get("timestamp", ""))
+                    if activity_time >= cutoff_time:
+                        fresh_activities.append(activity)
+                except (ValueError, TypeError):
+                    # Keep activities with invalid timestamps to avoid data loss
+                    fresh_activities.append(activity)
+
+            # Update queue if we removed stale entries
+            if len(fresh_activities) < original_count:
+                queue["activities"] = fresh_activities
+                save_drift_queue(graph_dir, queue)
+                removed = original_count - len(fresh_activities)
+                print(f"Cleaned {removed} stale drift queue entries (older than {max_age_hours}h)", file=sys.stderr)
+
+            return queue
         except Exception:
             pass
     return {"activities": [], "last_classification": None}
@@ -181,7 +214,8 @@ def save_drift_queue(graph_dir: Path, queue: dict) -> None:
 
 def add_to_drift_queue(graph_dir: Path, activity: dict, config: dict) -> dict:
     """Add a high-drift activity to the queue."""
-    queue = load_drift_queue(graph_dir)
+    max_age_hours = config.get("queue", {}).get("max_age_hours", 48)
+    queue = load_drift_queue(graph_dir, max_age_hours=max_age_hours)
     max_pending = config.get("queue", {}).get("max_pending_classifications", 5)
 
     queue["activities"].append({
