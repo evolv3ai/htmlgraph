@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Statusline shows auto-spike instead of active feature</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-statusline-spike"
+             data-type="bug"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-25T06:35:50.811706"
+             data-updated="2025-12-25T06:36:38.057826">
+
+        <header>
+            <h1>Statusline shows auto-spike instead of active feature</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-40ed8a68.html" data-relationship="implemented-in" data-since="2025-12-25T06:36:38.057812">sess-40ed8a68</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true">✅ Reproduce: Start a feature, observe statusline shows spike not feature</li>
+                <li data-completed="true">✅ Investigate statusline logic in scripts/statusline.py</li>
+                <li data-completed="false">⏳ Check get_active_work_item() - may be returning spike instead of feature</li>
+                <li data-completed="false">⏳ Likely related to auto-spike session-init/transition creation</li>
+                <li data-completed="false">⏳ Fix logic to prioritize features/bugs/chores over auto-spikes</li>
+                <li data-completed="false">⏳ Test: Statusline should show feat-e514d949, not spk-ff88998c</li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

@@ -13,15 +13,15 @@
              data-status="active"
              data-agent="claude"
              data-started-at="2025-12-23T17:10:29.715930"
-             data-last-activity="2025-12-25T06:32:31.750617"
-             data-event-count="576" data-is-subagent="false" data-start-commit="57d3169" data-peak-context="123272" data-total-output="128010" data-total-cost="14.7594" data-context-by-feature='{"spk-ff88998c": 123272}'>
+             data-last-activity="2025-12-25T06:36:38.057785"
+             data-event-count="582" data-is-subagent="false" data-start-commit="57d3169" data-peak-context="128715" data-total-output="131989" data-total-cost="15.1396" data-context-by-feature='{"spk-ff88998c": 128715}'>
 
         <header>
             <h1>Auto session (claude)</h1>
             <div class="metadata">
                 <span class="badge status-active">Active</span>
                 <span class="badge">claude</span>
-                <span class="badge">576 events</span>
+                <span class="badge">582 events</span>
             </div>
         </header>
 
@@ -35,6 +35,7 @@
                     <li><a href="../features/feat-ec0d66ee.html" data-relationship="worked-on">feat-ec0d66ee</a></li>
                     <li><a href="../features/feat-950330cb.html" data-relationship="worked-on">feat-950330cb</a></li>
                     <li><a href="../features/feat-e514d949.html" data-relationship="worked-on">feat-e514d949</a></li>
+                    <li><a href="../features/bug-statusline-spike.html" data-relationship="worked-on">bug-statusline-spike</a></li>
                 </ul>
             </section>
         </nav>
@@ -42,18 +43,24 @@
             <h3>Context Usage</h3>
             <dl>
                 <dt>Peak Context</dt>
-                <dd>123,272 tokens (61%)</dd>
+                <dd>128,715 tokens (64%)</dd>
                 <dt>Total Output</dt>
-                <dd>128,010 tokens</dd>
+                <dd>131,989 tokens</dd>
                 <dt>Total Cost</dt>
-                <dd>$14.7594</dd>
+                <dd>$15.1396</dd>
                 <dt>Snapshots</dt>
                 <dd>1</dd>
             </dl>
         </section>
         <section data-activity-log>
-            <h3>Activity Log (576 events)</h3>
+            <h3>Activity Log (582 events)</h3>
             <ol reversed>
+                <li data-ts="2025-12-25T06:36:38.049505" data-tool="Bash" data-success="true" data-event-id="evt-f0c6924e" data-feature="bug-statusline-spike" data-drift="0.70">Bash: Update bug with investigation findings</li>
+                <li data-ts="2025-12-25T06:36:06.431535" data-tool="Bash" data-success="true" data-event-id="evt-9b7b5cc0">Bash: Check what work items are in-progress</li>
+                <li data-ts="2025-12-25T06:35:51.476216" data-tool="Bash" data-success="true" data-event-id="evt-ec824711">Bash: Create bug using graph directly</li>
+                <li data-ts="2025-12-25T06:35:14.855129" data-tool="UserQuery" data-success="true" data-event-id="evt-65638868">"why is the status line showing aspike instead of the current feature? \ │ Plan: Session management w..."</li>
+                <li data-ts="2025-12-25T06:33:00.590241" data-tool="Stop" data-success="true" data-event-id="evt-368454d2">Agent stopped</li>
+                <li data-ts="2025-12-25T06:32:49.138871" data-tool="Bash" data-success="true" data-event-id="evt-bf8126aa">Bash: Commit tracking updates and push</li>
                 <li data-ts="2025-12-25T06:32:31.739027" data-tool="Bash" data-success="true" data-event-id="evt-cc9e3556">Bash: Commit corrected spike validation logic</li>
                 <li data-ts="2025-12-25T06:32:10.038232" data-tool="Bash" data-success="true" data-event-id="evt-6da0c74d">Bash: Run validation hook tests with corrected spike logic</li>
                 <li data-ts="2025-12-25T06:32:02.859011" data-tool="Edit" data-success="true" data-event-id="evt-cbb981d0">Edit: /Users/shakes/DevProjects/htmlgraph/tests/python/test_validate_work_hook.py (class TestAutoSpikeValidation:...)</li>
@@ -160,12 +167,6 @@ Pre-Work Validation Hook
                 <li data-ts="2025-12-25T05:36:35.841905" data-tool="Bash" data-success="true" data-event-id="evt-7127a2e2">Bash: Test get_active_work_item method</li>
                 <li data-ts="2025-12-25T05:36:23.829712" data-tool="Edit" data-success="true" data-event-id="evt-aad3aac2">Edit: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/sdk.py (        return result...)</li>
                 <li data-ts="2025-12-25T05:36:05.957412" data-tool="Read" data-success="true" data-event-id="evt-7b2e81d1">Read: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/sdk.py</li>
-                <li data-ts="2025-12-25T05:36:05.939019" data-tool="Read" data-success="true" data-event-id="evt-839506fc">Read: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/sdk.py</li>
-                <li data-ts="2025-12-25T05:36:00.051846" data-tool="Read" data-success="true" data-event-id="evt-e6361b24">Read: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/sdk.py</li>
-                <li data-ts="2025-12-25T05:35:53.734805" data-tool="Read" data-success="true" data-event-id="evt-e01a6187">Read: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/sdk.py</li>
-                <li data-ts="2025-12-25T05:35:47.166065" data-tool="Read" data-success="true" data-event-id="evt-b2f8fd28">Read: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/__init__.py</li>
-                <li data-ts="2025-12-25T05:35:39.536301" data-tool="Bash" data-success="true" data-event-id="evt-2f8d220e">Bash: Start get_active_work_item method feature</li>
-                <li data-ts="2025-12-25T05:35:39.506806" data-tool="Bash" data-success="true" data-event-id="evt-81841b05">Bash: Start get_active_work_item method feature</li>
             </ol>
         </section>
     </article>
