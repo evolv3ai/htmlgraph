@@ -836,6 +836,8 @@ class SDK:
                 - agent: Assigned agent
                 - steps_total: Total steps
                 - steps_completed: Completed steps
+                - auto_generated: (spikes only) True if auto-generated spike
+                - spike_subtype: (spikes only) "session-init" or "transition"
 
         Example:
             >>> sdk = SDK(agent="claude")
@@ -870,7 +872,7 @@ class SDK:
                         if item.agent_assigned != agent_id:
                             continue
 
-                active_items.append({
+                item_dict = {
                     "id": item.id,
                     "title": item.title,
                     "type": item.type,
@@ -878,7 +880,14 @@ class SDK:
                     "agent": getattr(item, "agent_assigned", None),
                     "steps_total": len(item.steps) if hasattr(item, "steps") else 0,
                     "steps_completed": sum(1 for s in item.steps if s.completed) if hasattr(item, "steps") else 0
-                })
+                }
+
+                # Add spike-specific fields for auto-spike detection
+                if item.type == "spike":
+                    item_dict["auto_generated"] = getattr(item, "auto_generated", False)
+                    item_dict["spike_subtype"] = getattr(item, "spike_subtype", None)
+
+                active_items.append(item_dict)
 
         # Return first active item (primary work item)
         # TODO: In future, could support multiple active items or prioritization
