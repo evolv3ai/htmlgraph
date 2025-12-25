@@ -484,7 +484,7 @@ def main():
     project_dir = _resolve_project_dir(cwd if cwd else None)
     graph_dir = Path(project_dir) / ".htmlgraph"
 
-    # Ensure a single stable HtmlGraph session exists.
+    # Ensure a single stable HtmlGraph session exists for this agent.
     # Do NOT create a new HtmlGraph session per external Claude session id (that can explode into many files).
     #
     # DESIGN DECISION: Task subagents share the parent's session.
@@ -494,7 +494,8 @@ def main():
     # - Alternative would be separate sessions per Task, but that fragments related work
     try:
         manager = SessionManager(graph_dir)
-        active = manager.get_active_session()
+        # Get or create session for THIS specific agent (claude-code)
+        active = manager.get_active_session_for_agent(agent="claude-code")
         if not active:
             active = manager.start_session(
                 session_id=None,
