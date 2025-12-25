@@ -742,6 +742,7 @@ class SDK:
         Returns:
             Dict with comprehensive session start context:
                 - status: Project status (nodes, collections, WIP)
+                - active_work: Current active work item (if any)
                 - features: List of features with status
                 - sessions: Recent sessions
                 - git_log: Recent commits (if include_git_log=True)
@@ -752,6 +753,8 @@ class SDK:
             >>> info = sdk.get_session_start_info()
             >>> print(f"Project: {info['status']['total_nodes']} nodes")
             >>> print(f"WIP: {info['status']['in_progress_count']}")
+            >>> if info['active_work']:
+            ...     print(f"Active: {info['active_work']['title']}")
             >>> for bn in info['analytics']['bottlenecks']:
             ...     print(f"Bottleneck: {bn['title']}")
         """
@@ -762,7 +765,10 @@ class SDK:
         # 1. Project status
         result["status"] = self.get_status()
 
-        # 2. Features list (simplified)
+        # 2. Active work item (validation status)
+        result["active_work"] = self.get_active_work_item()
+
+        # 3. Features list (simplified)
         features_list = []
         for feature in self.features.all():
             features_list.append({
@@ -775,7 +781,7 @@ class SDK:
             })
         result["features"] = features_list
 
-        # 3. Sessions list (recent 20)
+        # 4. Sessions list (recent 20)
         sessions_list = []
         for session in self.sessions.all()[:20]:
             sessions_list.append({
@@ -787,7 +793,7 @@ class SDK:
             })
         result["sessions"] = sessions_list
 
-        # 4. Git log (if requested)
+        # 5. Git log (if requested)
         if include_git_log:
             try:
                 git_result = subprocess.run(
@@ -801,7 +807,7 @@ class SDK:
             except (subprocess.CalledProcessError, FileNotFoundError):
                 result["git_log"] = []
 
-        # 5. Strategic analytics
+        # 6. Strategic analytics
         result["analytics"] = {
             "bottlenecks": self.find_bottlenecks(top_n=analytics_top_n),
             "recommendations": self.recommend_next_work(agent_count=analytics_top_n),

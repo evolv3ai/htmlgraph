@@ -711,6 +711,36 @@ def cmd_session_start_info(args):
         print(f"In progress: {status.get('in_progress_count', 0)}")
         print(f"Completed: {status.get('done_count', 0)}")
 
+        # Active work item (validation status)
+        active_work = info.get("active_work")
+        print("\nACTIVE WORK:")
+        if active_work:
+            # Determine type symbol
+            type_symbol = {
+                "feature": "✨",
+                "bug": "🐛",
+                "spike": "🔍",
+                "chore": "🔧",
+                "epic": "🎯"
+            }.get(active_work.get("type"), "📝")
+
+            # Build progress info
+            steps_total = active_work.get("steps_total", 0)
+            steps_completed = active_work.get("steps_completed", 0)
+            progress_str = f"({steps_completed}/{steps_total} steps)" if steps_total > 0 else ""
+
+            # Check if auto-spike
+            auto_spike_info = ""
+            if active_work.get("type") == "spike" and active_work.get("auto_generated"):
+                spike_subtype = active_work.get("spike_subtype", "unknown")
+                auto_spike_info = f" [AUTO-{spike_subtype.upper()}]"
+
+            print(f"  {type_symbol} {active_work['id']}: {active_work['title']} {progress_str}{auto_spike_info}")
+        else:
+            print("  ⚠️  No active work item")
+            print("  Code changes will be blocked until you assign work.")
+            print("  Create a feature: uv run htmlgraph feature create \"Title\"")
+
         # Active features
         active_features = [f for f in info["features"] if f["status"] == "in-progress"]
         if active_features:

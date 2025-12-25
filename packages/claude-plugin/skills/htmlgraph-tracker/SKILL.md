@@ -469,6 +469,206 @@ print(f"Track progress: {completed}/{len(track_features)} features complete")
 
 ---
 
+## Pre-Work Validation Hook
+
+**NEW:** HtmlGraph enforces the workflow via a PreToolUse validation hook that ensures code changes are always tracked.
+
+### How Validation Works
+
+The validation hook runs BEFORE every tool execution and makes decisions based on your current work item:
+
+**VALIDATION RULES:**
+
+| Scenario | Tool | Action | Reason |
+|----------|------|--------|--------|
+| **Active Feature** | Read | ✅ Allow | Exploration is always allowed |
+| **Active Feature** | Write/Edit/Delete | ✅ Allow | Code changes match active feature |
+| **Active Spike** | Read | ✅ Allow | Spikes permit exploration |
+| **Active Spike** | Write/Edit/Delete | ⚠️ Warn + Allow | Planning spike, code changes not tracked |
+| **Auto-Spike** (session-init) | All | ✅ Allow | Planning phase, don't block |
+| **No Active Work** | Read | ✅ Allow | Exploration without feature is OK |
+| **No Active Work** | Write/Edit/Delete (1 file) | ⚠️ Warn + Allow | Single-file changes often trivial |
+| **No Active Work** | Write/Edit/Delete (3+ files) | ❌ Deny | Requires explicit feature creation |
+| **SDK Operations** | All | ✅ Allow | Creating work items always allowed |
+
+### When Validation BLOCKS (Deny)
+
+Validation **DENIES** code changes (Write/Edit/Delete) when ALL of these are true:
+
+1. ❌ No active feature, bug, or chore (no work item)
+2. ❌ Changes affect 3 or more files
+3. ❌ Not an auto-spike (session-init or transition)
+4. ❌ Not an SDK operation (e.g., creating features)
+
+**What you see:**
+```
+PreToolUse Validation: Cannot proceed without active work item
+- Reason: Multi-file changes (5 files) without tracked work item
+- Action: Create a feature first with uv run htmlgraph feature create
+```
+
+**Resolution:** Create a feature using the feature decision framework, then try again.
+
+### When Validation WARNS (Allow with Warning)
+
+Validation **WARNS BUT ALLOWS** when:
+
+1. ⚠️ Single-file changes without active work item (likely trivial)
+2. ⚠️ Active spike (planning-only, code changes won't be fully tracked)
+3. ⚠️ Auto-spike (session initialization, inherent planning phase)
+
+**What you see:**
+```
+PreToolUse Validation: Warning - activity may not be tracked
+- File: src/config.py (1 file)
+- Reason: Single-file change without active feature
+- Option: Create feature if this is significant work
+```
+
+**You can continue** - but consider if the work deserves a feature.
+
+### Auto-Spike Integration
+
+**Auto-spikes are automatic planning spikes created during session initialization.**
+
+When the validation hook detects the start of a new session:
+- ✅ Creates an automatic spike (e.g., `spike-session-init-abc123`)
+- ✅ Marks it as planning-only (code changes permitted but not deeply tracked)
+- ✅ Does NOT block any operations
+- ✅ Allows exploration without forcing feature creation
+
+**Why auto-spikes?**
+- Captures early exploration work that doesn't fit a feature yet
+- Avoids false positives from investigation activities
+- Enables "think out loud" without rigid workflow
+- Transitions to feature when scope becomes clear
+
+**Example auto-spike lifecycle:**
+```
+Session Start
+  ↓
+Auto-spike created: spike-session-init-20251225
+  ↓
+Investigation/exploration work
+  ↓
+"This needs to be a feature" → Create feature, link to spike
+  ↓
+Feature takes primary attribution
+  ↓
+Spike marked as resolved
+```
+
+### Decision Framework for Code Changes
+
+**Use this framework to decide if you need a feature before making code changes:**
+
+```
+User request or idea
+  ├─ Single file, <30 min? → DIRECT CHANGE (validation warns, allows)
+  ├─ 3+ files? → CREATE FEATURE (validation denies without feature)
+  ├─ New tests needed? → CREATE FEATURE (validation blocks)
+  ├─ Multi-component impact? → CREATE FEATURE (validation blocks)
+  ├─ Hard to revert? → CREATE FEATURE (validation blocks)
+  ├─ Needs documentation? → CREATE FEATURE (validation blocks)
+  └─ Otherwise → DIRECT CHANGE (validation warns, allows)
+```
+
+**Key insight:** Validation's deny threshold (3+ files) aligns with the feature decision threshold in CLAUDE.md.
+
+---
+
+## Validation Scenarios (Examples)
+
+### Scenario 1: Working with Auto-Spike (Session Start)
+
+**Situation:** You just started a new session. No features are active.
+
+```python
+# Session starts → auto-spike created automatically
+# spike-session-init-20251225 is now active (auto-created)
+
+# All of these work WITHOUT creating a feature:
+- Read code files (exploration)
+- Write to a single file (validation warns but allows)
+- Create a feature (SDK operation, always allowed)
+- Ask the user what to work on
+```
+
+**Flow:**
+1. ✅ Session starts
+2. ✅ Validation creates auto-spike for this session
+3. ✅ You explore and read code (no restrictions)
+4. ✅ You ask user what to work on
+5. ✅ User says: "Implement user authentication"
+6. ✅ You create feature: `uv run htmlgraph feature create "User Authentication"`
+7. ✅ Feature becomes primary (replaces auto-spike attribution)
+8. ✅ You can now code freely
+
+**Result:** Work is properly attributed to the feature, not the throwaway auto-spike.
+
+---
+
+### Scenario 2: Multi-File Feature Implementation
+
+**Situation:** User says "Build a user authentication system"
+
+**WITHOUT feature:**
+```bash
+# Try to edit 5 files without creating a feature
+uv run htmlgraph something that touches 5 files
+
+# Validation DENIES:
+# ❌ PreToolUse Validation: Cannot proceed without active work item
+#    Reason: Multi-file changes (5 files) without tracked work item
+#    Action: Create a feature first
+```
+
+**WITH feature:**
+```bash
+# Create the feature first
+uv run htmlgraph feature create "User Authentication"
+# → feat-abc123 created and marked in-progress
+
+# Now implement - all 5 files allowed
+# Edit src/auth.py
+# Edit src/middleware.py
+# Edit src/models.py
+# Write tests/test_auth.py
+# Update docs/authentication.md
+
+# Validation ALLOWS:
+# ✅ All changes attributed to feat-abc123
+# ✅ Session shows feature context
+# ✅ Work is trackable
+```
+
+**Result:** Multi-file feature work is tracked and attributed.
+
+---
+
+### Scenario 3: Single-File Quick Fix (No Feature)
+
+**Situation:** You notice a typo in a docstring.
+
+```bash
+# Edit a single file without creating a feature
+# Edit src/utils.py (fix typo)
+
+# Validation WARNS BUT ALLOWS:
+# ⚠️  PreToolUse Validation: Warning - activity may not be tracked
+#    File: src/utils.py (1 file)
+#    Reason: Single-file change without active feature
+#    Option: Create feature if this is significant work
+
+# You can choose:
+# - Continue (typo is trivial, doesn't need feature)
+# - Cancel and create feature (if it's a bigger fix)
+```
+
+**Result:** Small fixes don't require features, but validation tracks the decision.
+
+---
+
 ## Working with HtmlGraph
 
 **RECOMMENDED:** Use the Python SDK for AI agents (cleanest, fastest, most powerful)
@@ -929,16 +1129,20 @@ See `docs/WORKFLOW.md` for the complete decision framework with detailed criteri
 
 ### Session Start (DO THESE FIRST)
 1. ✅ Activate this skill (done automatically)
-2. ✅ **RUN:** `uv run htmlgraph session start-info` - Get comprehensive session context (optimized, 1 call)
+2. ✅ **AUTO-SPIKE CREATED:** Validation hook automatically creates an auto-spike for session exploration (see "Auto-Spike Integration" section)
+3. ✅ **RUN:** `uv run htmlgraph session start-info` - Get comprehensive session context (optimized, 1 call)
    - Replaces: status + feature list + session list + git log + analytics
    - Reduces context usage from 30% to <5%
-3. ✅ Review active features and decide if you need to create a new one
-4. ✅ Greet user with brief status update
-5. ✅ **DECIDE:** Create feature or implement directly? (use decision framework below)
-6. ✅ **If creating feature:** Use SDK or run `uv run htmlgraph feature start <id>`
+4. ✅ Review active features and decide if you need to create a new one
+5. ✅ Greet user with brief status update
+6. ✅ **DECIDE:** Create feature or implement directly? (use decision framework in "Pre-Work Validation" section)
+7. ✅ **If creating feature:** Use SDK or run `uv run htmlgraph feature start <id>`
 
 ### During Work (DO CONTINUOUSLY)
 1. ✅ Feature MUST be marked "in-progress" before you write any code
+   - ⚠️ **VALIDATION NOTE:** Validation will warn or deny multi-file changes without active feature (see "Pre-Work Validation" section)
+   - Single-file changes are allowed with warning
+   - 3+ file changes require active feature to proceed
 2. ✅ **CRITICAL:** Mark each step complete IMMEDIATELY after finishing it (use SDK)
 3. ✅ Document ALL decisions as you make them
 4. ✅ Test incrementally - don't wait until the end
