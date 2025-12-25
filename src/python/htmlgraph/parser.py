@@ -123,11 +123,17 @@ class HtmlParser:
         }
 
         # Standard attributes
-        for attr in ["type", "status", "priority", "agent-assigned", "track-id", "plan-task-id", "claimed-by-session"]:
+        for attr in ["type", "status", "priority", "agent-assigned", "track-id", "plan-task-id", "claimed-by-session",
+                     "spike-subtype", "session-id", "from-feature-id", "to-feature-id", "model-name"]:
             value = self.get_data_attribute(article, attr)
             if value:
                 key = attr.replace("-", "_")
                 metadata[key] = value
+
+        # Boolean attributes
+        auto_generated = self.get_data_attribute(article, "auto-generated")
+        if auto_generated:
+            metadata["auto_generated"] = auto_generated.lower() == "true"
 
         # Timestamps (with fallbacks for session-specific attributes)
         claimed_at = self.get_data_attribute(article, "claimed-at")

@@ -3,133 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
     <title>Spike: Investigate Repeated Skill Invocations & Drift Detection</title>
-    <link rel="stylesheet" href="../../index.html">
+    <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
     <article id="spike-repeated-skill-invocations"
              data-type="spike"
-             data-status="todo"
+             data-status="done"
              data-priority="medium"
-             data-created="2025-12-16T13:11:25Z"
-             data-updated="2025-12-16T13:11:25Z"
-             data-drift-score="0.71"
-             data-classified-from="drift-queue">
+             data-created="2025-12-16T13:11:25+00:00"
+             data-updated="2025-12-16T13:11:25+00:00">
 
         <header>
             <h1>Spike: Investigate Repeated Skill Invocations & Drift Detection</h1>
             <div class="metadata">
-                <span class="badge type-spike">Spike</span>
-                <span class="badge status-todo">Todo</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
-                <span class="badge drift-high">High Drift (0.71)</span>
             </div>
         </header>
 
-        <!-- Graph Edges -->
         <nav data-graph-edges>
             <section data-edge-type="related">
-                <h3>🔗 Related:</h3>
+                <h3>Related:</h3>
                 <ul>
-                    <li><a href="../features/feature-self-tracking.html">Feature: Self-Tracking</a></li>
-                    <li><a href="../features/feature-drift-auto-classification.html">Feature: Drift Auto-Classification</a></li>
+                    <li><a href="feature-self-tracking.html" data-relationship="related">Feature: Self-Tracking</a></li>
+                    <li><a href="feature-drift-auto-classification.html" data-relationship="related">Feature: Drift Auto-Classification</a></li>
                 </ul>
             </section>
-
             <section data-edge-type="generated-from">
-                <h3>📊 Generated From:</h3>
+                <h3>Generated-From:</h3>
                 <ul>
-                    <li><a href="../drift-queue.json">Drift Queue</a> (5 high-drift activities)</li>
+                    <li><a href="drift-queue.json.html" data-relationship="generated-from">Drift Queue</a></li>
                 </ul>
             </section>
         </nav>
-
-        <!-- Properties -->
         <section data-properties>
             <h3>Properties</h3>
             <dl>
                 <dt>Activity Count</dt>
-                <dd data-key="activity_count" data-value="5">5 flagged activities</dd>
-
-                <dt>Average Drift Score</dt>
+                <dd data-key="activity_count" data-value="5">5</dd>
+<dt>Avg Drift</dt>
                 <dd data-key="avg_drift" data-value="0.71">0.71</dd>
-
-                <dt>Tool Pattern</dt>
-                <dd data-key="tool_pattern">Skill (4×) + Read (1×)</dd>
-
-                <dt>Skill Invoked</dt>
-                <dd data-key="skill_invoked">htmlgraph:htmlgraph-tracker</dd>
+<dt>Tool Pattern</dt>
+                <dd data-key="tool_pattern" data-value="None">None</dd>
+<dt>Skill Invoked</dt>
+                <dd data-key="skill_invoked" data-value="None">None</dd>
             </dl>
         </section>
-
-        <!-- Investigation Focus -->
-        <section data-investigation>
-            <h3>Investigation Questions</h3>
-            <ul>
-                <li>Why are repeated skill invocations marked as high-drift?</li>
-                <li>Should skill activation be attributed to current feature context?</li>
-                <li>Is the drift detection algorithm correctly handling tool-use overhead?</li>
-                <li>Should drift-queue.json reads be classified differently?</li>
-                <li>Can we identify patterns in the invocation sequence?</li>
-            </ul>
-        </section>
-
-        <!-- Implementation Steps -->
         <section data-steps>
-            <h3>Research Steps</h3>
+            <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false">
-                    Review drift detection algorithm in htmlgraph codebase
-                </li>
-                <li data-completed="false">
-                    Analyze skill invocation patterns and their drift impact
-                </li>
-                <li data-completed="false">
-                    Check if repeated invocations should trigger auto-re-classification
-                </li>
-                <li data-completed="false">
-                    Document findings in feature-drift-auto-classification
-                </li>
-                <li data-completed="false">
-                    Create test cases for edge cases
-                </li>
+                <li data-completed="false">⏳ Review drift detection algorithm in htmlgraph codebase</li>
+                <li data-completed="false">⏳ Analyze skill invocation patterns and their drift impact</li>
+                <li data-completed="false">⏳ Check if repeated invocations should trigger auto-re-classification</li>
+                <li data-completed="false">⏳ Document findings in feature-drift-auto-classification</li>
+                <li data-completed="false">⏳ Create test cases for edge cases</li>
             </ol>
         </section>
-
-        <!-- Context -->
         <section data-content>
-            <h3>Context</h3>
-            <p>
-                During session tracking, multiple skill invocations (specifically
-                <code>htmlgraph:htmlgraph-tracker</code>) were flagged with high drift (0.71).
+            <h3>Description</h3>
+            During session tracking, multiple skill invocations (specifically htmlgraph:htmlgraph-tracker ) were flagged with high drift (0.71).
                 This spike investigates whether this is expected behavior or indicates
                 an issue with the drift detection algorithm.
-            </p>
-
-            <h4>Activity Summary:</h4>
-            <ul>
-                <li>Timestamp: 2025-12-16T13:11:24 - 13:11:25</li>
-                <li>Feature Context: feature-self-tracking</li>
-                <li>Activities: Skill invocations (4×) + Drift queue read (1×)</li>
-                <li>Average Drift: 0.71 (above expected threshold)</li>
-            </ul>
-
-            <h4>Potential Issues:</h4>
-            <ul>
-                <li>Skill tool invocations may have inherent drift due to tool overhead</li>
-                <li>Multiple consecutive invocations should perhaps be grouped</li>
-                <li>Drift queue reads should maybe auto-trigger re-classification</li>
-            </ul>
-        </section>
-
-        <!-- Activity Log -->
-        <section data-activity-log>
-            <h3>Activity Log</h3>
-            <ol reversed>
-                <li data-timestamp="2025-12-16T13:11:25Z">
-                    Spike created from drift-queue.json analysis
-                </li>
-            </ol>
+Activity Summary:
+Timestamp: 2025-12-16T13:11:24 - 13:11:25 Feature Context: feature-self-tracking Activities: Skill invocations (4×) + Drift queue read (1×) Average Drift: 0.71 (above expected threshold)
+Potential Issues:
+Skill tool invocations may have inherent drift due to tool overhead Multiple consecutive invocations should perhaps be grouped Drift queue reads should maybe auto-trigger re-classification
         </section>
     </article>
 </body>

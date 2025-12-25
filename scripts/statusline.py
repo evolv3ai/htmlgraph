@@ -318,7 +318,7 @@ def format_status_line(data: dict) -> str:
         # Drift warning
         drift_count = hg_context.get("drift_count", 0)
         if drift_count > 0:
-            parts.append(f"{BRIGHT_YELLOW}⚠{drift_count}{RESET}")
+            parts.append(f"{BRIGHT_YELLOW}⚠ {drift_count}{RESET}")
 
     # Cost (if significant)
     cost = data.get("cost", {})

@@ -265,7 +265,138 @@ class SessionManager:
         self.session_converter.save(session)
         self._active_session = session
 
+        # Auto-create session-init spike for transitional activities
+        self._create_session_init_spike(session)
+
         return session
+
+    def _create_session_init_spike(self, session: Session) -> Node | None:
+        """
+        Auto-create a session-init spike to catch pre-feature activities.
+
+        This spike captures work done before the first feature is started:
+        - Session startup, reviewing context
+        - Planning what to work on
+        - General exploration
+
+        The spike auto-completes when the first feature is started.
+        """
+        from htmlgraph.converter import NodeConverter
+
+        spike_id = f"spike-init-{session.id[:8]}"
+
+        # Check if spike already exists (idempotency)
+        spike_converter = NodeConverter(self.graph_dir / "spikes")
+        existing = spike_converter.load(spike_id)
+        if existing:
+            return existing
+
+        # Create session-init spike
+        spike = Node(
+            id=spike_id,
+            title=f"Session Init: {session.agent}",
+            type="spike",
+            status="in-progress",
+            priority="low",
+            spike_subtype="session-init",
+            auto_generated=True,
+            session_id=session.id,
+            model_name=session.agent,  # Store agent name as model
+            content=f"Auto-generated spike for session startup activities.\n\nCaptures work before first feature is started:\n- Context review\n- Planning\n- Exploration\n\nAuto-completes when first feature is claimed.",
+        )
+
+        # Save spike
+        spike_converter.save(spike)
+
+        # Link session to spike
+        if spike.id not in session.worked_on:
+            session.worked_on.append(spike.id)
+            self.session_converter.save(session)
+
+        return spike
+
+    def _create_transition_spike(self, session: Session, from_feature_id: str) -> Node | None:
+        """
+        Auto-create a transition spike after feature completion.
+
+        This spike captures work done between features:
+        - Post-completion cleanup
+        - Review and planning
+        - Context switching
+
+        The spike auto-completes when the next feature is started.
+        """
+        from htmlgraph.converter import NodeConverter
+
+        spike_id = generate_id(node_type="spike", title="transition")
+
+        # Create transition spike
+        spike = Node(
+            id=spike_id,
+            title=f"Transition from {from_feature_id[:12]}",
+            type="spike",
+            status="in-progress",
+            priority="low",
+            spike_subtype="transition",
+            auto_generated=True,
+            session_id=session.id,
+            from_feature_id=from_feature_id,
+            model_name=session.agent,
+            content=f"Auto-generated transition spike.\n\nCaptures post-completion activities:\n- Cleanup and review\n- Planning next work\n- Context switching\n\nFrom: {from_feature_id}\nAuto-completes when next feature is started.",
+        )
+
+        # Save spike
+        spike_converter = NodeConverter(self.graph_dir / "spikes")
+        spike_converter.save(spike)
+
+        # Link session to spike
+        if spike.id not in session.worked_on:
+            session.worked_on.append(spike.id)
+            self.session_converter.save(session)
+
+        return spike
+
+    def _complete_active_auto_spikes(self, agent: str, to_feature_id: str) -> list[Node]:
+        """
+        Auto-complete any active auto-generated spikes when a feature starts.
+
+        When starting a regular feature, the transitional period is over,
+        so we complete session-init and transition spikes.
+
+        Args:
+            agent: Agent starting the feature
+            to_feature_id: Feature being started
+
+        Returns:
+            List of completed spikes
+        """
+        from htmlgraph.converter import NodeConverter
+
+        spike_converter = NodeConverter(self.graph_dir / "spikes")
+        completed_spikes = []
+
+        # Get all spikes
+        all_spikes = spike_converter.load_all()
+
+        for spike in all_spikes:
+            # Only complete active auto-spikes
+            if not (
+                spike.type == "spike"
+                and spike.auto_generated
+                and spike.spike_subtype in ("session-init", "transition")
+                and spike.status == "in-progress"
+            ):
+                continue
+
+            # Complete the spike
+            spike.status = "done"
+            spike.updated = datetime.now()
+            spike.to_feature_id = to_feature_id  # Record what feature we transitioned to
+
+            spike_converter.save(spike)
+            completed_spikes.append(spike)
+
+        return completed_spikes
 
     def get_session(self, session_id: str) -> Session | None:
         """Get a session by ID."""
@@ -552,6 +683,14 @@ class SessionManager:
                 attributed_feature = (primary or active_features[0]).id if active_features else None
             drift_score = None  # No drift for child activities
             attribution_reason = "child_activity"
+        # Skip drift calculation for system overhead activities
+        elif self._is_system_overhead(tool, summary, file_paths or []):
+            # Attribute to primary or first active feature, but no drift score
+            if not attributed_feature and active_features:
+                primary = next((f for f in active_features if f.properties.get("is_primary")), None)
+                attributed_feature = (primary or active_features[0]).id if active_features else None
+            drift_score = None  # No drift for system overhead
+            attribution_reason = "system_overhead"
         elif not attributed_feature and active_features:
             attribution = self.attribute_activity(
                 tool=tool,
@@ -695,6 +834,26 @@ class SessionManager:
     # Smart Attribution
     # =========================================================================
 
+    def _get_active_auto_spike(self, active_features: list[Node]) -> Node | None:
+        """
+        Find an active auto-generated spike (session-init or transition).
+
+        Auto-spikes take precedence over regular features for attribution
+        since they're specifically designed to catch transitional activities.
+
+        Returns:
+            Active auto-spike or None
+        """
+        for feature in active_features:
+            if (
+                feature.type == "spike"
+                and feature.auto_generated
+                and feature.spike_subtype in ("session-init", "transition")
+                and feature.status == "in-progress"
+            ):
+                return feature
+        return None
+
     def attribute_activity(
         self,
         tool: str,
@@ -704,7 +863,9 @@ class SessionManager:
         agent: str | None = None,
     ) -> dict[str, Any]:
         """
-        Score and attribute an activity to the best matching feature.
+        Score and attribute an activity to the best matching feature or auto-spike.
+
+        Auto-spikes have priority over features for transitional activities.
 
         Args:
             tool: Tool name
@@ -716,6 +877,18 @@ class SessionManager:
         Returns:
             Dict with feature_id, score, drift_score, reason
         """
+        # Priority 1: Check for active auto-generated spikes (session-init, transition)
+        # These capture transitional activities before features are active
+        active_spike = self._get_active_auto_spike(active_features)
+        if active_spike:
+            return {
+                "feature_id": active_spike.id,
+                "score": 1.0,  # Perfect match - spike is designed for this
+                "drift_score": 0.0,  # No drift - this is expected
+                "reason": f"auto_spike_{active_spike.spike_subtype}",
+            }
+
+        # Priority 2: Regular feature attribution
         if not active_features:
             return {
                 "feature_id": None,
@@ -850,6 +1023,38 @@ class SessionManager:
         overlap = text_words & keywords
 
         return len(overlap) / len(keywords) if keywords else 0.0
+
+    def _is_system_overhead(self, tool: str, summary: str, file_paths: list[str]) -> bool:
+        """
+        Determine if an activity is system overhead that shouldn't count as drift.
+
+        System overhead includes:
+        - Skill invocations for system skills (htmlgraph-tracker, etc.)
+        - Read/Write operations on .htmlgraph/ metadata files
+        - Other infrastructure operations
+        """
+        # System skills that are overhead, not feature work
+        system_skills = {
+            "htmlgraph-tracker",
+            "htmlgraph:htmlgraph-tracker",
+        }
+
+        # Check if this is a Skill invocation for a system skill
+        if tool == "Skill":
+            # Extract skill name from summary (format: "Skill: {'skill': 'htmlgraph-tracker'}")
+            for skill_name in system_skills:
+                if skill_name in summary.lower():
+                    return True
+
+        # Check if any file paths are in .htmlgraph/ directory (metadata operations)
+        if file_paths:
+            for path in file_paths:
+                # Normalize path to handle both absolute and relative paths
+                path_lower = path.lower()
+                if ".htmlgraph/" in path_lower or path_lower.startswith(".htmlgraph"):
+                    return True
+
+        return False
 
     # =========================================================================
     # Drift Detection
@@ -1116,6 +1321,11 @@ class SessionManager:
         node.updated = datetime.now()
         graph.update(node)
 
+        # Auto-complete any active auto-spikes (session-init or transition)
+        # When a regular feature starts, transitional period is over
+        if agent:
+            self._complete_active_auto_spikes(agent, to_feature_id=feature_id)
+
         # Link feature to active session (bidirectional)
         active_session = self.get_active_session_for_agent(agent) if agent else self.get_active_session()
         if agent and not active_session:
@@ -1172,6 +1382,11 @@ class SessionManager:
                 feature_id=feature_id,
                 payload={"collection": collection, "action": "complete"},
             )
+
+        # Auto-create transition spike for post-completion activities
+        session = self.get_active_session(agent=agent)
+        if session:
+            self._create_transition_spike(session, from_feature_id=feature_id)
 
         return node
 

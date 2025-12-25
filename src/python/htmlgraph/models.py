@@ -173,12 +173,28 @@ class Node(BaseModel):
     context_cost_usd: float = 0.0  # Total cost attributed to this feature
     context_sessions: list[str] = Field(default_factory=list)  # Session IDs that reported context
 
+    # Auto-spike metadata (for transition spike generation)
+    spike_subtype: Literal["session-init", "transition", "planning", "investigation"] | None = None
+    auto_generated: bool = False  # True if auto-created by SessionManager
+    session_id: str | None = None  # Session that created/owns this spike
+    from_feature_id: str | None = None  # For transition spikes: feature we transitioned from
+    to_feature_id: str | None = None  # For transition spikes: feature we transitioned to
+    model_name: str | None = None  # Model that worked on this (e.g., "claude-sonnet-4-5")
+
     def model_post_init(self, __context: Any) -> None:
         """Lightweight validation for required fields."""
         if not self.id or not str(self.id).strip():
             raise ValueError("Node.id must be non-empty")
         if not self.title or not str(self.title).strip():
             raise ValueError("Node.title must be non-empty")
+
+        # Validate auto-spike metadata
+        if self.spike_subtype and self.type != "spike":
+            raise ValueError(f"spike_subtype can only be set on spike nodes, got type='{self.type}'")
+        if self.auto_generated and not self.session_id:
+            raise ValueError("auto_generated spikes must have session_id set")
+        if self.spike_subtype == "transition" and not self.from_feature_id:
+            raise ValueError("transition spikes must have from_feature_id set")
 
     @property
     def completion_percentage(self) -> int:
@@ -406,6 +422,21 @@ class Node(BaseModel):
         if self.context_cost_usd > 0:
             context_attr += f' data-context-cost="{self.context_cost_usd:.4f}"'
 
+        # Auto-spike metadata attributes
+        auto_spike_attr = ""
+        if self.spike_subtype:
+            auto_spike_attr += f' data-spike-subtype="{self.spike_subtype}"'
+        if self.auto_generated:
+            auto_spike_attr += f' data-auto-generated="{str(self.auto_generated).lower()}"'
+        if self.session_id:
+            auto_spike_attr += f' data-session-id="{self.session_id}"'
+        if self.from_feature_id:
+            auto_spike_attr += f' data-from-feature-id="{self.from_feature_id}"'
+        if self.to_feature_id:
+            auto_spike_attr += f' data-to-feature-id="{self.to_feature_id}"'
+        if self.model_name:
+            auto_spike_attr += f' data-model-name="{self.model_name}"'
+
         # Build context usage section
         context_html = ""
         if self.context_tokens_used > 0 or self.context_sessions:
@@ -439,7 +470,7 @@ class Node(BaseModel):
              data-status="{self.status}"
              data-priority="{self.priority}"
              data-created="{self.created.isoformat()}"
-             data-updated="{self.updated.isoformat()}"{agent_attr}{track_attr}{context_attr}>
+             data-updated="{self.updated.isoformat()}"{agent_attr}{track_attr}{context_attr}{auto_spike_attr}>
 
         <header>
             <h1>{self.title}</h1>
