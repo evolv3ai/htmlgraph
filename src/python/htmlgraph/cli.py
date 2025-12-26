@@ -559,6 +559,129 @@ fi
         print("\nGit events will now be logged to HtmlGraph automatically.")
 
 
+def cmd_install_hooks(args):
+    """Install Git hooks for automatic tracking."""
+    from htmlgraph.hooks.installer import HookInstaller, HookConfig
+    from htmlgraph.hooks import AVAILABLE_HOOKS
+    from pathlib import Path
+
+    project_dir = Path(args.project_dir).resolve()
+
+    # Load configuration
+    config_path = project_dir / ".htmlgraph" / "hooks-config.json"
+    config = HookConfig(config_path)
+
+    # Handle configuration changes
+    if args.enable:
+        if args.enable not in AVAILABLE_HOOKS:
+            print(f"Error: Unknown hook '{args.enable}'")
+            print(f"Available hooks: {', '.join(AVAILABLE_HOOKS)}")
+            return
+        config.enable_hook(args.enable)
+        config.save()
+        print(f"✓ Enabled hook '{args.enable}' in configuration")
+        return
+
+    if args.disable:
+        if args.disable not in AVAILABLE_HOOKS:
+            print(f"Error: Unknown hook '{args.disable}'")
+            print(f"Available hooks: {', '.join(AVAILABLE_HOOKS)}")
+            return
+        config.disable_hook(args.disable)
+        config.save()
+        print(f"✓ Disabled hook '{args.disable}' in configuration")
+        return
+
+    # Override symlink preference if --use-copy is set
+    if args.use_copy:
+        config.config["use_symlinks"] = False
+
+    # Create installer
+    installer = HookInstaller(project_dir, config)
+
+    # Validate environment
+    is_valid, error_msg = installer.validate_environment()
+    if not is_valid:
+        print(f"❌ {error_msg}")
+        return
+
+    # List hooks status
+    if args.list:
+        print("\nGit Hooks Installation Status")
+        print("=" * 60)
+
+        status = installer.list_hooks()
+        for hook_name, info in status.items():
+            status_icon = "✓" if info["installed"] else "✗"
+            enabled_icon = "🟢" if info["enabled"] else "🔴"
+
+            print(f"\n{enabled_icon} {hook_name} ({status_icon} installed)")
+            print(f"  Enabled in config: {info['enabled']}")
+            print(f"  Versioned (.htmlgraph/hooks/): {info['versioned']}")
+            print(f"  Installed (.git/hooks/): {info['installed']}")
+
+            if info["is_symlink"]:
+                our_hook = "✓" if info.get("our_hook", False) else "✗"
+                print(f"  Type: Symlink ({our_hook} ours)")
+                print(f"  Target: {info.get('symlink_target', 'unknown')}")
+            elif info["installed"]:
+                print(f"  Type: Copied file")
+
+        print("\n" + "=" * 60)
+        print(f"\nConfiguration: {config_path}")
+        print(f"Use 'htmlgraph install-hooks --enable <hook>' to enable")
+        print(f"Use 'htmlgraph install-hooks --disable <hook>' to disable")
+        return
+
+    # Uninstall a hook
+    if args.uninstall:
+        if args.uninstall not in AVAILABLE_HOOKS:
+            print(f"Error: Unknown hook '{args.uninstall}'")
+            print(f"Available hooks: {', '.join(AVAILABLE_HOOKS)}")
+            return
+
+        success, message = installer.uninstall_hook(args.uninstall)
+        if success:
+            print(f"✓ {message}")
+        else:
+            print(f"❌ {message}")
+        return
+
+    # Install hooks
+    print("\n🔧 Installing Git hooks for HtmlGraph\n")
+    print(f"Project: {project_dir}")
+    print(f"Configuration: {config_path}")
+
+    if args.dry_run:
+        print("\n[DRY RUN MODE - No changes will be made]\n")
+
+    results = installer.install_all_hooks(force=args.force, dry_run=args.dry_run)
+
+    # Display results
+    success_count = 0
+    failure_count = 0
+
+    for hook_name, (success, message) in results.items():
+        if success:
+            success_count += 1
+            print(f"✓ {message}")
+        else:
+            failure_count += 1
+            print(f"❌ {message}")
+
+    print("\n" + "=" * 60)
+    print(f"Summary: {success_count} installed, {failure_count} failed")
+
+    if not args.dry_run:
+        print(f"\nConfiguration saved to: {config_path}")
+        print("\nGit events will now be logged to HtmlGraph automatically.")
+        print("\nManagement commands:")
+        print("  htmlgraph install-hooks --list          # Show status")
+        print("  htmlgraph install-hooks --uninstall <hook>  # Remove hook")
+        print("  htmlgraph install-hooks --enable <hook>     # Enable hook")
+        print("  htmlgraph install-hooks --disable <hook>    # Disable hook")
+
+
 def cmd_status(args):
     """Show status of the graph."""
     from htmlgraph.sdk import SDK
@@ -1840,12 +1963,14 @@ def cmd_work_next(args):
             print(f"  Title: {task.title}")
             print(f"  Priority: {task.priority}")
             print(f"  Status: {task.status}")
-            if task.required_capabilities:
+            if getattr(task, 'required_capabilities', None):
                 print(f"  Required capabilities: {', '.join(task.required_capabilities)}")
-            if task.complexity:
-                print(f"  Complexity: {task.complexity}")
-            if task.estimated_effort:
-                print(f"  Estimated effort: {task.estimated_effort}h")
+            complexity = getattr(task, 'complexity', None)
+            if complexity:
+                print(f"  Complexity: {complexity}")
+            effort = getattr(task, 'estimated_effort', None)
+            if effort:
+                print(f"  Estimated effort: {effort}h")
             if args.auto_claim:
                 print(f"  ✓ Task claimed by {args.agent}")
         else:
@@ -2672,6 +2797,17 @@ curl Examples:
     init_parser.add_argument("--no-update-gitignore", action="store_true", help="Do not update/create .gitignore for HtmlGraph cache files")
     init_parser.add_argument("--no-events-keep", action="store_true", help="Do not create .htmlgraph/events/.gitkeep")
 
+    # install-hooks
+    hooks_parser = subparsers.add_parser("install-hooks", help="Install Git hooks for automatic tracking")
+    hooks_parser.add_argument("--project-dir", "-d", default=".", help="Project directory (default: current)")
+    hooks_parser.add_argument("--force", "-f", action="store_true", help="Force installation even if hooks exist")
+    hooks_parser.add_argument("--dry-run", action="store_true", help="Show what would be done without doing it")
+    hooks_parser.add_argument("--list", "-l", action="store_true", help="List hook installation status")
+    hooks_parser.add_argument("--uninstall", "-u", metavar="HOOK", help="Uninstall a specific hook")
+    hooks_parser.add_argument("--enable", metavar="HOOK", help="Enable a specific hook in configuration")
+    hooks_parser.add_argument("--disable", metavar="HOOK", help="Disable a specific hook in configuration")
+    hooks_parser.add_argument("--use-copy", action="store_true", help="Use file copy instead of symlinks")
+
     # status
     status_parser = subparsers.add_parser("status", help="Show graph status")
     status_parser.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
@@ -3195,6 +3331,8 @@ curl Examples:
         cmd_serve(args)
     elif args.command == "init":
         cmd_init(args)
+    elif args.command == "install-hooks":
+        cmd_install_hooks(args)
     elif args.command == "status":
         cmd_status(args)
     elif args.command == "query":

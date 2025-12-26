@@ -2,6 +2,8 @@
 
 HtmlGraph provides collision-resistant, hash-based ID generation for multi-agent collaboration. This system prevents conflicts when multiple agents create tasks concurrently.
 
+> **📖 Design Document:** For detailed architecture, implementation details, and rationale, see [Hash-Based IDs Design Document](../design/hash-based-ids.md).
+
 ## Overview
 
 Traditional timestamp-based IDs (`feature-20241222-143022`) can collide when two agents create features at the same second. Hash-based IDs eliminate this problem by combining:
