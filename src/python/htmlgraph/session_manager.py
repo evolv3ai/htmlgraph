@@ -396,6 +396,23 @@ class SessionManager:
             spike_converter.save(spike)
             completed_spikes.append(spike)
 
+        # Import transcript when auto-spikes complete (work boundary)
+        if completed_spikes:
+            session = self.get_active_session(agent=agent)
+            if session and session.transcript_id:
+                try:
+                    from htmlgraph.transcript import TranscriptReader
+                    reader = TranscriptReader()
+                    transcript = reader.read_session(session.transcript_id)
+                    if transcript:
+                        self.import_transcript_events(
+                            session_id=session.id,
+                            transcript_session=transcript,
+                            overwrite=True,
+                        )
+                except Exception:
+                    pass
+
         return completed_spikes
 
     def get_session(self, session_id: str) -> Session | None:
