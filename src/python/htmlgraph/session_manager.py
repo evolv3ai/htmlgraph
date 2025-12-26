@@ -1383,8 +1383,23 @@ class SessionManager:
                 payload={"collection": collection, "action": "complete"},
             )
 
-        # Auto-create transition spike for post-completion activities
+        # Auto-import transcript on work item completion
         session = self.get_active_session(agent=agent)
+        if session and session.transcript_id:
+            try:
+                from htmlgraph.transcript import TranscriptReader
+                reader = TranscriptReader()
+                transcript = reader.read_session(session.transcript_id)
+                if transcript:
+                    self.import_transcript_events(
+                        session_id=session.id,
+                        transcript_session=transcript,
+                        overwrite=True,  # Replace hook data with high-fidelity transcript
+                    )
+            except Exception:
+                pass
+
+        # Auto-create transition spike for post-completion activities
         if session:
             self._create_transition_spike(session, from_feature_id=feature_id)
 

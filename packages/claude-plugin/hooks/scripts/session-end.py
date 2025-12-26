@@ -100,31 +100,29 @@ def main():
     project_dir = _resolve_project_dir(cwd if cwd else None)
     graph_dir = Path(project_dir) / ".htmlgraph"
 
-    # Transcript-first architecture: Import Claude Code transcript as source of truth
-    # This replaces any hook-captured events with the complete transcript data
+    # Session lifecycle management
+    # Note: Transcript import happens on work item completion or git commit,
+    # not on session end (sessions can end frequently during context switches)
     try:
         manager = SessionManager(graph_dir)
         active = manager.get_active_session()
 
-        # Auto-import transcript from Claude Code
-        # Transcripts contain full prompts, responses, tool I/O, and thinking traces
+        # Link transcript to session (but don't import events yet)
         if active and external_session_id:
             try:
                 from htmlgraph.transcript import TranscriptReader
                 reader = TranscriptReader()
                 transcript = reader.read_session(external_session_id)
                 if transcript:
-                    # Import transcript events (overwrite hook-captured events)
-                    result = manager.import_transcript_events(
+                    # Just link, don't import - import happens on commit/completion
+                    manager.link_transcript(
                         session_id=active.id,
-                        transcript_session=transcript,
-                        overwrite=True,  # Replace hook data with high-fidelity transcript
+                        transcript_id=external_session_id,
+                        transcript_path=str(transcript.path),
+                        git_branch=transcript.git_branch,
                     )
-                    imported = result.get('imported', 0)
-                    if imported > 0:
-                        print(f"HtmlGraph: Imported {imported} events from transcript", file=sys.stderr)
-            except Exception as e:
-                print(f"HtmlGraph: Could not import transcript: {e}", file=sys.stderr)
+            except Exception:
+                pass
 
         # Optional handoff context capture (non-interactive)
         handoff_notes = hook_input.get("handoff_notes") or os.environ.get("HTMLGRAPH_HANDOFF_NOTES")
