@@ -62,6 +62,9 @@ packages = ["src/python/htmlgraph"]
 [tool.hatch.build.targets.wheel.shared-data]
 "src/python/htmlgraph/styles.css" = "htmlgraph/styles.css"
 "src/python/htmlgraph/dashboard.html" = "htmlgraph/dashboard.html"
+"src/python/htmlgraph/templates/AGENTS.md.template" = "htmlgraph/templates/AGENTS.md.template"
+"src/python/htmlgraph/templates/CLAUDE.md.template" = "htmlgraph/templates/CLAUDE.md.template"
+"src/python/htmlgraph/templates/GEMINI.md.template" = "htmlgraph/templates/GEMINI.md.template"
 
 [tool.hatch.build.targets.sdist]
 include = [

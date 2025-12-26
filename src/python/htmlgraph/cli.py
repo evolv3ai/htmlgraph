@@ -99,6 +99,32 @@ def cmd_init(args):
     from htmlgraph.analytics_index import AnalyticsIndex
     import shutil
 
+    # Interactive setup wizard
+    if args.interactive:
+        print("=== HtmlGraph Interactive Setup ===\n")
+
+        # Get project name
+        default_name = Path(args.dir).resolve().name
+        project_name = input(f"Project name [{default_name}]: ").strip() or default_name
+
+        # Get agent name
+        agent_name = input("Your agent name [claude]: ").strip() or "claude"
+
+        # Ask about git hooks
+        install_hooks_response = input("Install git hooks for automatic tracking? [Y/n]: ").strip().lower()
+        args.install_hooks = install_hooks_response != 'n'
+
+        # Ask about documentation generation
+        gen_docs_response = input("Generate AGENTS.md, CLAUDE.md, GEMINI.md? [Y/n]: ").strip().lower()
+        generate_docs = gen_docs_response != 'n'
+
+        print()
+    else:
+        # Non-interactive defaults
+        project_name = Path(args.dir).resolve().name
+        agent_name = "claude"
+        generate_docs = True  # Always generate in non-interactive mode
+
     graph_dir = Path(args.dir) / ".htmlgraph"
     graph_dir.mkdir(parents=True, exist_ok=True)
 
@@ -400,7 +426,61 @@ exit 0
         "pre-push": ensure_hook_file("pre-push", pre_push),
     }
 
-    print(f"Initialized HtmlGraph in {graph_dir}")
+    # Generate documentation files from templates
+    if generate_docs:
+        def render_template(template_path: Path, replacements: dict[str, str]) -> str:
+            """Render a template file with variable replacements."""
+            if not template_path.exists():
+                return None
+            content = template_path.read_text(encoding="utf-8")
+            for key, value in replacements.items():
+                content = content.replace(f"{{{{{key}}}}}", value)
+            return content
+
+        templates_dir = Path(__file__).parent / "templates"
+        project_dir = Path(args.dir)
+
+        # Get version
+        try:
+            from htmlgraph import __version__
+            version = __version__
+        except:
+            version = "unknown"
+
+        replacements = {
+            "PROJECT_NAME": project_name,
+            "AGENT_NAME": agent_name,
+            "VERSION": version,
+        }
+
+        # Generate AGENTS.md
+        agents_template = templates_dir / "AGENTS.md.template"
+        agents_dest = project_dir / "AGENTS.md"
+        if agents_template.exists() and not agents_dest.exists():
+            content = render_template(agents_template, replacements)
+            if content:
+                agents_dest.write_text(content, encoding="utf-8")
+                print(f"✓ Generated: {agents_dest}")
+
+        # Generate CLAUDE.md
+        claude_template = templates_dir / "CLAUDE.md.template"
+        claude_dest = project_dir / "CLAUDE.md"
+        if claude_template.exists() and not claude_dest.exists():
+            content = render_template(claude_template, replacements)
+            if content:
+                claude_dest.write_text(content, encoding="utf-8")
+                print(f"✓ Generated: {claude_dest}")
+
+        # Generate GEMINI.md
+        gemini_template = templates_dir / "GEMINI.md.template"
+        gemini_dest = project_dir / "GEMINI.md"
+        if gemini_template.exists() and not gemini_dest.exists():
+            content = render_template(gemini_template, replacements)
+            if content:
+                gemini_dest.write_text(content, encoding="utf-8")
+                print(f"✓ Generated: {gemini_dest}")
+
+    print(f"\nInitialized HtmlGraph in {graph_dir}")
     print(f"Collections: {', '.join(HtmlGraphAPIHandler.COLLECTIONS)}")
     print(f"\nStart server with: htmlgraph serve")
     if not args.no_index:
@@ -2587,6 +2667,7 @@ curl Examples:
     init_parser = subparsers.add_parser("init", help="Initialize .htmlgraph directory")
     init_parser.add_argument("dir", nargs="?", default=".", help="Directory to initialize")
     init_parser.add_argument("--install-hooks", action="store_true", help="Install Git hooks for event logging")
+    init_parser.add_argument("--interactive", "-i", action="store_true", help="Interactive setup wizard")
     init_parser.add_argument("--no-index", action="store_true", help="Do not create the analytics cache (index.sqlite)")
     init_parser.add_argument("--no-update-gitignore", action="store_true", help="Do not update/create .gitignore for HtmlGraph cache files")
     init_parser.add_argument("--no-events-keep", action="store_true", help="Do not create .htmlgraph/events/.gitkeep")
