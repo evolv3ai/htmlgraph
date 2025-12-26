@@ -396,6 +396,23 @@ class SessionManager:
             spike_converter.save(spike)
             completed_spikes.append(spike)
 
+        # Import transcript when auto-spikes complete (work boundary)
+        if completed_spikes:
+            session = self.get_active_session(agent=agent)
+            if session and session.transcript_id:
+                try:
+                    from htmlgraph.transcript import TranscriptReader
+                    reader = TranscriptReader()
+                    transcript = reader.read_session(session.transcript_id)
+                    if transcript:
+                        self.import_transcript_events(
+                            session_id=session.id,
+                            transcript_session=transcript,
+                            overwrite=True,
+                        )
+                except Exception:
+                    pass
+
         return completed_spikes
 
     def get_session(self, session_id: str) -> Session | None:
@@ -1351,6 +1368,7 @@ class SessionManager:
         *,
         agent: str | None = None,
         log_activity: bool = True,
+        transcript_id: str | None = None,
     ) -> Node | None:
         """
         Mark a feature as done.
@@ -1360,6 +1378,8 @@ class SessionManager:
             collection: Collection name
             agent: Optional agent name for attribution/logging
             log_activity: If true, write an event record (requires agent)
+            transcript_id: Optional transcript ID (agent session) that implemented this feature.
+                          Used to link parallel agent transcripts to features.
 
         Returns:
             Updated Node or None
@@ -1372,19 +1392,44 @@ class SessionManager:
         node.status = "done"
         node.updated = datetime.now()
         node.properties["completed_at"] = datetime.now().isoformat()
+
+        # Link transcript if provided (for parallel agent tracking)
+        if transcript_id:
+            self._link_transcript_to_feature(node, transcript_id, graph)
+
         graph.update(node)
 
         if log_activity and agent:
+            # Include transcript_id in payload for traceability
+            payload = {"collection": collection, "action": "complete"}
+            if transcript_id:
+                payload["transcript_id"] = transcript_id
+
             self._maybe_log_work_item_action(
                 agent=agent,
                 tool="FeatureComplete",
                 summary=f"Completed: {collection}/{feature_id}",
                 feature_id=feature_id,
-                payload={"collection": collection, "action": "complete"},
+                payload=payload,
             )
 
-        # Auto-create transition spike for post-completion activities
+        # Auto-import transcript on work item completion
         session = self.get_active_session(agent=agent)
+        if session and session.transcript_id:
+            try:
+                from htmlgraph.transcript import TranscriptReader
+                reader = TranscriptReader()
+                transcript = reader.read_session(session.transcript_id)
+                if transcript:
+                    self.import_transcript_events(
+                        session_id=session.id,
+                        transcript_session=transcript,
+                        overwrite=True,  # Replace hook data with high-fidelity transcript
+                    )
+            except Exception:
+                pass
+
+        # Auto-create transition spike for post-completion activities
         if session:
             self._create_transition_spike(session, from_feature_id=feature_id)
 
@@ -1777,6 +1822,67 @@ class SessionManager:
             # Save the updated session
             self.session_converter.save(session)
 
+    def _link_transcript_to_feature(
+        self,
+        node: Node,
+        transcript_id: str,
+        graph: HtmlGraph,
+    ) -> None:
+        """
+        Link a Claude Code transcript to a feature.
+
+        Adds an "implemented-by" edge to the feature pointing to the transcript.
+        Also aggregates tool analytics from the transcript into feature properties.
+
+        Args:
+            node: Feature node to link
+            transcript_id: Claude Code transcript/agent session ID
+            graph: Graph containing the node
+        """
+        from htmlgraph.models import Edge
+
+        # Check if edge already exists
+        existing_transcripts = node.edges.get("implemented-by", [])
+        already_linked = any(edge.target_id == transcript_id for edge in existing_transcripts)
+
+        if already_linked:
+            return
+
+        # Try to get transcript analytics
+        tool_count = 0
+        duration_seconds = 0
+        tool_breakdown = {}
+
+        try:
+            from htmlgraph.transcript import TranscriptReader
+            reader = TranscriptReader()
+            transcript = reader.read_session(transcript_id)
+            if transcript:
+                tool_count = transcript.tool_call_count
+                duration_seconds = int(transcript.duration_seconds or 0)
+                tool_breakdown = transcript.tool_breakdown
+        except Exception:
+            pass
+
+        # Add implemented-by edge with analytics
+        edge = Edge(
+            target_id=transcript_id,
+            relationship="implemented-by",
+            title=transcript_id,
+            since=datetime.now(),
+            properties={
+                "tool_count": tool_count,
+                "duration_seconds": duration_seconds,
+                "tool_breakdown": tool_breakdown,
+            },
+        )
+        node.add_edge(edge)
+
+        # Also store aggregated transcript analytics in properties
+        if tool_count > 0:
+            node.properties["transcript_tool_count"] = tool_count
+            node.properties["transcript_duration_seconds"] = duration_seconds
+
     def _get_graph(self, collection: str) -> HtmlGraph:
         """Get graph for a collection."""
         if collection == "bugs":
@@ -1804,3 +1910,271 @@ class SessionManager:
         except Exception:
             pass
         return None
+
+    # =========================================================================
+    # Claude Code Transcript Integration
+    # =========================================================================
+
+    def link_transcript(
+        self,
+        session_id: str,
+        transcript_id: str,
+        transcript_path: str | None = None,
+        git_branch: str | None = None,
+    ) -> Session | None:
+        """
+        Link a Claude Code transcript to an HtmlGraph session.
+
+        Args:
+            session_id: HtmlGraph session ID
+            transcript_id: Claude Code session UUID (from JSONL filename)
+            transcript_path: Path to the JSONL file
+            git_branch: Git branch from transcript metadata
+
+        Returns:
+            Updated Session or None if not found
+        """
+        session = self.get_session(session_id)
+        if not session:
+            return None
+
+        session.transcript_id = transcript_id
+        session.transcript_path = transcript_path
+        session.transcript_synced_at = datetime.now()
+        if git_branch:
+            session.transcript_git_branch = git_branch
+
+        self.session_converter.save(session)
+        return session
+
+    def find_session_by_transcript(
+        self,
+        transcript_id: str,
+    ) -> Session | None:
+        """
+        Find an HtmlGraph session linked to a transcript.
+
+        Args:
+            transcript_id: Claude Code session UUID
+
+        Returns:
+            Session or None if not found
+        """
+        for session in self.session_converter.load_all():
+            if session.transcript_id == transcript_id:
+                return session
+        return None
+
+    def import_transcript_events(
+        self,
+        session_id: str,
+        transcript_session: Any,  # TranscriptSession from transcript module
+        overwrite: bool = False,
+    ) -> dict[str, int]:
+        """
+        Import events from a Claude Code transcript into an HtmlGraph session.
+
+        This extracts tool uses and user messages from the transcript
+        and adds them to the session's activity log.
+
+        Args:
+            session_id: HtmlGraph session ID to import into
+            transcript_session: TranscriptSession object from transcript module
+            overwrite: If True, clear existing activities before import
+
+        Returns:
+            Dict with import statistics
+        """
+        session = self.get_session(session_id)
+        if not session:
+            return {"error": "session_not_found", "imported": 0}
+
+        if overwrite:
+            session.activity_log = []
+            session.event_count = 0
+
+        imported = 0
+        skipped = 0
+
+        for entry in transcript_session.entries:
+            # Skip non-actionable entries
+            if entry.entry_type not in ("user", "tool_use"):
+                skipped += 1
+                continue
+
+            # Create ActivityEntry from transcript entry
+            if entry.entry_type == "user":
+                activity = ActivityEntry(
+                    id=f"tx-{entry.uuid[:8]}",
+                    timestamp=entry.timestamp,
+                    tool="UserQuery",
+                    summary=entry.to_summary(),
+                    success=True,
+                    payload={
+                        "source": "transcript",
+                        "transcript_uuid": entry.uuid,
+                        "message_content": entry.message_content,
+                    },
+                )
+            elif entry.entry_type == "tool_use":
+                activity = ActivityEntry(
+                    id=f"tx-{entry.uuid[:8]}",
+                    timestamp=entry.timestamp,
+                    tool=entry.tool_name or "Unknown",
+                    summary=entry.to_summary(),
+                    success=True,  # Assume success unless we have result
+                    payload={
+                        "source": "transcript",
+                        "transcript_uuid": entry.uuid,
+                        "tool_input": entry.tool_input,
+                        "thinking": entry.thinking,
+                    },
+                )
+            else:
+                continue
+
+            session.add_activity(activity)
+            imported += 1
+
+            # Also append to JSONL event log
+            try:
+                from htmlgraph.work_type_utils import infer_work_type_from_id
+                work_type = infer_work_type_from_id(activity.feature_id)
+
+                self.event_log.append(EventRecord(
+                    event_id=activity.id or "",
+                    timestamp=activity.timestamp,
+                    session_id=session_id,
+                    agent=session.agent,
+                    tool=activity.tool,
+                    summary=activity.summary,
+                    success=activity.success,
+                    feature_id=activity.feature_id,
+                    drift_score=None,
+                    start_commit=session.start_commit,
+                    continued_from=session.continued_from,
+                    work_type=work_type,
+                    session_status=session.status,
+                    payload=activity.payload if isinstance(activity.payload, dict) else None,
+                ))
+            except Exception:
+                pass
+
+        # Update transcript link
+        session.transcript_id = transcript_session.session_id
+        session.transcript_path = str(transcript_session.path)
+        session.transcript_synced_at = datetime.now()
+        if transcript_session.git_branch:
+            session.transcript_git_branch = transcript_session.git_branch
+
+        self.session_converter.save(session)
+
+        return {
+            "imported": imported,
+            "skipped": skipped,
+            "total_entries": len(transcript_session.entries),
+        }
+
+    def auto_link_transcript_by_branch(
+        self,
+        git_branch: str,
+        agent: str | None = None,
+    ) -> list[tuple[str, str]]:
+        """
+        Auto-link HtmlGraph sessions to transcripts based on git branch.
+
+        This finds sessions and transcripts that share the same git branch
+        and links them together.
+
+        Args:
+            git_branch: Git branch to match
+            agent: Optional agent filter
+
+        Returns:
+            List of (session_id, transcript_id) tuples that were linked
+        """
+        from htmlgraph.transcript import TranscriptReader
+
+        linked: list[tuple[str, str]] = []
+        reader = TranscriptReader()
+
+        # Find transcripts for this branch
+        project_path = self.graph_dir.parent
+        transcripts = reader.find_sessions_for_branch(git_branch, project_path)
+
+        if not transcripts:
+            return linked
+
+        # Find sessions that might match
+        sessions = self.session_converter.load_all()
+        if agent:
+            sessions = [s for s in sessions if s.agent == agent]
+
+        # Match by time overlap and git branch
+        for transcript in transcripts:
+            if not transcript.started_at:
+                continue
+
+            for session in sessions:
+                # Skip if already linked
+                if session.transcript_id:
+                    continue
+
+                # Check if session overlaps with transcript time
+                if session.started_at and transcript.ended_at:
+                    if session.started_at > transcript.ended_at:
+                        continue  # Session started after transcript ended
+
+                if session.ended_at and transcript.started_at:
+                    if session.ended_at < transcript.started_at:
+                        continue  # Session ended before transcript started
+
+                # Link them
+                self.link_transcript(
+                    session_id=session.id,
+                    transcript_id=transcript.session_id,
+                    transcript_path=str(transcript.path),
+                    git_branch=git_branch,
+                )
+                linked.append((session.id, transcript.session_id))
+                break  # One transcript per session
+
+        return linked
+
+    def get_transcript_stats(self, session_id: str) -> dict[str, Any] | None:
+        """
+        Get transcript statistics for a session.
+
+        Args:
+            session_id: HtmlGraph session ID
+
+        Returns:
+            Dict with transcript stats or None if no transcript linked
+        """
+        session = self.get_session(session_id)
+        if not session or not session.transcript_id:
+            return None
+
+        from htmlgraph.transcript import TranscriptReader
+
+        reader = TranscriptReader()
+        transcript = reader.read_session(session.transcript_id)
+
+        if not transcript:
+            return {
+                "transcript_id": session.transcript_id,
+                "error": "transcript_not_found",
+            }
+
+        return {
+            "transcript_id": session.transcript_id,
+            "transcript_path": session.transcript_path,
+            "synced_at": session.transcript_synced_at.isoformat() if session.transcript_synced_at else None,
+            "git_branch": session.transcript_git_branch,
+            "user_messages": transcript.user_message_count,
+            "tool_calls": transcript.tool_call_count,
+            "tool_breakdown": transcript.tool_breakdown,
+            "duration_seconds": transcript.duration_seconds,
+            "has_thinking_traces": transcript.has_thinking_traces(),
+            "entry_count": len(transcript.entries),
+        }

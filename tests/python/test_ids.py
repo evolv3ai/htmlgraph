@@ -186,7 +186,7 @@ class TestPrefixes:
         """All common node types should have prefixes."""
         expected_types = [
             "feature", "bug", "chore", "spike", "epic",
-            "session", "track", "phase", "agent", "spec", "plan"
+            "session", "track", "phase", "agent", "spec", "plan", "event"
         ]
         for node_type in expected_types:
             assert node_type in PREFIXES, f"Missing prefix for {node_type}"
@@ -195,3 +195,100 @@ class TestPrefixes:
         """Prefixes should be 3-4 characters."""
         for node_type, prefix in PREFIXES.items():
             assert 3 <= len(prefix) <= 4, f"Prefix '{prefix}' for {node_type} should be 3-4 chars"
+
+
+class TestEdgeCases:
+    """Tests for edge cases and special scenarios."""
+
+    def test_hash_format_is_always_8_hex_chars(self):
+        """Hash portion should always be exactly 8 hexadecimal characters."""
+        for _ in range(20):
+            id = generate_id("feature", "Test")
+            parsed = parse_id(id)
+            hash_part = parsed["hash"]
+            assert len(hash_part) == 8, f"Hash should be 8 chars, got {len(hash_part)}"
+            assert all(c in "0123456789abcdef" for c in hash_part), f"Hash should be hex: {hash_part}"
+
+    def test_empty_title_works(self):
+        """Empty title should still generate valid ID."""
+        id = generate_id("feature", "")
+        assert is_valid_id(id)
+        assert id.startswith("feat-")
+        assert len(id) == 13
+
+    def test_very_long_title(self):
+        """Very long titles should work without issues."""
+        long_title = "A" * 10000
+        id = generate_id("feature", long_title)
+        assert is_valid_id(id)
+        assert len(id) == 13  # Still compact
+
+    def test_unicode_title(self):
+        """Unicode characters in title should work."""
+        id = generate_id("feature", "测试功能 🚀")
+        assert is_valid_id(id)
+        assert id.startswith("feat-")
+
+    def test_special_characters_in_title(self):
+        """Special characters should be handled safely."""
+        id = generate_id("feature", "Test: <script>alert('xss')</script>")
+        assert is_valid_id(id)
+
+    def test_deep_nesting(self):
+        """Should support very deep hierarchies."""
+        id = "feat-a1b2c3d4"
+        for i in range(1, 11):  # 10 levels deep
+            id = generate_hierarchical_id(id, i)
+
+        assert is_valid_id(id)
+        assert get_depth(id) == 10
+        assert get_root_id(id) == "feat-a1b2c3d4"
+
+    def test_all_prefix_types_generate_valid_ids(self):
+        """All node types in PREFIXES should generate valid IDs."""
+        for node_type, prefix in PREFIXES.items():
+            id = generate_id(node_type, f"Test {node_type}")
+            assert is_valid_id(id), f"Invalid ID for {node_type}: {id}"
+            assert id.startswith(f"{prefix}-"), f"Wrong prefix for {node_type}"
+
+    def test_parse_id_with_single_hierarchy_level(self):
+        """Should correctly parse single-level hierarchy."""
+        result = parse_id("feat-a1b2c3d4.5")
+        assert result["hierarchy"] == [5]
+        assert result["hash"] == "a1b2c3d4"
+
+    def test_get_root_id_with_legacy_format(self):
+        """get_root_id should work with legacy IDs."""
+        legacy_id = "feature-20241222-143022"
+        root = get_root_id(legacy_id)
+        assert root == legacy_id  # Legacy IDs don't have hierarchy
+
+    def test_get_parent_id_with_single_level(self):
+        """get_parent_id should work correctly with single-level hierarchy."""
+        parent = get_parent_id("feat-a1b2c3d4.1")
+        assert parent == "feat-a1b2c3d4"
+
+    def test_hierarchical_id_with_large_index(self):
+        """Should handle large index numbers."""
+        id = generate_hierarchical_id("feat-a1b2c3d4", 999)
+        assert id == "feat-a1b2c3d4.999"
+        assert is_valid_id(id)
+
+    def test_parse_unknown_prefix(self):
+        """Should handle unknown prefixes gracefully."""
+        result = parse_id("xyz-a1b2c3d4")
+        assert result["prefix"] == "xyz"
+        # node_type should be 'xyz' since it's not in PREFIX_TO_TYPE
+        assert result["node_type"] == "xyz"
+        assert result["hash"] == "a1b2c3d4"
+
+    def test_entropy_bytes_parameter(self):
+        """Different entropy_bytes should still produce valid IDs."""
+        id1 = generate_id("feature", "Test", entropy_bytes=2)
+        id2 = generate_id("feature", "Test", entropy_bytes=8)
+
+        assert is_valid_id(id1)
+        assert is_valid_id(id2)
+        # Both should still be 8 hex chars (SHA256 truncated)
+        assert len(id1) == 13
+        assert len(id2) == 13

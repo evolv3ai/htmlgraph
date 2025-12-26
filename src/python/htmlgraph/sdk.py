@@ -492,6 +492,194 @@ class SDK:
         """
         return self._agent_interface.analyze_impact(node_id)
 
+    def get_work_queue(
+        self,
+        agent_id: str | None = None,
+        limit: int = 10,
+        min_score: float = 0.0
+    ) -> list[dict[str, Any]]:
+        """
+        Get prioritized work queue showing recommended work, active work, and dependencies.
+
+        This method provides a comprehensive view of:
+        1. Recommended next work (using smart analytics)
+        2. Active work by all agents
+        3. Blocked items and what's blocking them
+        4. Priority-based scoring
+
+        Args:
+            agent_id: Agent to get queue for (defaults to SDK agent)
+            limit: Maximum number of items to return (default: 10)
+            min_score: Minimum score threshold (default: 0.0)
+
+        Returns:
+            List of work queue items with scoring and metadata:
+                - task_id: Work item ID
+                - title: Work item title
+                - status: Current status
+                - priority: Priority level
+                - score: Routing score
+                - complexity: Complexity level (if set)
+                - effort: Estimated effort (if set)
+                - blocks_count: Number of tasks this blocks (if any)
+                - blocked_by: List of blocking task IDs (if blocked)
+                - agent_assigned: Current assignee (if any)
+                - type: Work item type (feature, bug, spike, etc.)
+
+        Example:
+            >>> sdk = SDK(agent="claude")
+            >>> queue = sdk.get_work_queue(limit=5)
+            >>> for item in queue:
+            ...     print(f"{item['score']:.1f} - {item['title']}")
+            ...     if item.get('blocked_by'):
+            ...         print(f"  ⚠️  Blocked by: {', '.join(item['blocked_by'])}")
+        """
+        from htmlgraph.routing import AgentCapabilityRegistry, CapabilityMatcher
+        from htmlgraph.converter import node_to_dict
+
+        agent = agent_id or self._agent_id or "cli"
+
+        # Get all work item types
+        all_work = []
+        for collection_name in ["features", "bugs", "spikes", "chores", "epics"]:
+            collection = getattr(self, collection_name, None)
+            if collection:
+                # Get todo and blocked items
+                for item in collection.where(status="todo"):
+                    all_work.append(item)
+                for item in collection.where(status="blocked"):
+                    all_work.append(item)
+
+        if not all_work:
+            return []
+
+        # Get recommendations from analytics (uses strategic scoring)
+        recommendations = self.recommend_next_work(agent_count=limit * 2)
+        rec_scores = {rec["id"]: rec["score"] for rec in recommendations}
+
+        # Build routing registry
+        registry = AgentCapabilityRegistry()
+
+        # Register current agent
+        registry.register_agent(agent, capabilities=[], wip_limit=5)
+
+        # Get current WIP count for agent
+        wip_count = len(self.features.where(status="in-progress", agent_assigned=agent))
+        registry.set_wip(agent, wip_count)
+
+        # Score each work item
+        queue_items = []
+        for item in all_work:
+            # Use strategic score if available, otherwise use routing score
+            if item.id in rec_scores:
+                score = rec_scores[item.id]
+            else:
+                # Fallback to routing score
+                agent_profile = registry.get_agent(agent)
+                if agent_profile:
+                    score = CapabilityMatcher.score_agent_task_fit(agent_profile, item)
+                else:
+                    score = 0.0
+
+            # Apply minimum score filter
+            if score < min_score:
+                continue
+
+            # Build queue item
+            queue_item = {
+                "task_id": item.id,
+                "title": item.title,
+                "status": item.status,
+                "priority": item.priority,
+                "score": score,
+                "type": item.type,
+                "complexity": getattr(item, "complexity", None),
+                "effort": getattr(item, "estimated_effort", None),
+                "agent_assigned": getattr(item, "agent_assigned", None),
+                "blocks_count": 0,
+                "blocked_by": [],
+            }
+
+            # Add dependency information
+            if hasattr(item, "edges"):
+                # Check if this item blocks others
+                blocks = item.edges.get("blocks", [])
+                queue_item["blocks_count"] = len(blocks)
+
+                # Check if this item is blocked
+                blocked_by = item.edges.get("blocked_by", [])
+                queue_item["blocked_by"] = blocked_by
+
+            queue_items.append(queue_item)
+
+        # Sort by score (descending)
+        queue_items.sort(key=lambda x: x["score"], reverse=True)
+
+        # Limit results
+        return queue_items[:limit]
+
+    def work_next(
+        self,
+        agent_id: str | None = None,
+        auto_claim: bool = False,
+        min_score: float = 0.0
+    ) -> Node | None:
+        """
+        Get the next best task for an agent using smart routing.
+
+        Uses both strategic analytics and capability-based routing to find
+        the optimal next task.
+
+        Args:
+            agent_id: Agent to get task for (defaults to SDK agent)
+            auto_claim: Automatically claim the task (default: False)
+            min_score: Minimum score threshold (default: 0.0)
+
+        Returns:
+            Next best Node or None if no suitable task found
+
+        Example:
+            >>> sdk = SDK(agent="claude")
+            >>> task = sdk.work_next(auto_claim=True)
+            >>> if task:
+            ...     print(f"Working on: {task.title}")
+            ...     # Task is automatically claimed and assigned
+        """
+        agent = agent_id or self._agent_id or "cli"
+
+        # Get work queue
+        queue = self.get_work_queue(agent_id=agent, limit=1, min_score=min_score)
+
+        if not queue:
+            return None
+
+        # Get the top task
+        top_item = queue[0]
+
+        # Fetch the actual node
+        task = None
+        for collection_name in ["features", "bugs", "spikes", "chores", "epics"]:
+            collection = getattr(self, collection_name, None)
+            if collection:
+                try:
+                    task = collection.get(top_item["task_id"])
+                    if task:
+                        break
+                except (ValueError, FileNotFoundError):
+                    continue
+
+        if not task:
+            return None
+
+        # Auto-claim if requested
+        if auto_claim and task.status == "todo":
+            # Claim the task
+            with collection.edit(task.id) as t:
+                t.status = "in-progress"
+                t.agent_assigned = agent
+
+        return task
+
     # =========================================================================
     # Planning Workflow Integration
     # =========================================================================
@@ -639,7 +827,9 @@ class SDK:
         self,
         description: str,
         create_spike: bool = True,
-        timebox_hours: float = 4.0
+        timebox_hours: float = 4.0,
+        research_completed: bool = False,
+        research_findings: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """
         Smart planning workflow: analyzes project context and creates spike or track.
@@ -649,22 +839,46 @@ class SDK:
         2. Provides context from strategic analytics
         3. Creates a planning spike or track as appropriate
 
+        **IMPORTANT: Research Phase Required**
+        For complex features, you should complete research BEFORE planning:
+        1. Use /htmlgraph:research or WebSearch to gather best practices
+        2. Document findings (libraries, patterns, anti-patterns)
+        3. Pass research_completed=True and research_findings to this method
+        4. This ensures planning is informed by industry best practices
+
+        Research-first workflow:
+            1. /htmlgraph:research "{topic}" → Gather external knowledge
+            2. sdk.smart_plan(..., research_completed=True) → Plan with context
+            3. Complete spike steps → Design solution
+            4. Create track from plan → Structure implementation
+
         Args:
             description: What you want to plan (e.g., "User authentication system")
             create_spike: Create a spike for research (default: True)
             timebox_hours: If creating spike, time limit (default: 4 hours)
+            research_completed: Whether research was performed (default: False)
+            research_findings: Structured research findings (optional)
 
         Returns:
             Dict with planning context and created spike/track info
 
         Example:
             >>> sdk = SDK(agent="claude")
+            >>> # WITH research (recommended for complex work)
+            >>> research = {
+            ...     "topic": "OAuth 2.0 best practices",
+            ...     "sources_count": 5,
+            ...     "recommended_library": "authlib",
+            ...     "key_insights": ["Use PKCE", "Implement token rotation"]
+            ... }
             >>> plan = sdk.smart_plan(
-            ...     "Real-time notifications system",
-            ...     create_spike=True
+            ...     "User authentication system",
+            ...     create_spike=True,
+            ...     research_completed=True,
+            ...     research_findings=research
             ... )
             >>> print(f"Created: {plan['spike_id']}")
-            >>> print(f"Context: {plan['project_context']}")
+            >>> print(f"Research informed: {plan['research_informed']}")
         """
         # Get project context from strategic analytics
         bottlenecks = self.find_bottlenecks(top_n=3)
@@ -678,26 +892,66 @@ class SDK:
             "description": description
         }
 
+        # Build context string with research info
+        context_str = f"Project context:\n- {len(bottlenecks)} bottlenecks\n- {risks['high_risk_count']} high-risk items\n- {parallel['max_parallelism']} parallel capacity"
+
+        if research_completed and research_findings:
+            context_str += f"\n\nResearch completed:\n- Topic: {research_findings.get('topic', description)}"
+            if 'sources_count' in research_findings:
+                context_str += f"\n- Sources: {research_findings['sources_count']}"
+            if 'recommended_library' in research_findings:
+                context_str += f"\n- Recommended: {research_findings['recommended_library']}"
+
+        # Validation: warn if complex work planned without research
+        is_complex = any([
+            "auth" in description.lower(),
+            "security" in description.lower(),
+            "real-time" in description.lower(),
+            "websocket" in description.lower(),
+            "oauth" in description.lower(),
+            "performance" in description.lower(),
+            "integration" in description.lower(),
+        ])
+
+        warnings = []
+        if is_complex and not research_completed:
+            warnings.append(
+                "⚠️  Complex feature detected without research. "
+                "Consider using /htmlgraph:research first to gather best practices."
+            )
+
         if create_spike:
             spike = self.start_planning_spike(
                 title=f"Plan: {description}",
-                context=f"Project context:\n- {len(bottlenecks)} bottlenecks\n- {risks['high_risk_count']} high-risk items\n- {parallel['max_parallelism']} parallel capacity",
+                context=context_str,
                 timebox_hours=timebox_hours
             )
 
-            return {
+            # Store research metadata in spike properties if provided
+            if research_completed and research_findings:
+                spike.properties["research_completed"] = True
+                spike.properties["research_findings"] = research_findings
+                self._graph.update(spike)
+
+            result = {
                 "type": "spike",
                 "spike_id": spike.id,
                 "title": spike.title,
                 "status": spike.status,
                 "timebox_hours": timebox_hours,
                 "project_context": context,
+                "research_informed": research_completed,
                 "next_steps": [
-                    "Research and design the solution",
+                    "Research and design the solution" if not research_completed else "Design solution using research findings",
                     "Complete spike steps",
                     "Use SDK.create_track_from_plan() to create track"
                 ]
             }
+
+            if warnings:
+                result["warnings"] = warnings
+
+            return result
         else:
             # Direct track creation (for when you already know what to do)
             track_info = self.create_track_from_plan(
@@ -705,16 +959,158 @@ class SDK:
                 description=f"Planned with context: {context}"
             )
 
-            return {
+            result = {
                 "type": "track",
                 **track_info,
                 "project_context": context,
+                "research_informed": research_completed,
                 "next_steps": [
                     "Create features from track plan",
                     "Link features to track",
                     "Start implementation"
                 ]
             }
+
+            if warnings:
+                result["warnings"] = warnings
+
+            return result
+
+    def plan_parallel_work(
+        self,
+        max_agents: int = 5,
+        shared_files: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Plan and prepare parallel work execution.
+
+        This integrates with smart_plan to enable parallel agent dispatch.
+        Uses the 6-phase ParallelWorkflow:
+        1. Pre-flight analysis (dependencies, risks)
+        2. Context preparation (shared file caching)
+        3. Prompt generation (for Task tool)
+
+        Args:
+            max_agents: Maximum parallel agents (default: 5)
+            shared_files: Files to pre-cache for all agents
+
+        Returns:
+            Dict with parallel execution plan:
+                - can_parallelize: Whether parallelization is recommended
+                - analysis: Pre-flight analysis results
+                - prompts: Ready-to-use Task tool prompts
+                - recommendations: Optimization suggestions
+
+        Example:
+            >>> sdk = SDK(agent="orchestrator")
+            >>> plan = sdk.plan_parallel_work(max_agents=3)
+            >>> if plan["can_parallelize"]:
+            ...     # Use prompts with Task tool
+            ...     for p in plan["prompts"]:
+            ...         Task(prompt=p["prompt"], description=p["description"])
+        """
+        from htmlgraph.parallel import ParallelWorkflow
+
+        workflow = ParallelWorkflow(self)
+
+        # Phase 1: Pre-flight analysis
+        analysis = workflow.analyze(max_agents=max_agents)
+
+        result = {
+            "can_parallelize": analysis.can_parallelize,
+            "max_parallelism": analysis.max_parallelism,
+            "ready_tasks": analysis.ready_tasks,
+            "blocked_tasks": analysis.blocked_tasks,
+            "speedup_factor": analysis.speedup_factor,
+            "recommendation": analysis.recommendation,
+            "warnings": analysis.warnings,
+            "prompts": [],
+        }
+
+        if not analysis.can_parallelize:
+            result["reason"] = analysis.recommendation
+            return result
+
+        # Phase 2 & 3: Prepare tasks and generate prompts
+        tasks = workflow.prepare_tasks(
+            analysis.ready_tasks[:max_agents],
+            shared_files=shared_files,
+        )
+        prompts = workflow.generate_prompts(tasks)
+
+        result["prompts"] = prompts
+        result["task_count"] = len(prompts)
+
+        # Add efficiency guidelines
+        result["guidelines"] = {
+            "dispatch": "Send ALL Task calls in a SINGLE message for true parallelism",
+            "patterns": [
+                "Grep → Read (search before reading)",
+                "Read → Edit → Bash (read, modify, test)",
+                "Glob → Read (find files first)",
+            ],
+            "avoid": [
+                "Sequential Task calls (loses parallelism)",
+                "Read → Read → Read (cache instead)",
+                "Edit → Edit → Edit (batch edits)",
+            ],
+        }
+
+        return result
+
+    def aggregate_parallel_results(
+        self,
+        agent_ids: list[str],
+    ) -> dict[str, Any]:
+        """
+        Aggregate results from parallel agent execution.
+
+        Call this after parallel agents complete to:
+        - Collect health metrics
+        - Detect anti-patterns
+        - Identify conflicts
+        - Generate recommendations
+
+        Args:
+            agent_ids: List of agent/transcript IDs to analyze
+
+        Returns:
+            Dict with aggregated results and validation
+
+        Example:
+            >>> # After parallel work completes
+            >>> results = sdk.aggregate_parallel_results([
+            ...     "agent-abc123",
+            ...     "agent-def456",
+            ...     "agent-ghi789",
+            ... ])
+            >>> print(f"Health: {results['avg_health_score']:.0%}")
+            >>> print(f"Conflicts: {results['conflicts']}")
+        """
+        from htmlgraph.parallel import ParallelWorkflow
+
+        workflow = ParallelWorkflow(self)
+
+        # Phase 5: Aggregate
+        aggregate = workflow.aggregate(agent_ids)
+
+        # Phase 6: Validate
+        validation = workflow.validate(aggregate)
+
+        return {
+            "total_agents": aggregate.total_agents,
+            "successful": aggregate.successful,
+            "failed": aggregate.failed,
+            "total_duration_seconds": aggregate.total_duration_seconds,
+            "parallel_speedup": aggregate.parallel_speedup,
+            "avg_health_score": aggregate.avg_health_score,
+            "total_anti_patterns": aggregate.total_anti_patterns,
+            "files_modified": aggregate.files_modified,
+            "conflicts": aggregate.conflicts,
+            "recommendations": aggregate.recommendations,
+            "validation": validation,
+            "all_passed": all(validation.values()),
+        }
 
     # =========================================================================
     # Session Management Optimization

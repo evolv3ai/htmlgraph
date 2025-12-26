@@ -100,20 +100,27 @@ def main():
     project_dir = _resolve_project_dir(cwd if cwd else None)
     graph_dir = Path(project_dir) / ".htmlgraph"
 
-    # Do not end the internal HtmlGraph session on every external Claude session end.
-    # External sessions can be frequent; ending would create lots of tiny session files.
-    # Instead, record an event and let HtmlGraph roll sessions based on commit/time policies.
+    # Session lifecycle management
+    # Note: Transcript import happens on work item completion or git commit,
+    # not on session end (sessions can end frequently during context switches)
     try:
         manager = SessionManager(graph_dir)
         active = manager.get_active_session()
+
+        # Link transcript to session (but don't import events yet)
         if active and external_session_id:
             try:
-                manager.track_activity(
-                    session_id=active.id,
-                    tool="ClaudeSessionEnd",
-                    summary=f"Claude session ended: {external_session_id}",
-                    payload={"claude_session_id": external_session_id},
-                )
+                from htmlgraph.transcript import TranscriptReader
+                reader = TranscriptReader()
+                transcript = reader.read_session(external_session_id)
+                if transcript:
+                    # Just link, don't import - import happens on commit/completion
+                    manager.link_transcript(
+                        session_id=active.id,
+                        transcript_id=external_session_id,
+                        transcript_path=str(transcript.path),
+                        git_branch=transcript.git_branch,
+                    )
             except Exception:
                 pass
 

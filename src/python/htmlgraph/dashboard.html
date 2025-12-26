@@ -2814,6 +2814,8 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                     const created = new Date(s.created).toLocaleString();
                     const updated = new Date(s.updated).toLocaleString();
                     const statusBadge = s.status === 'active' ? 'status-active' : 'status-done';
+                    const hasTranscript = s.properties?.transcript_id ? true : false;
+                    const transcriptIcon = hasTranscript ? '<span title="Transcript linked" style="cursor: help;">📝</span>' : '<span style="color: var(--text-muted);">—</span>';
 
                     return `
                         <tr>
@@ -2827,6 +2829,7 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                             </td>
                             <td><span class="badge ${statusBadge}">${s.status}</span></td>
                             <td>${s.properties?.event_count || 0}</td>
+                            <td style="text-align: center;">${transcriptIcon}</td>
                             <td>${s.properties?.agent || '—'}</td>
                             <td class="mono">${created}</td>
                             <td class="mono">${updated}</td>
@@ -2842,6 +2845,7 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                                 <th>Session ID</th>
                                 <th>Status</th>
                                 <th>Events</th>
+                                <th title="Claude Code Transcript">Tx</th>
                                 <th>Agent</th>
                                 <th>Created</th>
                                 <th>Updated</th>
@@ -3639,6 +3643,77 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
             }
         }
 
+        async function fetchTranscriptStats(sessionId) {
+            const container = document.getElementById('transcript-stats-container');
+            if (!container) return;
+
+            try {
+                const response = await fetch(`${API}/sessions/${sessionId}?transcript=true`);
+                if (!response.ok) throw new Error('Failed to load transcript stats');
+
+                const data = await response.json();
+
+                if (!data.transcript_linked) {
+                    container.innerHTML = `
+                        <div class="transcript-not-linked">
+                            <span style="color: var(--text-muted);">No Claude Code transcript linked</span>
+                            <div style="font-size: 0.75rem; margin-top: 0.5rem; color: var(--text-muted);">
+                                Transcripts are linked automatically on work item completion
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Format duration
+                let durationStr = '—';
+                if (data.duration_seconds) {
+                    const mins = Math.floor(data.duration_seconds / 60);
+                    const secs = Math.floor(data.duration_seconds % 60);
+                    durationStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+                }
+
+                // Build tool breakdown
+                let toolBreakdownHtml = '';
+                if (data.tool_breakdown && Object.keys(data.tool_breakdown).length > 0) {
+                    const sortedTools = Object.entries(data.tool_breakdown)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 8);
+                    toolBreakdownHtml = `
+                        <div class="transcript-tools" style="margin-top: 0.75rem;">
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Tool Usage:</div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
+                                ${sortedTools.map(([tool, count]) => `
+                                    <span class="badge" style="font-size: 0.7rem;">${tool}: ${count}</span>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                container.innerHTML = `
+                    <div class="transcript-stats">
+                        <div class="transcript-meta" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-bottom: 0.75rem;">
+                            <div><strong>User Messages:</strong> ${data.user_messages || 0}</div>
+                            <div><strong>Tool Calls:</strong> ${data.tool_calls || 0}</div>
+                            <div><strong>Duration:</strong> ${durationStr}</div>
+                            <div><strong>Total Entries:</strong> ${data.entry_count || 0}</div>
+                        </div>
+                        <div class="transcript-badges" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            ${data.has_thinking_traces ? '<span class="badge" style="background: var(--accent);">Has Thinking Traces</span>' : ''}
+                            ${data.git_branch ? `<span class="badge">Branch: ${data.git_branch}</span>` : ''}
+                        </div>
+                        ${toolBreakdownHtml}
+                        <div class="transcript-id" style="margin-top: 0.75rem; font-size: 0.7rem; color: var(--text-muted);">
+                            Transcript ID: <code style="font-family: monospace;">${data.transcript_id || '—'}</code>
+                        </div>
+                    </div>
+                `;
+            } catch (err) {
+                container.innerHTML = `<div class="loading">Error loading transcript: ${err.message}</div>`;
+            }
+        }
+
         function renderPanelLoading() {
             document.getElementById('panel-title').textContent = 'Loading...';
             document.getElementById('panel-body').innerHTML = '<div class="loading">Loading...</div>';
@@ -3770,6 +3845,14 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                         <div id="activity-log-container" class="loading">Loading activity log...</div>
                     </div>
                 `;
+
+                // Transcript section (for sessions only)
+                bodyHtml += `
+                    <div class="panel-section">
+                        <h3>Claude Code Transcript</h3>
+                        <div id="transcript-stats-container" class="loading">Loading transcript data...</div>
+                    </div>
+                `;
             }
 
             // Timestamps
@@ -3785,9 +3868,10 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
 
             document.getElementById('panel-body').innerHTML = bodyHtml;
 
-            // Load activity log for sessions
+            // Load activity log and transcript stats for sessions
             if (node.type === 'session') {
                 fetchActivityLog(node._collection || 'sessions', node.id);
+                fetchTranscriptStats(node.id);
             }
 
             // Actions

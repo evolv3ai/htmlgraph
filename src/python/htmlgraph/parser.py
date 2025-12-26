@@ -307,6 +307,11 @@ class HtmlParser:
             if agent:
                 properties["agent"] = agent
 
+            # Add transcript_id if present (for Claude Code transcript integration)
+            transcript_id = article.attrs.get("data-transcript-id")
+            if transcript_id:
+                properties["transcript_id"] = transcript_id
+
         return properties
 
     def get_content(self) -> str:

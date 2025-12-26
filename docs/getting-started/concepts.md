@@ -109,8 +109,16 @@ HtmlGraph uses hash-based IDs for multi-agent collaboration:
 | Bug | `bug-` | `bug-12345678` |
 | Track | `trk-` | `trk-abcdef12` |
 | Session | `sess-` | `sess-7890abcd` |
+| Spike | `spk-` | `spk-87654321` |
+| Event | `evt-` | `evt-11223344` |
 
-These IDs are collision-resistant, meaning multiple agents can create nodes simultaneously without conflicts. Hierarchical sub-tasks are supported: `feat-a1b2c3d4.1.2`. See [ID Generation](../api/ids.md) for details.
+These IDs are collision-resistant, meaning multiple agents can create nodes simultaneously without conflicts. The 8-character hash is generated from SHA256 of (title + microsecond timestamp + random entropy), providing effectively zero collision probability even with thousands of concurrent agents.
+
+Hierarchical sub-tasks are supported: `feat-a1b2c3d4.1.2`
+
+**Learn more:**
+- [ID Generation API](../api/ids.md) - Usage examples and API reference
+- [Hash-Based IDs Design](../design/hash-based-ids.md) - Architecture and implementation details
 
 Example node structure:
 

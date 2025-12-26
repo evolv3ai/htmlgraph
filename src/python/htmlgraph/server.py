@@ -237,6 +237,10 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         if collection == "features" and node_id and params.get("context") == "true":
             return self._handle_feature_context(node_id)
 
+        # GET /api/sessions/{session_id}?transcript=true - Get transcript stats
+        if collection == "sessions" and node_id and params.get("transcript") == "true":
+            return self._handle_session_transcript(node_id)
+
         # GET /api/collections - List available collections
         if collection == "collections":
             return self._send_json({"collections": self.COLLECTIONS})
@@ -830,6 +834,29 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
                 context["has_plan"] = False
 
         self._send_json(context)
+
+    def _handle_session_transcript(self, session_id: str):
+        """Get transcript stats for a session."""
+        try:
+            from htmlgraph.session_manager import SessionManager
+            manager = SessionManager(self.graph_dir)
+            stats = manager.get_transcript_stats(session_id)
+
+            if stats is None:
+                self._send_json({
+                    "session_id": session_id,
+                    "transcript_linked": False,
+                    "message": "No transcript linked to this session"
+                })
+                return
+
+            self._send_json({
+                "session_id": session_id,
+                "transcript_linked": True,
+                **stats
+            })
+        except Exception as e:
+            self._send_error_json(f"Error getting transcript stats: {e}", 500)
 
     def _handle_generate_features(self, track_id: str):
         """Generate features from plan tasks."""

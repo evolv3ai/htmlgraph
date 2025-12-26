@@ -99,6 +99,32 @@ def cmd_init(args):
     from htmlgraph.analytics_index import AnalyticsIndex
     import shutil
 
+    # Interactive setup wizard
+    if args.interactive:
+        print("=== HtmlGraph Interactive Setup ===\n")
+
+        # Get project name
+        default_name = Path(args.dir).resolve().name
+        project_name = input(f"Project name [{default_name}]: ").strip() or default_name
+
+        # Get agent name
+        agent_name = input("Your agent name [claude]: ").strip() or "claude"
+
+        # Ask about git hooks
+        install_hooks_response = input("Install git hooks for automatic tracking? [Y/n]: ").strip().lower()
+        args.install_hooks = install_hooks_response != 'n'
+
+        # Ask about documentation generation
+        gen_docs_response = input("Generate AGENTS.md, CLAUDE.md, GEMINI.md? [Y/n]: ").strip().lower()
+        generate_docs = gen_docs_response != 'n'
+
+        print()
+    else:
+        # Non-interactive defaults
+        project_name = Path(args.dir).resolve().name
+        agent_name = "claude"
+        generate_docs = True  # Always generate in non-interactive mode
+
     graph_dir = Path(args.dir) / ".htmlgraph"
     graph_dir.mkdir(parents=True, exist_ok=True)
 
@@ -289,15 +315,11 @@ exit 0
     pre_commit = """#!/bin/bash
 #
 # HtmlGraph Pre-Commit Hook
-# Reminds developers to create/start features for non-trivial work
+# 1. BLOCKS direct edits to .htmlgraph/ (AI agents must use SDK)
+# 2. Reminds developers to create/start features for non-trivial work
 #
-# To disable: git config htmlgraph.precommit false
-# To bypass once: git commit --no-verify
-
-# Check if hook is disabled via config
-if [ "$(git config --type=bool htmlgraph.precommit)" = "false" ]; then
-    exit 0
-fi
+# To disable feature reminder: git config htmlgraph.precommit false
+# To bypass blocking once: git commit --no-verify (NOT RECOMMENDED)
 
 # Check if HtmlGraph is initialized
 if [ ! -d ".htmlgraph" ]; then
@@ -305,8 +327,53 @@ if [ ! -d ".htmlgraph" ]; then
     exit 0
 fi
 
+# Redirect output to stderr (standard for git hooks)
+exec 1>&2
+
+# ============================================================
+# BLOCKING CHECK: Direct edits to .htmlgraph/ files
+# AI agents must use SDK, not direct file edits
+# ============================================================
+HTMLGRAPH_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep "^\\.htmlgraph/" || true)
+
+if [ -n "$HTMLGRAPH_FILES" ]; then
+    echo ""
+    echo "❌ BLOCKED: Direct edits to .htmlgraph/ files"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "Modified files:"
+    echo "$HTMLGRAPH_FILES" | while read -r file; do
+        echo "  - $file"
+    done
+    echo ""
+    echo "AI agents must use SDK, not direct file edits."
+    echo "See AGENTS.md line 3: 'AI agents must NEVER edit .htmlgraph/ HTML files directly'"
+    echo ""
+    echo "Use SDK instead:"
+    echo "  from htmlgraph import SDK"
+    echo "  sdk = SDK()"
+    echo "  sdk.features.complete('feature-id')  # Mark feature done"
+    echo "  sdk.features.create('Title')         # Create new feature"
+    echo ""
+    echo "Or CLI:"
+    echo "  uv run htmlgraph feature complete <id>"
+    echo "  uv run htmlgraph feature create 'Title'"
+    echo ""
+    echo "To bypass (NOT RECOMMENDED): git commit --no-verify"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    exit 1
+fi
+
+# ============================================================
+# REMINDER CHECK: Feature tracking (non-blocking)
+# ============================================================
+# Check if reminder is disabled via config
+if [ "$(git config --type=bool htmlgraph.precommit)" = "false" ]; then
+    exit 0
+fi
+
 # Fast check for in-progress features using grep (avoids Python startup)
-# This is 10-100x faster than calling the CLI
 ACTIVE_COUNT=$(find .htmlgraph/features -name "*.html" -exec grep -l 'data-status="in-progress"' {} \\; 2>/dev/null | wc -l | tr -d ' ')
 
 # If we have active features and htmlgraph CLI is available, get details
@@ -316,42 +383,28 @@ else
     ACTIVE_FEATURES=""
 fi
 
-# Redirect output to stderr (standard for git hooks)
-exec 1>&2
-
 if [ "$ACTIVE_COUNT" -gt 0 ]; then
-    # Active features exist - show them
     echo ""
     echo "✓ HtmlGraph: $ACTIVE_COUNT active feature(s)"
     echo ""
     echo "$ACTIVE_FEATURES"
     echo ""
 else
-    # No active features - show reminder
     echo ""
     echo "⚠️  HtmlGraph Feature Reminder"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "No active features found. Did you forget to start one?"
     echo ""
-    echo "For non-trivial work, consider:"
-    echo "  1. Create feature: (use Python API or dashboard)"
-    echo "  2. Start feature: htmlgraph feature start <feature-id>"
-    echo ""
     echo "Quick decision:"
     echo "  • >30 min work? → Create feature"
     echo "  • 3+ files? → Create feature"
-    echo "  • Needs tests? → Create feature"
     echo "  • Simple fix? → Direct commit OK"
     echo ""
-    echo "To disable this reminder: git config htmlgraph.precommit false"
-    echo "To bypass once: git commit --no-verify"
+    echo "To disable: git config htmlgraph.precommit false"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "Proceeding with commit..."
     echo ""
 fi
 
-# Always exit 0 (allow commit)
 exit 0
 """
 
@@ -373,7 +426,61 @@ exit 0
         "pre-push": ensure_hook_file("pre-push", pre_push),
     }
 
-    print(f"Initialized HtmlGraph in {graph_dir}")
+    # Generate documentation files from templates
+    if generate_docs:
+        def render_template(template_path: Path, replacements: dict[str, str]) -> str:
+            """Render a template file with variable replacements."""
+            if not template_path.exists():
+                return None
+            content = template_path.read_text(encoding="utf-8")
+            for key, value in replacements.items():
+                content = content.replace(f"{{{{{key}}}}}", value)
+            return content
+
+        templates_dir = Path(__file__).parent / "templates"
+        project_dir = Path(args.dir)
+
+        # Get version
+        try:
+            from htmlgraph import __version__
+            version = __version__
+        except:
+            version = "unknown"
+
+        replacements = {
+            "PROJECT_NAME": project_name,
+            "AGENT_NAME": agent_name,
+            "VERSION": version,
+        }
+
+        # Generate AGENTS.md
+        agents_template = templates_dir / "AGENTS.md.template"
+        agents_dest = project_dir / "AGENTS.md"
+        if agents_template.exists() and not agents_dest.exists():
+            content = render_template(agents_template, replacements)
+            if content:
+                agents_dest.write_text(content, encoding="utf-8")
+                print(f"✓ Generated: {agents_dest}")
+
+        # Generate CLAUDE.md
+        claude_template = templates_dir / "CLAUDE.md.template"
+        claude_dest = project_dir / "CLAUDE.md"
+        if claude_template.exists() and not claude_dest.exists():
+            content = render_template(claude_template, replacements)
+            if content:
+                claude_dest.write_text(content, encoding="utf-8")
+                print(f"✓ Generated: {claude_dest}")
+
+        # Generate GEMINI.md
+        gemini_template = templates_dir / "GEMINI.md.template"
+        gemini_dest = project_dir / "GEMINI.md"
+        if gemini_template.exists() and not gemini_dest.exists():
+            content = render_template(gemini_template, replacements)
+            if content:
+                gemini_dest.write_text(content, encoding="utf-8")
+                print(f"✓ Generated: {gemini_dest}")
+
+    print(f"\nInitialized HtmlGraph in {graph_dir}")
     print(f"Collections: {', '.join(HtmlGraphAPIHandler.COLLECTIONS)}")
     print(f"\nStart server with: htmlgraph serve")
     if not args.no_index:
@@ -450,6 +557,129 @@ fi
         install_hook("pre-push", hook_files["pre-push"], pre_push)
 
         print("\nGit events will now be logged to HtmlGraph automatically.")
+
+
+def cmd_install_hooks(args):
+    """Install Git hooks for automatic tracking."""
+    from htmlgraph.hooks.installer import HookInstaller, HookConfig
+    from htmlgraph.hooks import AVAILABLE_HOOKS
+    from pathlib import Path
+
+    project_dir = Path(args.project_dir).resolve()
+
+    # Load configuration
+    config_path = project_dir / ".htmlgraph" / "hooks-config.json"
+    config = HookConfig(config_path)
+
+    # Handle configuration changes
+    if args.enable:
+        if args.enable not in AVAILABLE_HOOKS:
+            print(f"Error: Unknown hook '{args.enable}'")
+            print(f"Available hooks: {', '.join(AVAILABLE_HOOKS)}")
+            return
+        config.enable_hook(args.enable)
+        config.save()
+        print(f"✓ Enabled hook '{args.enable}' in configuration")
+        return
+
+    if args.disable:
+        if args.disable not in AVAILABLE_HOOKS:
+            print(f"Error: Unknown hook '{args.disable}'")
+            print(f"Available hooks: {', '.join(AVAILABLE_HOOKS)}")
+            return
+        config.disable_hook(args.disable)
+        config.save()
+        print(f"✓ Disabled hook '{args.disable}' in configuration")
+        return
+
+    # Override symlink preference if --use-copy is set
+    if args.use_copy:
+        config.config["use_symlinks"] = False
+
+    # Create installer
+    installer = HookInstaller(project_dir, config)
+
+    # Validate environment
+    is_valid, error_msg = installer.validate_environment()
+    if not is_valid:
+        print(f"❌ {error_msg}")
+        return
+
+    # List hooks status
+    if args.list:
+        print("\nGit Hooks Installation Status")
+        print("=" * 60)
+
+        status = installer.list_hooks()
+        for hook_name, info in status.items():
+            status_icon = "✓" if info["installed"] else "✗"
+            enabled_icon = "🟢" if info["enabled"] else "🔴"
+
+            print(f"\n{enabled_icon} {hook_name} ({status_icon} installed)")
+            print(f"  Enabled in config: {info['enabled']}")
+            print(f"  Versioned (.htmlgraph/hooks/): {info['versioned']}")
+            print(f"  Installed (.git/hooks/): {info['installed']}")
+
+            if info["is_symlink"]:
+                our_hook = "✓" if info.get("our_hook", False) else "✗"
+                print(f"  Type: Symlink ({our_hook} ours)")
+                print(f"  Target: {info.get('symlink_target', 'unknown')}")
+            elif info["installed"]:
+                print(f"  Type: Copied file")
+
+        print("\n" + "=" * 60)
+        print(f"\nConfiguration: {config_path}")
+        print(f"Use 'htmlgraph install-hooks --enable <hook>' to enable")
+        print(f"Use 'htmlgraph install-hooks --disable <hook>' to disable")
+        return
+
+    # Uninstall a hook
+    if args.uninstall:
+        if args.uninstall not in AVAILABLE_HOOKS:
+            print(f"Error: Unknown hook '{args.uninstall}'")
+            print(f"Available hooks: {', '.join(AVAILABLE_HOOKS)}")
+            return
+
+        success, message = installer.uninstall_hook(args.uninstall)
+        if success:
+            print(f"✓ {message}")
+        else:
+            print(f"❌ {message}")
+        return
+
+    # Install hooks
+    print("\n🔧 Installing Git hooks for HtmlGraph\n")
+    print(f"Project: {project_dir}")
+    print(f"Configuration: {config_path}")
+
+    if args.dry_run:
+        print("\n[DRY RUN MODE - No changes will be made]\n")
+
+    results = installer.install_all_hooks(force=args.force, dry_run=args.dry_run)
+
+    # Display results
+    success_count = 0
+    failure_count = 0
+
+    for hook_name, (success, message) in results.items():
+        if success:
+            success_count += 1
+            print(f"✓ {message}")
+        else:
+            failure_count += 1
+            print(f"❌ {message}")
+
+    print("\n" + "=" * 60)
+    print(f"Summary: {success_count} installed, {failure_count} failed")
+
+    if not args.dry_run:
+        print(f"\nConfiguration saved to: {config_path}")
+        print("\nGit events will now be logged to HtmlGraph automatically.")
+        print("\nManagement commands:")
+        print("  htmlgraph install-hooks --list          # Show status")
+        print("  htmlgraph install-hooks --uninstall <hook>  # Remove hook")
+        print("  htmlgraph install-hooks --enable <hook>     # Enable hook")
+        print("  htmlgraph install-hooks --disable <hook>    # Disable hook")
 
 
 def cmd_status(args):
@@ -1080,6 +1310,511 @@ def cmd_session_validate_attribution(args):
                 print(f"  - {event['timestamp']}: {event['tool']} (drift: {event['drift']:.2f})")
 
 
+# =========================================================================
+# Transcript Commands
+# =========================================================================
+
+
+def cmd_transcript_list(args):
+    """List available Claude Code transcripts."""
+    import json
+    from htmlgraph.transcript import TranscriptReader
+
+    reader = TranscriptReader()
+
+    # Use project path filter if provided
+    project_path = args.project if hasattr(args, 'project') and args.project else None
+
+    sessions = reader.list_sessions(
+        project_path=project_path,
+        limit=args.limit if hasattr(args, 'limit') else 20,
+    )
+
+    if not sessions:
+        if args.format == "json":
+            print(json.dumps({"sessions": [], "count": 0}))
+        else:
+            print("No Claude Code transcripts found.")
+            print(f"\nLooked in: {reader.claude_dir}")
+        return
+
+    if args.format == "json":
+        data = {
+            "sessions": [
+                {
+                    "session_id": s.session_id,
+                    "path": str(s.path),
+                    "cwd": s.cwd,
+                    "git_branch": s.git_branch,
+                    "started_at": s.started_at.isoformat() if s.started_at else None,
+                    "user_messages": s.user_message_count,
+                    "tool_calls": s.tool_call_count,
+                    "duration_seconds": s.duration_seconds,
+                }
+                for s in sessions
+            ],
+            "count": len(sessions),
+        }
+        print(json.dumps(data, indent=2))
+    else:
+        print(f"Found {len(sessions)} Claude Code transcript(s):\n")
+        for s in sessions:
+            started = s.started_at.strftime("%Y-%m-%d %H:%M") if s.started_at else "unknown"
+            duration = f"{int(s.duration_seconds / 60)}m" if s.duration_seconds else "?"
+            branch = s.git_branch or "no branch"
+            print(f"  {s.session_id[:12]}  {started}  {duration:>6}  {s.user_message_count:>3} msgs  [{branch}]")
+
+
+def cmd_transcript_import(args):
+    """Import a Claude Code transcript into HtmlGraph."""
+    import json
+    from htmlgraph.transcript import TranscriptReader
+    from htmlgraph.session_manager import SessionManager
+
+    reader = TranscriptReader()
+    manager = SessionManager(args.graph_dir)
+
+    # Find the transcript
+    transcript = reader.read_session(args.session_id)
+    if not transcript:
+        print(f"Error: Transcript not found: {args.session_id}", file=sys.stderr)
+        sys.exit(1)
+
+    # Find or create HtmlGraph session to import into
+    htmlgraph_session_id = args.to_session
+    if not htmlgraph_session_id:
+        # Check if already linked
+        existing = manager.find_session_by_transcript(args.session_id)
+        if existing:
+            htmlgraph_session_id = existing.id
+            print(f"Found existing linked session: {htmlgraph_session_id}")
+        else:
+            # Create a new session
+            agent = args.agent or "claude-code"
+            new_session = manager.start_session(
+                agent=agent,
+                title=f"Imported: {transcript.session_id[:12]}",
+            )
+            htmlgraph_session_id = new_session.id
+            print(f"Created new session: {htmlgraph_session_id}")
+
+    # Import events
+    result = manager.import_transcript_events(
+        session_id=htmlgraph_session_id,
+        transcript_session=transcript,
+        overwrite=args.overwrite if hasattr(args, 'overwrite') else False,
+    )
+
+    # Link to feature if specified
+    if args.link_feature:
+        session = manager.get_session(htmlgraph_session_id)
+        if session and args.link_feature not in session.worked_on:
+            session.worked_on.append(args.link_feature)
+            manager.session_converter.save(session)
+            result["linked_feature"] = args.link_feature
+
+    if args.format == "json":
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"✅ Imported transcript {args.session_id[:12]}:")
+        print(f"   → HtmlGraph session: {htmlgraph_session_id}")
+        print(f"   → Events imported: {result.get('imported', 0)}")
+        print(f"   → Events skipped: {result.get('skipped', 0)}")
+        if result.get("linked_feature"):
+            print(f"   → Linked to feature: {result['linked_feature']}")
+
+
+def cmd_transcript_link(args):
+    """Link a Claude Code transcript to an HtmlGraph session."""
+    import json
+    from htmlgraph.transcript import TranscriptReader
+    from htmlgraph.session_manager import SessionManager
+
+    reader = TranscriptReader()
+    manager = SessionManager(args.graph_dir)
+
+    # Find the transcript to get git branch
+    transcript = reader.read_session(args.session_id)
+    if not transcript:
+        print(f"Error: Transcript not found: {args.session_id}", file=sys.stderr)
+        sys.exit(1)
+
+    # Link to HtmlGraph session
+    session = manager.link_transcript(
+        session_id=args.to_session,
+        transcript_id=args.session_id,
+        transcript_path=str(transcript.path),
+        git_branch=transcript.git_branch,
+    )
+
+    if not session:
+        print(f"Error: HtmlGraph session not found: {args.to_session}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.format == "json":
+        print(json.dumps({
+            "linked": True,
+            "session_id": session.id,
+            "transcript_id": args.session_id,
+            "git_branch": transcript.git_branch,
+        }, indent=2))
+    else:
+        print(f"✅ Linked transcript {args.session_id[:12]} to session {session.id}")
+        if transcript.git_branch:
+            print(f"   Git branch: {transcript.git_branch}")
+
+
+def cmd_transcript_stats(args):
+    """Show transcript statistics for a session."""
+    import json
+    from htmlgraph.session_manager import SessionManager
+
+    manager = SessionManager(args.graph_dir)
+    stats = manager.get_transcript_stats(args.session_id)
+
+    if not stats:
+        print(f"Error: No transcript linked to session: {args.session_id}", file=sys.stderr)
+        sys.exit(1)
+
+    if stats.get("error"):
+        print(f"Error: {stats['error']}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.format == "json":
+        print(json.dumps(stats, indent=2))
+    else:
+        print(f"Transcript Stats for {args.session_id}:")
+        print(f"  Transcript ID: {stats['transcript_id']}")
+        print(f"  Git Branch: {stats.get('git_branch', 'N/A')}")
+        print(f"  User Messages: {stats['user_messages']}")
+        print(f"  Tool Calls: {stats['tool_calls']}")
+        if stats.get('duration_seconds'):
+            mins = int(stats['duration_seconds'] / 60)
+            print(f"  Duration: {mins} minutes")
+        print(f"  Has Thinking Traces: {stats['has_thinking_traces']}")
+        if stats.get('tool_breakdown'):
+            print(f"  Tool Breakdown:")
+            for tool, count in sorted(stats['tool_breakdown'].items(), key=lambda x: -x[1]):
+                print(f"    {tool}: {count}")
+
+
+def cmd_transcript_auto_link(args):
+    """Auto-link transcripts to sessions by git branch."""
+    import json
+    from htmlgraph.session_manager import SessionManager
+
+    manager = SessionManager(args.graph_dir)
+
+    # Get current git branch if not specified
+    branch = args.branch
+    if not branch:
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            branch = result.stdout.strip()
+        except Exception:
+            print("Error: Could not detect git branch. Specify with --branch", file=sys.stderr)
+            sys.exit(1)
+
+    linked = manager.auto_link_transcript_by_branch(
+        git_branch=branch,
+        agent=args.agent,
+    )
+
+    if args.format == "json":
+        print(json.dumps({
+            "branch": branch,
+            "linked": [{"session_id": s, "transcript_id": t} for s, t in linked],
+            "count": len(linked),
+        }, indent=2))
+    else:
+        if linked:
+            print(f"✅ Auto-linked {len(linked)} session(s) for branch '{branch}':")
+            for session_id, transcript_id in linked:
+                print(f"   {session_id} ← {transcript_id[:12]}")
+        else:
+            print(f"No sessions to link for branch '{branch}'")
+
+
+def cmd_transcript_health(args):
+    """Show session health metrics from transcript."""
+    import json
+    from htmlgraph.transcript_analytics import TranscriptAnalytics
+
+    analytics = TranscriptAnalytics(args.graph_dir)
+    health = analytics.calculate_session_health(args.transcript_id)
+
+    if not health:
+        print(f"Error: Could not analyze transcript {args.transcript_id}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.format == "json":
+        print(json.dumps({
+            "session_id": health.session_id,
+            "overall_score": round(health.overall_score(), 2),
+            "efficiency_score": round(health.efficiency_score, 2),
+            "retry_rate": round(health.retry_rate, 2),
+            "context_rebuild_count": health.context_rebuild_count,
+            "tool_diversity": round(health.tool_diversity, 2),
+            "prompt_clarity_score": round(health.prompt_clarity_score, 2),
+            "error_recovery_rate": round(health.error_recovery_rate, 2),
+            "duration_seconds": round(health.duration_seconds, 1),
+            "tools_per_minute": round(health.tools_per_minute, 1),
+        }, indent=2))
+    else:
+        score = health.overall_score()
+        grade = "🟢 Excellent" if score > 0.8 else "🟡 Good" if score > 0.6 else "🟠 Fair" if score > 0.4 else "🔴 Needs Work"
+
+        print(f"Session Health: {args.transcript_id[:12]}...")
+        print(f"{'='*50}")
+        print(f"Overall Score: {score:.0%} {grade}")
+        print()
+        print(f"📊 Efficiency:      {health.efficiency_score:.0%}")
+        print(f"🔄 Retry Rate:      {health.retry_rate:.0%} {'⚠️' if health.retry_rate > 0.3 else '✓'}")
+        print(f"📚 Context Rebuilds: {health.context_rebuild_count} {'⚠️' if health.context_rebuild_count > 5 else '✓'}")
+        print(f"🔧 Tool Diversity:  {health.tool_diversity:.0%}")
+        print(f"💬 Prompt Clarity:  {health.prompt_clarity_score:.0%}")
+        print(f"🔧 Error Recovery:  {health.error_recovery_rate:.0%}")
+        print()
+        dur_mins = int(health.duration_seconds // 60)
+        dur_secs = int(health.duration_seconds % 60)
+        print(f"⏱️  Duration: {dur_mins}m {dur_secs}s | Tools/min: {health.tools_per_minute:.1f}")
+
+
+def cmd_transcript_patterns(args):
+    """Detect workflow patterns in transcripts."""
+    import json
+    from htmlgraph.transcript_analytics import TranscriptAnalytics
+
+    analytics = TranscriptAnalytics(args.graph_dir)
+    patterns = analytics.detect_patterns(
+        transcript_id=args.transcript_id,
+        min_length=args.min_length,
+        max_length=args.max_length,
+    )
+
+    if args.format == "json":
+        print(json.dumps([{
+            "sequence": p.sequence,
+            "count": p.count,
+            "category": p.category,
+        } for p in patterns], indent=2))
+    else:
+        print("Workflow Patterns Detected")
+        print("=" * 50)
+
+        optimal = [p for p in patterns if p.category == "optimal"]
+        anti = [p for p in patterns if p.category == "anti-pattern"]
+        neutral = [p for p in patterns if p.category == "neutral"][:10]
+
+        if optimal:
+            print("\n✅ Optimal Patterns:")
+            for p in optimal:
+                print(f"   {' → '.join(p.sequence)} ({p.count}x)")
+
+        if anti:
+            print("\n⚠️ Anti-Patterns:")
+            for p in anti:
+                print(f"   {' → '.join(p.sequence)} ({p.count}x)")
+
+        if neutral:
+            print("\n📊 Common Patterns:")
+            for p in neutral:
+                print(f"   {' → '.join(p.sequence)} ({p.count}x)")
+
+
+def cmd_transcript_transitions(args):
+    """Show tool transition matrix."""
+    import json
+    from htmlgraph.transcript_analytics import TranscriptAnalytics
+
+    analytics = TranscriptAnalytics(args.graph_dir)
+    transitions = analytics.get_tool_transitions(transcript_id=args.transcript_id)
+
+    if args.format == "json":
+        print(json.dumps(transitions, indent=2))
+    else:
+        print("Tool Transition Matrix")
+        print("=" * 50)
+        print("(from_tool → to_tool: count)")
+        print()
+
+        # Flatten and sort
+        flat = []
+        for from_tool, tos in transitions.items():
+            for to_tool, count in tos.items():
+                flat.append((from_tool, to_tool, count))
+
+        flat.sort(key=lambda x: -x[2])
+
+        for from_t, to_t, count in flat[:20]:
+            bar = "█" * min(count, 20)
+            print(f"  {from_t:12} → {to_t:12} {count:4} {bar}")
+
+
+def cmd_transcript_recommendations(args):
+    """Get workflow improvement recommendations."""
+    import json
+    from htmlgraph.transcript_analytics import TranscriptAnalytics
+
+    analytics = TranscriptAnalytics(args.graph_dir)
+    recommendations = analytics.generate_recommendations(transcript_id=args.transcript_id)
+
+    if args.format == "json":
+        print(json.dumps({"recommendations": recommendations}, indent=2))
+    else:
+        print("Workflow Recommendations")
+        print("=" * 50)
+        for rec in recommendations:
+            print(f"  {rec}")
+
+
+def cmd_transcript_insights(args):
+    """Get comprehensive transcript insights."""
+    import json
+    from htmlgraph.transcript_analytics import TranscriptAnalytics
+
+    analytics = TranscriptAnalytics(args.graph_dir)
+    insights = analytics.get_insights()
+
+    if args.format == "json":
+        print(json.dumps({
+            "total_sessions": insights.total_sessions,
+            "total_user_messages": insights.total_user_messages,
+            "total_tool_calls": insights.total_tool_calls,
+            "tool_frequency": insights.tool_frequency,
+            "avg_session_health": round(insights.avg_session_health, 2),
+            "recommendations": insights.recommendations,
+        }, indent=2))
+    else:
+        print("📊 Transcript Insights")
+        print("=" * 50)
+        print(f"Sessions Analyzed: {insights.total_sessions}")
+        print(f"Total User Messages: {insights.total_user_messages}")
+        print(f"Total Tool Calls: {insights.total_tool_calls}")
+        print(f"Avg Session Health: {insights.avg_session_health:.0%}")
+        print()
+
+        if insights.tool_frequency:
+            print("🔧 Top Tools:")
+            for tool, count in list(insights.tool_frequency.items())[:8]:
+                bar = "█" * min(count // 5, 15)
+                print(f"   {tool:15} {count:4} {bar}")
+
+        print()
+        print("💡 Recommendations:")
+        for rec in insights.recommendations[:5]:
+            print(f"   {rec}")
+
+
+def cmd_transcript_export(args):
+    """Export transcript to HTML format."""
+    from pathlib import Path
+    from htmlgraph.transcript import TranscriptReader
+
+    reader = TranscriptReader()
+    transcript = reader.read_session(args.transcript_id)
+
+    if not transcript:
+        print(f"Transcript '{args.transcript_id}' not found.", file=sys.stderr)
+        sys.exit(1)
+
+    html = transcript.to_html(include_thinking=args.include_thinking)
+
+    if args.output:
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(html)
+        print(f"Exported to: {output_path}")
+    else:
+        print(html)
+
+
+def cmd_transcript_track_stats(args):
+    """Get aggregated transcript stats for a track."""
+    import json
+    from htmlgraph.transcript_analytics import TranscriptAnalytics
+
+    analytics = TranscriptAnalytics(args.graph_dir)
+    stats = analytics.get_track_stats(args.track_id)
+
+    if not stats:
+        print(f"Track '{args.track_id}' not found or has no transcript data.", file=sys.stderr)
+        sys.exit(1)
+
+    if args.format == "json":
+        print(json.dumps(stats.to_dict(), indent=2))
+    else:
+        print(f"📊 Track Transcript Stats: {args.track_id}")
+        print("=" * 50)
+        print(f"Sessions: {stats.session_count}")
+        print(f"User Messages: {stats.total_user_messages}")
+        print(f"Tool Calls: {stats.total_tool_calls}")
+        print(f"Total Duration: {stats._format_duration(stats.total_duration_seconds)}")
+        print(f"Avg Health: {stats.avg_session_health:.0%}")
+        print(f"Health Trend: {stats.health_trend}")
+        print(f"Anti-Patterns: {stats.anti_patterns_detected}")
+
+        if stats.tool_frequency:
+            print()
+            print("🔧 Top Tools:")
+            for tool, count in list(stats.tool_frequency.items())[:8]:
+                bar = "█" * min(count // 5, 15)
+                print(f"   {tool:15} {count:4} {bar}")
+
+        if stats.session_ids:
+            print()
+            print("📂 Sessions:")
+            for i, (sid, health) in enumerate(zip(stats.session_ids, stats.session_healths)):
+                print(f"   {sid[:20]:20} health: {health:.0%}")
+                if i >= 9:
+                    remaining = len(stats.session_ids) - 10
+                    if remaining > 0:
+                        print(f"   ... and {remaining} more sessions")
+                    break
+
+
+def cmd_transcript_link_feature(args):
+    """Link a Claude Code transcript to a feature for parallel agent tracking."""
+    import json
+    from htmlgraph.session_manager import SessionManager
+    from htmlgraph.graph import HtmlGraph
+
+    manager = SessionManager(args.graph_dir)
+    graph = manager.features_graph
+
+    # Get the feature
+    feature = graph.get(args.to_feature)
+    if not feature:
+        print(f"Feature '{args.to_feature}' not found.", file=sys.stderr)
+        sys.exit(1)
+
+    # Link the transcript
+    manager._link_transcript_to_feature(feature, args.transcript_id, graph)
+    graph.update(feature)
+
+    if args.format == "json":
+        result = {
+            "success": True,
+            "feature_id": args.to_feature,
+            "transcript_id": args.transcript_id,
+            "tool_count": feature.properties.get("transcript_tool_count", 0),
+            "duration_seconds": feature.properties.get("transcript_duration_seconds", 0),
+        }
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"✅ Linked transcript '{args.transcript_id}' to feature '{args.to_feature}'")
+        tool_count = feature.properties.get("transcript_tool_count", 0)
+        duration = feature.properties.get("transcript_duration_seconds", 0)
+        if tool_count > 0:
+            print(f"   Tools: {tool_count}")
+            print(f"   Duration: {duration}s")
+
+
 def cmd_track(args):
     """Track an activity in the current session."""
     from htmlgraph import SDK
@@ -1265,12 +2000,14 @@ def cmd_work_next(args):
             print(f"  Title: {task.title}")
             print(f"  Priority: {task.priority}")
             print(f"  Status: {task.status}")
-            if task.required_capabilities:
+            if getattr(task, 'required_capabilities', None):
                 print(f"  Required capabilities: {', '.join(task.required_capabilities)}")
-            if task.complexity:
-                print(f"  Complexity: {task.complexity}")
-            if task.estimated_effort:
-                print(f"  Estimated effort: {task.estimated_effort}h")
+            complexity = getattr(task, 'complexity', None)
+            if complexity:
+                print(f"  Complexity: {complexity}")
+            effort = getattr(task, 'estimated_effort', None)
+            if effort:
+                print(f"  Estimated effort: {effort}h")
             if args.auto_claim:
                 print(f"  ✓ Task claimed by {args.agent}")
         else:
@@ -2092,9 +2829,21 @@ curl Examples:
     init_parser = subparsers.add_parser("init", help="Initialize .htmlgraph directory")
     init_parser.add_argument("dir", nargs="?", default=".", help="Directory to initialize")
     init_parser.add_argument("--install-hooks", action="store_true", help="Install Git hooks for event logging")
+    init_parser.add_argument("--interactive", "-i", action="store_true", help="Interactive setup wizard")
     init_parser.add_argument("--no-index", action="store_true", help="Do not create the analytics cache (index.sqlite)")
     init_parser.add_argument("--no-update-gitignore", action="store_true", help="Do not update/create .gitignore for HtmlGraph cache files")
     init_parser.add_argument("--no-events-keep", action="store_true", help="Do not create .htmlgraph/events/.gitkeep")
+
+    # install-hooks
+    hooks_parser = subparsers.add_parser("install-hooks", help="Install Git hooks for automatic tracking")
+    hooks_parser.add_argument("--project-dir", "-d", default=".", help="Project directory (default: current)")
+    hooks_parser.add_argument("--force", "-f", action="store_true", help="Force installation even if hooks exist")
+    hooks_parser.add_argument("--dry-run", action="store_true", help="Show what would be done without doing it")
+    hooks_parser.add_argument("--list", "-l", action="store_true", help="List hook installation status")
+    hooks_parser.add_argument("--uninstall", "-u", metavar="HOOK", help="Uninstall a specific hook")
+    hooks_parser.add_argument("--enable", metavar="HOOK", help="Enable a specific hook in configuration")
+    hooks_parser.add_argument("--disable", metavar="HOOK", help="Disable a specific hook in configuration")
+    hooks_parser.add_argument("--use-copy", action="store_true", help="Use file copy instead of symlinks")
 
     # status
     status_parser = subparsers.add_parser("status", help="Show graph status")
@@ -2206,6 +2955,102 @@ curl Examples:
     activity_parser.add_argument("--failed", action="store_true", help="Mark as failed")
     activity_parser.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
     activity_parser.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # =========================================================================
+    # Transcript Management (Claude Code Integration)
+    # =========================================================================
+
+    transcript_parser = subparsers.add_parser("transcript", help="Claude Code transcript integration")
+    transcript_subparsers = transcript_parser.add_subparsers(dest="transcript_command", help="Transcript command")
+
+    # transcript list
+    transcript_list = transcript_subparsers.add_parser("list", help="List available Claude Code transcripts")
+    transcript_list.add_argument("--project", "-p", help="Project path to filter by")
+    transcript_list.add_argument("--limit", "-n", type=int, default=20, help="Maximum transcripts to show")
+    transcript_list.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # transcript import
+    transcript_import = transcript_subparsers.add_parser("import", help="Import a Claude Code transcript")
+    transcript_import.add_argument("session_id", help="Claude Code session ID to import")
+    transcript_import.add_argument("--to-session", help="HtmlGraph session ID to import into (creates new if not specified)")
+    transcript_import.add_argument("--link-feature", help="Feature ID to link to")
+    transcript_import.add_argument("--agent", default="claude-code", help="Agent name for new session")
+    transcript_import.add_argument("--overwrite", action="store_true", help="Overwrite existing activities")
+    transcript_import.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    transcript_import.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # transcript link
+    transcript_link = transcript_subparsers.add_parser("link", help="Link a transcript to an HtmlGraph session")
+    transcript_link.add_argument("session_id", help="Claude Code session ID")
+    transcript_link.add_argument("--to-session", required=True, help="HtmlGraph session ID to link to")
+    transcript_link.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    transcript_link.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # transcript stats
+    transcript_stats = transcript_subparsers.add_parser("stats", help="Show transcript statistics for a session")
+    transcript_stats.add_argument("session_id", help="HtmlGraph session ID")
+    transcript_stats.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    transcript_stats.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # transcript auto-link
+    transcript_auto_link = transcript_subparsers.add_parser("auto-link", help="Auto-link transcripts by git branch")
+    transcript_auto_link.add_argument("--branch", "-b", help="Git branch (uses current if not specified)")
+    transcript_auto_link.add_argument("--agent", help="Filter by agent")
+    transcript_auto_link.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    transcript_auto_link.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # transcript health (analytics)
+    transcript_health = transcript_subparsers.add_parser("health", help="Show session health metrics from transcript")
+    transcript_health.add_argument("transcript_id", help="Transcript/session ID to analyze")
+    transcript_health.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    transcript_health.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # transcript patterns (analytics)
+    transcript_patterns = transcript_subparsers.add_parser("patterns", help="Detect workflow patterns in transcripts")
+    transcript_patterns.add_argument("--transcript-id", "-t", help="Specific transcript to analyze (default: all)")
+    transcript_patterns.add_argument("--min-length", type=int, default=3, help="Minimum pattern length (default: 3)")
+    transcript_patterns.add_argument("--max-length", type=int, default=5, help="Maximum pattern length (default: 5)")
+    transcript_patterns.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    transcript_patterns.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # transcript transitions (analytics)
+    transcript_transitions = transcript_subparsers.add_parser("transitions", help="Show tool transition matrix")
+    transcript_transitions.add_argument("--transcript-id", "-t", help="Specific transcript to analyze (default: all)")
+    transcript_transitions.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    transcript_transitions.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # transcript recommendations (analytics)
+    transcript_recs = transcript_subparsers.add_parser("recommendations", help="Get workflow improvement recommendations")
+    transcript_recs.add_argument("--transcript-id", "-t", help="Specific transcript to analyze (default: all)")
+    transcript_recs.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    transcript_recs.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # transcript insights (analytics)
+    transcript_insights = transcript_subparsers.add_parser("insights", help="Get comprehensive transcript insights")
+    transcript_insights.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    transcript_insights.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # transcript export (HTML export)
+    transcript_export = transcript_subparsers.add_parser("export", help="Export transcript to HTML format")
+    transcript_export.add_argument("transcript_id", help="Transcript/session ID to export")
+    transcript_export.add_argument("-o", "--output", help="Output file path (prints to stdout if not specified)")
+    transcript_export.add_argument("--include-thinking", action="store_true", help="Include thinking traces in output")
+
+    # transcript track-stats (track-level aggregation)
+    transcript_track = transcript_subparsers.add_parser("track-stats", help="Get aggregated transcript stats for a track")
+    transcript_track.add_argument("track_id", help="Track ID to aggregate")
+    transcript_track.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    transcript_track.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # transcript link-feature (link transcript to feature for parallel agent tracking)
+    transcript_link_feature = transcript_subparsers.add_parser(
+        "link-feature",
+        help="Link a Claude Code transcript to a feature (for parallel agent tracking)"
+    )
+    transcript_link_feature.add_argument("transcript_id", help="Claude Code transcript/agent session ID")
+    transcript_link_feature.add_argument("--to-feature", "-f", required=True, help="Feature ID to link to")
+    transcript_link_feature.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    transcript_link_feature.add_argument("--format", choices=["text", "json"], default="text", help="Output format")
 
     # =========================================================================
     # Work Management (Smart Routing)
@@ -2533,6 +3378,8 @@ curl Examples:
         cmd_serve(args)
     elif args.command == "init":
         cmd_init(args)
+    elif args.command == "install-hooks":
+        cmd_install_hooks(args)
     elif args.command == "status":
         cmd_status(args)
     elif args.command == "query":
@@ -2562,6 +3409,37 @@ curl Examples:
     elif args.command == "activity":
         # Legacy activity tracking command
         cmd_track(args)
+    elif args.command == "transcript":
+        # Claude Code transcript integration
+        if args.transcript_command == "list":
+            cmd_transcript_list(args)
+        elif args.transcript_command == "import":
+            cmd_transcript_import(args)
+        elif args.transcript_command == "link":
+            cmd_transcript_link(args)
+        elif args.transcript_command == "stats":
+            cmd_transcript_stats(args)
+        elif args.transcript_command == "auto-link":
+            cmd_transcript_auto_link(args)
+        elif args.transcript_command == "health":
+            cmd_transcript_health(args)
+        elif args.transcript_command == "patterns":
+            cmd_transcript_patterns(args)
+        elif args.transcript_command == "transitions":
+            cmd_transcript_transitions(args)
+        elif args.transcript_command == "recommendations":
+            cmd_transcript_recommendations(args)
+        elif args.transcript_command == "insights":
+            cmd_transcript_insights(args)
+        elif args.transcript_command == "export":
+            cmd_transcript_export(args)
+        elif args.transcript_command == "track-stats":
+            cmd_transcript_track_stats(args)
+        elif args.transcript_command == "link-feature":
+            cmd_transcript_link_feature(args)
+        else:
+            transcript_parser.print_help()
+            sys.exit(1)
     elif args.command == "track":
         # New track management commands
         if args.track_command == "new":

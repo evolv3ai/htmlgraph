@@ -34,6 +34,7 @@ from htmlgraph.work_type_utils import infer_work_type, infer_work_type_from_id
 from htmlgraph.builders import BaseBuilder, FeatureBuilder, SpikeBuilder
 from htmlgraph.collections import BaseCollection, FeatureCollection, SpikeCollection
 from htmlgraph.agent_detection import detect_agent_name, get_agent_display_name
+from htmlgraph.parallel import ParallelWorkflow, ParallelAnalysis, AggregateResult
 
 __version__ = "0.13.2"
 __all__ = [
@@ -89,4 +90,8 @@ __all__ = [
     # Agent detection
     "detect_agent_name",
     "get_agent_display_name",
+    # Parallel workflow coordination
+    "ParallelWorkflow",
+    "ParallelAnalysis",
+    "AggregateResult",
 ]
