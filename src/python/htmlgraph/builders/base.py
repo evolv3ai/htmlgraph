@@ -150,16 +150,24 @@ class BaseBuilder(Generic[BuilderT]):
 
         # Import Node here to avoid circular imports
         from htmlgraph.models import Node
-        from htmlgraph.graph import HtmlGraph
 
         node = Node(**self._data)
 
-        # Save to the correct collection directory based on node type
-        # Use the collection's graph, not SDK._graph (which is features-only)
+        # Save to the collection's shared graph (not a new instance)
+        # This ensures the node is visible via collection.get() immediately
         collection_name = self._data.get("type", self.node_type) + "s"
-        graph_path = self._sdk._directory / collection_name
-        graph = HtmlGraph(graph_path, auto_load=False)
-        graph.add(node)
+        collection = getattr(self._sdk, collection_name, None)
+
+        if collection is not None:
+            # Use the collection's shared graph
+            graph = collection._ensure_graph()
+            graph.add(node)
+        else:
+            # Fallback: create new graph (for collections not yet on SDK)
+            from htmlgraph.graph import HtmlGraph
+            graph_path = self._sdk._directory / collection_name
+            graph = HtmlGraph(graph_path, auto_load=False)
+            graph.add(node)
 
         # Log creation event if SessionManager is available and agent is set
         if hasattr(self._sdk, 'session_manager') and self._sdk.agent:
