@@ -1,8 +1,22 @@
 """
 Subagent Orchestrator for spawning specialized explorer and coder agents.
 
-Enables main agent to delegate work to subagents, preserving context
-for orchestration decisions while subagents handle exploration and coding.
+This module enables the main agent to delegate work to specialized subagents,
+preserving context for orchestration decisions while subagents handle detailed
+exploration and coding tasks. This pattern optimizes context usage and allows
+more tasks to be completed before the main session context fills up.
+
+Available Classes:
+    - SubagentType: Enum of specialized subagent types (EXPLORER, CODER, REVIEWER, TESTER)
+    - SubagentPrompt: Prepared prompt for spawning a subagent via Task tool
+    - SubagentResult: Parsed result from a subagent execution
+    - SubagentOrchestrator: Main orchestrator for spawning and managing subagents
+
+Key Patterns:
+    1. Two-phase workflow: Explorer discovers → Coder implements
+    2. Stateless subagents: Each spawned agent is ephemeral and task-focused
+    3. Context efficiency: Main session reserves context for orchestration
+    4. Parallel execution: Multiple subagents can work simultaneously
 
 Usage:
     from htmlgraph import SDK
@@ -11,7 +25,7 @@ Usage:
     sdk = SDK(agent="claude")
     orchestrator = SubagentOrchestrator(sdk)
 
-    # Spawn explorer for codebase discovery
+    # Phase 1: Spawn explorer for codebase discovery
     explorer_prompt = orchestrator.spawn_explorer(
         task="Find all API endpoints",
         scope="src/",
@@ -19,12 +33,16 @@ Usage:
     )
     # Use with Task tool: Task(prompt=explorer_prompt, ...)
 
-    # Spawn coder for implementation
+    # Phase 2: Spawn coder for implementation
     coder_prompt = orchestrator.spawn_coder(
         feature_id="feat-123",
         context=explorer_results,
         test_command="uv run pytest"
     )
+
+    # Parse and update from results
+    result = orchestrator.parse_coder_result(coder_output)
+    orchestrator.update_feature_from_result("feat-123", result)
 """
 
 from __future__ import annotations

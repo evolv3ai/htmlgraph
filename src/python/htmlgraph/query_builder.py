@@ -542,7 +542,30 @@ class QueryBuilder:
         return result if result is not None else True
 
     def __iter__(self) -> Iterator[Node]:
-        """Iterate over query results."""
+        """
+        Iterate over query results.
+
+        Enables using QueryBuilder directly in for loops without calling execute().
+        This provides a more Pythonic interface similar to Django ORM or SQLAlchemy.
+
+        Yields:
+            Node: Each node matching the query
+
+        Example:
+            >>> # Instead of: for node in graph.query_builder().execute()
+            >>> # You can do:
+            >>> query = graph.query_builder().where("status", "todo").and_("priority", "high")
+            >>> for node in query:
+            ...     print(f"{node.id}: {node.title}")
+            feat-001: User Authentication
+            feat-002: Database Migration
+
+            >>> # Works with comprehensions
+            >>> titles = [n.title for n in query]
+            >>>
+            >>> # Works with any iterable operation
+            >>> first = next(iter(query), None)
+        """
         return iter(self.execute())
 
     def to_predicate(self) -> Callable[[Node], bool]:

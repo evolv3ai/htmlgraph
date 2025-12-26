@@ -1,27 +1,79 @@
 """
-Parallel Agent Workflow Coordinator.
+Parallel workflow execution coordinator for multi-agent task processing.
 
-Provides helpers for optimal parallel agent execution following
-best practices from transcript analytics and industry patterns.
+This module provides a comprehensive framework for executing multiple tasks in parallel
+using specialized subagents. It implements a 6-phase workflow that optimizes for
+context efficiency, minimizes conflicts, and provides health monitoring.
+
+Available Classes:
+    - ParallelWorkflow: Main coordinator implementing the 6-phase parallel execution pattern
+    - ParallelAnalysis: Result of pre-flight analysis with parallelization recommendations
+    - PreparedTask: A task prepared for parallel execution with cached context
+    - AgentResult: Result from a single parallel agent execution
+    - AggregateResult: Aggregated results from all parallel agents
+
+Six-Phase Workflow:
+    1. Pre-flight Analysis: Assess if parallelization is beneficial
+    2. Context Preparation: Cache shared context to reduce redundant reads
+    3. Dispatch: Generate optimized prompts for Task tool
+    4. Monitor: Track agent health during execution (health tracking)
+    5. Aggregate: Collect and analyze results from all agents
+    6. Validate: Verify execution quality and detect conflicts
+
+Key Benefits:
+    - Context efficiency: Shared context cached, ~15x token reduction per agent
+    - Conflict detection: Identifies file conflicts before they happen
+    - Health monitoring: Tracks agent efficiency and anti-patterns
+    - Risk assessment: Analyzes if parallelization is worthwhile
+    - Cost-benefit analysis: Estimates speedup vs. token cost
 
 Usage:
     from htmlgraph.parallel import ParallelWorkflow
+    from htmlgraph.sdk import SDK
 
+    sdk = SDK(agent="claude")
     workflow = ParallelWorkflow(sdk)
 
     # Phase 1: Pre-flight analysis
-    analysis = workflow.analyze()
+    analysis = workflow.analyze(max_agents=5)
     if analysis.can_parallelize:
+        print(f"Recommendation: {analysis.recommendation}")
+        print(f"Expected speedup: {analysis.speedup_factor:.1f}x")
+
         # Phase 2: Prepare context
-        tasks = workflow.prepare_tasks(analysis.ready_tasks)
+        tasks = workflow.prepare_tasks(
+            analysis.ready_tasks,
+            shared_files=["src/config.py", "src/models.py"]
+        )
 
         # Phase 3: Generate prompts for Task tool
         prompts = workflow.generate_prompts(tasks)
 
-        # Use prompts with Task tool...
+        # Phase 4: Execute (use prompts with Task tool)
+        # agent_ids = [spawn_agent(p) for p in prompts]
 
         # Phase 5: Aggregate results
         results = workflow.aggregate(agent_ids)
+        print(f"Success: {results.successful}/{results.total_agents}")
+        print(f"Speedup: {results.parallel_speedup:.1f}x")
+
+        # Phase 6: Validate
+        validation = workflow.validate(results)
+        if validation["no_conflicts"] and validation["all_successful"]:
+            print("Parallel execution successful!")
+
+    # Link transcripts to features for traceability
+    workflow.link_transcripts([
+        ("feat-001", "agent-abc123"),
+        ("feat-002", "agent-def456")
+    ])
+
+Best Practices:
+    - Only parallelize independent tasks (no shared file edits)
+    - Use pre-flight analysis to verify benefit > cost
+    - Monitor health scores to catch inefficient agents early
+    - Link transcripts for full traceability
+    - Limit to 3-5 parallel agents for optimal results
 """
 
 from __future__ import annotations

@@ -220,18 +220,46 @@ class TrackCreationResult(TypedDict):
 
 
 class SubagentPrompt(TypedDict):
-    """Subagent prompt from spawn_explorer() or spawn_coder()."""
+    """Subagent prompt from spawn_explorer() or spawn_coder().
+
+    This TypedDict represents the return value from SDK methods that spawn
+    subagents for specialized tasks like code exploration or implementation.
+
+    Fields:
+        prompt: The full prompt text for the subagent
+        description: Short description of the subagent's task
+        subagent_type: Type of subagent ("Explore", "Code", etc.)
+    """
 
     prompt: str
     description: str
+    subagent_type: str
 
 
 class OrchestrationResult(TypedDict):
-    """Result from orchestrate()."""
+    """Result from orchestrate() method.
+
+    Contains prompts for a two-phase feature implementation workflow:
+    1. Explorer discovers relevant code and patterns
+    2. Coder implements the feature based on explorer findings
+
+    Fields:
+        explorer: Prompt for the explorer subagent
+        coder: Prompt for the coder subagent
+        workflow: Step-by-step workflow instructions
+    """
 
     explorer: SubagentPrompt
     coder: SubagentPrompt
     workflow: list[str]  # Step-by-step workflow
+
+
+# Type aliases for specific spawning methods
+SpawnExplorerResult = SubagentPrompt
+"""Return type for spawn_explorer() - same structure as SubagentPrompt."""
+
+SpawnCoderResult = SubagentPrompt
+"""Return type for spawn_coder() - same structure as SubagentPrompt."""
 
 
 # ============================================================================

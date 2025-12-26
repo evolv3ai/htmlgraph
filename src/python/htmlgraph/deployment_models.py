@@ -71,10 +71,54 @@ class SemanticVersion(BaseModel):
         return version
 
     def __str__(self) -> str:
+        """
+        Convert version to string representation.
+
+        Enables using str() and string formatting on SemanticVersion instances.
+
+        Returns:
+            str: Version string in semver format (e.g., "1.2.3", "2.0.0-beta.1")
+
+        Example:
+            >>> version = SemanticVersion(1, 2, 3)
+            >>> str(version)
+            '1.2.3'
+            >>> print(f"Version: {version}")
+            Version: 1.2.3
+            >>> version_pre = SemanticVersion(2, 0, 0, prerelease="beta.1")
+            >>> str(version_pre)
+            '2.0.0-beta.1'
+        """
         return self.to_string()
 
     def __lt__(self, other: "SemanticVersion") -> bool:
-        """Compare versions for sorting."""
+        """
+        Compare versions for sorting.
+
+        Enables using <, >, <=, >= operators and sorting SemanticVersion instances.
+        Follows semantic versioning precedence rules:
+        - Major, minor, patch compared numerically
+        - Prerelease versions have lower precedence than release versions
+        - Build metadata is ignored in comparisons
+
+        Args:
+            other: SemanticVersion to compare with
+
+        Returns:
+            bool: True if self is less than other
+
+        Example:
+            >>> v1 = SemanticVersion(1, 0, 0)
+            >>> v2 = SemanticVersion(2, 0, 0)
+            >>> v1 < v2
+            True
+            >>> v1_pre = SemanticVersion(1, 0, 0, prerelease="beta.1")
+            >>> v1_pre < v1
+            True
+            >>> versions = [v2, v1_pre, v1]
+            >>> sorted(versions)
+            [SemanticVersion(1, 0, 0, prerelease='beta.1'), SemanticVersion(1, 0, 0), SemanticVersion(2, 0, 0)]
+        """
         if self.major != other.major:
             return self.major < other.major
         if self.minor != other.minor:

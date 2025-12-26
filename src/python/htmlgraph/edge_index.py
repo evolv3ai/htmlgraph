@@ -35,9 +35,44 @@ class EdgeRef:
     relationship: str
 
     def __hash__(self) -> int:
+        """
+        Compute hash for EdgeRef.
+
+        Enables using EdgeRef in sets and as dict keys.
+
+        Returns:
+            int: Hash value based on source_id, target_id, and relationship
+
+        Example:
+            >>> ref1 = EdgeRef("feat-001", "feat-002", "blocked_by")
+            >>> ref2 = EdgeRef("feat-001", "feat-002", "blocked_by")
+            >>> refs = {ref1, ref2}  # Set deduplication works
+            >>> len(refs)
+            1
+        """
         return hash((self.source_id, self.target_id, self.relationship))
 
     def __eq__(self, other: object) -> bool:
+        """
+        Check equality with another EdgeRef.
+
+        Enables using == operator and set membership checks.
+
+        Args:
+            other: Object to compare with
+
+        Returns:
+            bool: True if both EdgeRefs have same source, target, and relationship
+
+        Example:
+            >>> ref1 = EdgeRef("feat-001", "feat-002", "blocked_by")
+            >>> ref2 = EdgeRef("feat-001", "feat-002", "blocked_by")
+            >>> ref1 == ref2
+            True
+            >>> ref3 = EdgeRef("feat-001", "feat-003", "blocked_by")
+            >>> ref1 == ref3
+            False
+        """
         if not isinstance(other, EdgeRef):
             return False
         return (
@@ -313,11 +348,44 @@ class EdgeIndex:
         self._edge_count = 0
 
     def __len__(self) -> int:
-        """Return number of edges in the index."""
+        """
+        Get the total number of edges in the index.
+
+        Enables using len() on EdgeIndex instances.
+
+        Returns:
+            int: Total number of edges indexed
+
+        Example:
+            >>> index = EdgeIndex()
+            >>> index.rebuild(graph.nodes)
+            >>> print(f"Index contains {len(index)} edges")
+            Index contains 156 edges
+        """
         return self._edge_count
 
     def __iter__(self) -> Iterator[EdgeRef]:
-        """Iterate over all edges in the index."""
+        """
+        Iterate over all unique edges in the index.
+
+        Enables using EdgeIndex in for loops and other iteration contexts.
+        Deduplicates edges to avoid returning the same edge twice.
+
+        Yields:
+            EdgeRef: Each unique edge in the index
+
+        Example:
+            >>> index = EdgeIndex()
+            >>> index.rebuild(graph.nodes)
+            >>> for edge in index:
+            ...     print(f"{edge.source_id} --{edge.relationship}--> {edge.target_id}")
+            feat-001 --blocked_by--> feat-002
+            feat-003 --related--> feat-001
+
+            >>> # Works with comprehensions
+            >>> blocked_by = [e for e in index if e.relationship == "blocked_by"]
+            >>> blocking_count = len([e for e in index if e.relationship == "blocks"])
+        """
         seen: set[EdgeRef] = set()
         for refs in self._outgoing.values():
             for ref in refs:

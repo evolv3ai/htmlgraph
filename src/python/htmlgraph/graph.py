@@ -88,15 +88,66 @@ class HtmlGraph:
         return self._nodes.copy()
 
     def __len__(self) -> int:
-        """Number of nodes in graph."""
+        """
+        Get the number of nodes in the graph.
+
+        Enables using len() on graph instances.
+
+        Returns:
+            int: Total number of nodes
+
+        Example:
+            >>> graph = HtmlGraph("features/")
+            >>> print(f"Graph has {len(graph)} nodes")
+            Graph has 42 nodes
+        """
         return len(self._nodes)
 
     def __contains__(self, node_id: str) -> bool:
-        """Check if node exists."""
+        """
+        Check if a node exists in the graph.
+
+        Enables using 'in' operator on graph instances.
+
+        Args:
+            node_id: Node identifier to check
+
+        Returns:
+            bool: True if node exists, False otherwise
+
+        Example:
+            >>> graph = HtmlGraph("features/")
+            >>> if "feature-001" in graph:
+            ...     print("Feature exists!")
+            Feature exists!
+            >>> if "nonexistent" not in graph:
+            ...     print("Not found")
+            Not found
+        """
         return node_id in self._nodes
 
     def __iter__(self) -> Iterator[Node]:
-        """Iterate over all nodes."""
+        """
+        Iterate over all nodes in the graph.
+
+        Enables using graphs in for loops and other iteration contexts.
+
+        Yields:
+            Node: Each node in the graph (in arbitrary order)
+
+        Example:
+            >>> graph = HtmlGraph("features/")
+            >>> for node in graph:
+            ...     print(f"{node.id}: {node.title} [{node.status}]")
+            feature-001: User Auth [in-progress]
+            feature-002: Database [done]
+
+            >>> # Works with list comprehensions
+            >>> todo_titles = [n.title for n in graph if n.status == "todo"]
+            >>>
+            >>> # Works with any iterable operation
+            >>> high_priority = list(filter(lambda n: n.priority == "high", graph))
+        """
         return iter(self._nodes.values())
 
     # =========================================================================

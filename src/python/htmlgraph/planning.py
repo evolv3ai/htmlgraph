@@ -1,12 +1,86 @@
 """
-Pydantic models for HtmlGraph planning features (Conductor-style).
+Planning utilities for HtmlGraph (Conductor-style workflow).
 
-This module provides models for:
-- Track: A collection of related work with spec + plan
-- Spec: Requirements document with acceptance criteria
-- Plan: Implementation plan with phases, tasks, and multiple views
-- Task: Individual work item within a plan
-- Phase: Logical grouping of tasks
+This module provides Pydantic models for comprehensive project planning and tracking.
+It implements a Conductor-style planning workflow where complex work is organized
+into Tracks, each containing a Spec (requirements) and Plan (implementation strategy).
+
+Available Classes:
+    - Track: Top-level container for a work stream with spec and plan
+    - Spec: Requirements document with priorities and acceptance criteria
+    - Plan: Implementation plan with phases, tasks, and multiple views (list/kanban/timeline/graph)
+    - Phase: Logical grouping of related tasks within a plan
+    - Task: Individual work item with estimates, blocking, and assignment
+    - Requirement: A requirement within a spec with verification status
+    - AcceptanceCriterion: An acceptance criterion for validating a spec
+
+Conductor Workflow:
+    1. Create Track: Define the work stream and its scope
+    2. Write Spec: Document requirements and acceptance criteria
+    3. Build Plan: Break work into phases and tasks
+    4. Execute: Work through tasks, track progress
+    5. Validate: Verify against acceptance criteria
+
+Key Features:
+    - Multi-view rendering: List, Kanban, Timeline, and Graph views
+    - Dependency tracking: Tasks can be blocked by other tasks or features
+    - Progress tracking: Automatic completion percentage calculation
+    - HTML output: Rich, styled HTML documents with dashboard design system
+    - Linking: Tracks link to features and sessions for traceability
+
+Usage:
+    from htmlgraph.planning import Track, Spec, Plan, Phase, Task
+    from htmlgraph.sdk import SDK
+
+    sdk = SDK(agent="claude")
+
+    # Create a track
+    track = Track(
+        id="track-001",
+        title="User Authentication System",
+        description="Complete auth system with OAuth",
+        status="active"
+    )
+
+    # Build a spec with requirements
+    spec = Spec(
+        id="spec-001",
+        title="Auth System Requirements",
+        track_id="track-001",
+        overview="OAuth-based authentication with JWT sessions",
+        requirements=[
+            Requirement(
+                id="req-001",
+                description="Support Google and GitHub OAuth",
+                priority="must-have"
+            )
+        ]
+    )
+
+    # Build a plan with phases and tasks
+    plan = Plan(
+        id="plan-001",
+        title="Auth Implementation Plan",
+        track_id="track-001",
+        phases=[
+            Phase(
+                id="1",
+                name="Foundation",
+                tasks=[
+                    Task(
+                        id="task-001",
+                        description="Set up OAuth providers",
+                        estimate_hours=4.0,
+                        priority="high"
+                    )
+                ]
+            )
+        ]
+    )
+
+    # Generate HTML outputs
+    spec_html = spec.to_html()
+    plan_html = plan.to_html()
 """
 
 from datetime import datetime
