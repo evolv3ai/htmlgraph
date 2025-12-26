@@ -9,12 +9,15 @@ Provides:
 - WIP limits enforcement
 """
 
+import logging
 import os
 import re
 import fnmatch
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
+
+logger = logging.getLogger(__name__)
 
 from htmlgraph.models import Node, Session, ActivityEntry
 from htmlgraph.graph import HtmlGraph
@@ -466,8 +469,8 @@ class SessionManager:
                             transcript_session=transcript,
                             overwrite=True,
                         )
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Failed to import transcript events on auto-spike completion: {e}")
 
         return completed_spikes
 
@@ -813,9 +816,9 @@ class SessionManager:
                 file_paths=file_paths,
                 payload=entry.payload if isinstance(entry.payload, dict) else payload,
             ))
-        except Exception:
+        except Exception as e:
             # Never break core tracking because of analytics logging.
-            pass
+            logger.warning(f"Failed to append to event log: {e}")
 
         # Optional: keep SQLite index up to date if it already exists.
         # This keeps the dashboard fast while keeping Git as the source of truth.
@@ -847,8 +850,8 @@ class SessionManager:
                     "file_paths": file_paths or [],
                     "payload": entry.payload if isinstance(entry.payload, dict) else payload,
                 })
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to update SQLite index: {e}")
 
         # Add to session
         session.add_activity(entry)
@@ -1232,8 +1235,9 @@ class SessionManager:
                 feature_id=feature_id,
                 payload=payload,
             )
-        except Exception:
+        except Exception as e:
             # Never break feature ops because of tracking.
+            logger.warning(f"Failed to log work item action ({tool}): {e}")
             return
 
     def get_active_features(self) -> list[Node]:
@@ -1494,8 +1498,8 @@ class SessionManager:
                         transcript_session=transcript,
                         overwrite=True,  # Replace hook data with high-fidelity transcript
                     )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to auto-import transcript on feature completion: {e}")
 
         # Auto-create transition spike for post-completion activities
         if session:
@@ -1872,8 +1876,8 @@ class SessionManager:
                 tool_count = transcript.tool_call_count
                 duration_seconds = int(transcript.duration_seconds or 0)
                 tool_breakdown = transcript.tool_breakdown
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to get transcript analytics for {transcript_id}: {e}")
 
         # Add implemented-by edge with analytics
         edge = Edge(
@@ -1918,8 +1922,8 @@ class SessionManager:
             )
             if result.returncode == 0:
                 return result.stdout.strip()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to get current git commit: {e}")
         return None
 
     # =========================================================================
@@ -2068,8 +2072,8 @@ class SessionManager:
                     session_status=session.status,
                     payload=activity.payload if isinstance(activity.payload, dict) else None,
                 ))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to append transcript event to event log: {e}")
 
         # Update transcript link
         session.transcript_id = transcript_session.session_id

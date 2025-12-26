@@ -43,6 +43,11 @@ from pathlib import Path
 from typing import Any
 
 from htmlgraph.models import Node, Step
+from htmlgraph.types import (
+    BottleneckDict,
+    SessionStartInfo,
+    ActiveWorkItem,
+)
 from htmlgraph.graph import HtmlGraph
 from htmlgraph.agents import AgentInterface
 from htmlgraph.track_builder import TrackCollection
@@ -411,7 +416,7 @@ class SDK:
     # Strategic Planning & Analytics (Agent-Friendly Interface)
     # =========================================================================
 
-    def find_bottlenecks(self, top_n: int = 5) -> list[dict[str, Any]]:
+    def find_bottlenecks(self, top_n: int = 5) -> list[BottleneckDict]:
         """
         Identify tasks blocking the most downstream work.
 
@@ -431,7 +436,7 @@ class SDK:
             >>> # Or via SDK (backward compatibility)
             >>> bottlenecks = sdk.find_bottlenecks(top_n=3)
             >>> for bn in bottlenecks:
-            ...     print(f"{bn.title} blocks {bn.transitive_blocking} tasks")
+            ...     print(f"{bn['title']} blocks {bn['blocks_count']} tasks")
         """
         bottlenecks = self.dep_analytics.find_bottlenecks(top_n=top_n)
 
@@ -1380,7 +1385,7 @@ class SDK:
         git_log_count: int = 5,
         analytics_top_n: int = 3,
         analytics_max_agents: int = 3
-    ) -> dict[str, Any]:
+    ) -> SessionStartInfo:
         """
         Get comprehensive session start information in a single call.
 
@@ -1407,7 +1412,7 @@ class SDK:
             >>> info = sdk.get_session_start_info()
             >>> print(f"Project: {info['status']['total_nodes']} nodes")
             >>> print(f"WIP: {info['status']['in_progress_count']}")
-            >>> if info['active_work']:
+            >>> if info.get('active_work'):
             ...     print(f"Active: {info['active_work']['title']}")
             >>> for bn in info['analytics']['bottlenecks']:
             ...     print(f"Bottleneck: {bn['title']}")
@@ -1475,7 +1480,7 @@ class SDK:
         agent: str | None = None,
         filter_by_agent: bool = False,
         work_types: list[str] | None = None
-    ) -> dict[str, Any] | None:
+    ) -> ActiveWorkItem | None:
         """
         Get the currently active work item (in-progress status).
 
