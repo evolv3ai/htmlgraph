@@ -6,20 +6,18 @@
 # ]
 # ///
 """
-Pre-Work Validation Hook (GUIDANCE MODE)
+Pre-Work Validation Hook (GUIDANCE MODE) with Active Learning
 
-Provides guidance for HtmlGraph workflow - NEVER blocks tool execution.
-
-Core Principles:
-1. SDK is the ONLY interface to .htmlgraph/ - never direct Write/Edit
-2. ALL spikes (auto-generated and manual) are for planning only
-3. Features/bugs/chores are for code implementation
+Provides intelligent guidance for HtmlGraph workflow based on:
+1. Current workflow state (work items, spikes)
+2. Recent tool usage patterns (anti-pattern detection)
+3. Learned patterns from transcript analytics
 
 Philosophy:
 - Hooks GUIDE agents with suggestions, they do NOT block
-- Agents decide how to proceed based on guidance
+- Learn from past patterns to provide smarter guidance
 - Trust the agent to make good decisions
-- Blocking breaks flow and frustrates users
+- Active feedback loop improves agent workflows
 
 Hook Input (stdin): JSON with tool call details
 Hook Output (stdout): JSON with guidance {"decision": "allow", "guidance": "...", "suggestion": "..."}
@@ -29,8 +27,133 @@ import json
 import os
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
+
+
+# Anti-patterns to detect (tool sequence -> warning message)
+ANTI_PATTERNS = {
+    ("Bash", "Bash", "Bash", "Bash"): "4 consecutive Bash commands. Check for errors or consider a different approach.",
+    ("Edit", "Edit", "Edit"): "3 consecutive Edits. Consider batching changes or reading file first.",
+    ("Grep", "Grep", "Grep"): "3 consecutive Greps. Consider reading results before searching more.",
+    ("Read", "Read", "Read", "Read"): "4 consecutive Reads. Consider caching file content.",
+}
+
+# Optimal patterns to encourage
+OPTIMAL_PATTERNS = {
+    ("Grep", "Read"): "Good: Search then read - efficient exploration.",
+    ("Read", "Edit"): "Good: Read then edit - informed changes.",
+    ("Edit", "Bash"): "Good: Edit then test - verify changes.",
+}
+
+# Session tool history file
+TOOL_HISTORY_FILE = Path("/tmp/htmlgraph-tool-history.json")
+MAX_HISTORY = 20
+
+
+def load_tool_history() -> list[dict]:
+    """Load recent tool history from temp file."""
+    if TOOL_HISTORY_FILE.exists():
+        try:
+            data = json.loads(TOOL_HISTORY_FILE.read_text())
+            # Filter to last hour only
+            cutoff = datetime.now().timestamp() - 3600
+            return [t for t in data if t.get("ts", 0) > cutoff][-MAX_HISTORY:]
+        except Exception:
+            pass
+    return []
+
+
+def save_tool_history(history: list[dict]) -> None:
+    """Save tool history to temp file."""
+    try:
+        TOOL_HISTORY_FILE.write_text(json.dumps(history[-MAX_HISTORY:]))
+    except Exception:
+        pass
+
+
+def record_tool(tool: str, history: list[dict]) -> list[dict]:
+    """Record a tool use in history."""
+    history.append({
+        "tool": tool,
+        "ts": datetime.now().timestamp()
+    })
+    return history[-MAX_HISTORY:]
+
+
+def detect_anti_pattern(tool: str, history: list[dict]) -> Optional[str]:
+    """Check if adding this tool creates an anti-pattern."""
+    recent_tools = [h["tool"] for h in history[-4:]] + [tool]
+
+    for pattern, message in ANTI_PATTERNS.items():
+        pattern_len = len(pattern)
+        if len(recent_tools) >= pattern_len:
+            # Check if recent tools end with this pattern
+            if tuple(recent_tools[-pattern_len:]) == pattern:
+                return message
+
+    return None
+
+
+def detect_optimal_pattern(tool: str, history: list[dict]) -> Optional[str]:
+    """Check if this tool continues an optimal pattern."""
+    if not history:
+        return None
+
+    last_tool = history[-1]["tool"]
+    pair = (last_tool, tool)
+
+    return OPTIMAL_PATTERNS.get(pair)
+
+
+def get_pattern_guidance(tool: str, history: list[dict]) -> dict:
+    """Get guidance based on tool patterns."""
+    # Check for anti-patterns first
+    anti_pattern = detect_anti_pattern(tool, history)
+    if anti_pattern:
+        return {
+            "pattern_warning": f"⚠️ {anti_pattern}",
+            "pattern_type": "anti-pattern"
+        }
+
+    # Check for optimal patterns
+    optimal = detect_optimal_pattern(tool, history)
+    if optimal:
+        return {
+            "pattern_note": optimal,
+            "pattern_type": "optimal"
+        }
+
+    return {}
+
+
+def get_session_health_hint(history: list[dict]) -> Optional[str]:
+    """Get a health hint based on session patterns."""
+    if len(history) < 10:
+        return None
+
+    tools = [h["tool"] for h in history]
+
+    # Check for excessive retries
+    consecutive = 1
+    max_consecutive = 1
+    for i in range(1, len(tools)):
+        if tools[i] == tools[i-1]:
+            consecutive += 1
+            max_consecutive = max(max_consecutive, consecutive)
+        else:
+            consecutive = 1
+
+    if max_consecutive >= 5:
+        return f"📊 High retry pattern detected ({max_consecutive} consecutive same-tool calls). Consider varying approach."
+
+    # Check tool diversity
+    unique_tools = len(set(tools))
+    if unique_tools <= 2 and len(tools) >= 10:
+        return f"📊 Low tool diversity. Only using {unique_tools} different tools. Consider using more specialized tools."
+
+    return None
 
 
 def load_validation_config() -> dict:
@@ -126,29 +249,40 @@ def get_active_work_item() -> Optional[dict]:
         return None
 
 
-def validate_tool_call(tool: str, params: dict, config: dict) -> dict:
+def validate_tool_call(tool: str, params: dict, config: dict, history: list[dict]) -> dict:
     """
-    Validate tool call and return GUIDANCE (never blocks).
+    Validate tool call and return GUIDANCE with active learning.
 
     Returns:
-        dict: {"decision": "allow", "guidance": "...", "suggestion": "..."}
+        dict: {"decision": "allow", "guidance": "...", "suggestion": "...", ...}
               All operations are ALLOWED - guidance is informational only.
     """
-    # Step 1: Read-only tools - no guidance needed
+    result = {"decision": "allow"}
+    guidance_parts = []
+
+    # Step 0: Check for pattern-based guidance (Active Learning)
+    pattern_info = get_pattern_guidance(tool, history)
+    if pattern_info.get("pattern_warning"):
+        guidance_parts.append(pattern_info["pattern_warning"])
+
+    # Check session health
+    health_hint = get_session_health_hint(history)
+    if health_hint:
+        guidance_parts.append(health_hint)
+
+    # Step 1: Read-only tools - minimal guidance
     if is_always_allowed(tool, params, config):
-        return {
-            "decision": "allow",
-            "guidance": None
-        }
+        if guidance_parts:
+            result["guidance"] = " | ".join(guidance_parts)
+        return result
 
     # Step 2: Direct writes to .htmlgraph/ - provide SDK guidance
     is_htmlgraph_write, file_path = is_direct_htmlgraph_write(tool, params)
     if is_htmlgraph_write:
-        return {
-            "decision": "allow",
-            "guidance": "Direct writes to .htmlgraph/ bypass the SDK. Consider using SDK commands instead.",
-            "suggestion": "Use SDK: uv run htmlgraph feature create"
-        }
+        guidance_parts.append("Direct writes to .htmlgraph/ bypass the SDK. Consider using SDK commands.")
+        result["guidance"] = " | ".join(guidance_parts)
+        result["suggestion"] = "Use SDK: uv run htmlgraph feature create"
+        return result
 
     # Step 3: Classify operation
     is_sdk_cmd = is_sdk_command(tool, params, config)
@@ -160,53 +294,41 @@ def validate_tool_call(tool: str, params: dict, config: dict) -> dict:
     # Step 5: No active work item
     if active is None:
         if is_sdk_cmd:
-            return {
-                "decision": "allow",
-                "guidance": "Creating work item via SDK"
-            }
+            guidance_parts.append("Creating work item via SDK")
+        elif is_code_op or tool in ["Write", "Edit", "Delete"]:
+            guidance_parts.append("No active work item. Consider creating one to track this work.")
+            result["suggestion"] = "uv run htmlgraph feature create 'Feature title'"
 
-        if is_code_op or tool in ["Write", "Edit", "Delete"]:
-            # Guide: suggest creating work item (but allow)
-            return {
-                "decision": "allow",
-                "guidance": "No active work item. Consider creating one to track this work.",
-                "suggestion": "uv run htmlgraph feature create 'Feature title'"
-            }
-
-        return {
-            "decision": "allow",
-            "guidance": None
-        }
+        if guidance_parts:
+            result["guidance"] = " | ".join(guidance_parts)
+        return result
 
     # Step 6: Active work is a spike (planning phase)
     if active.get("type") == "spike":
         spike_id = active.get("id")
 
         if is_sdk_cmd:
-            return {
-                "decision": "allow",
-                "guidance": f"Planning with spike {spike_id}"
-            }
+            guidance_parts.append(f"Planning with spike {spike_id}")
+        elif tool in ["Write", "Edit", "Delete", "NotebookEdit"] or is_code_op:
+            guidance_parts.append(f"Active spike ({spike_id}) is for planning. Consider creating a feature for implementation.")
+            result["suggestion"] = "uv run htmlgraph feature create 'Feature title'"
 
-        if tool in ["Write", "Edit", "Delete", "NotebookEdit"] or is_code_op:
-            # Guide: suggest creating feature (but allow)
-            return {
-                "decision": "allow",
-                "guidance": f"Active spike ({spike_id}) is for planning. Consider creating a feature for implementation.",
-                "suggestion": "uv run htmlgraph feature create 'Feature title'"
-            }
-
-        return {
-            "decision": "allow",
-            "guidance": None
-        }
+        if guidance_parts:
+            result["guidance"] = " | ".join(guidance_parts)
+        return result
 
     # Step 7: Active work is feature/bug/chore - all good
     work_item_id = active.get("id")
-    return {
-        "decision": "allow",
-        "guidance": f"Working on {work_item_id}"
-    }
+    guidance_parts.append(f"Working on {work_item_id}")
+
+    # Add positive reinforcement for optimal patterns
+    if pattern_info.get("pattern_note"):
+        guidance_parts.append(pattern_info["pattern_note"])
+
+    if guidance_parts:
+        result["guidance"] = " | ".join(guidance_parts)
+
+    return result
 
 
 def main():
@@ -221,8 +343,15 @@ def main():
         # Load config
         config = load_validation_config()
 
-        # Get guidance (never blocks)
-        result = validate_tool_call(tool, params, config)
+        # Load and update tool history (Active Learning)
+        history = load_tool_history()
+
+        # Get guidance with pattern awareness
+        result = validate_tool_call(tool, params, config, history)
+
+        # Record this tool in history (for next call)
+        history = record_tool(tool, history)
+        save_tool_history(history)
 
         # Output JSON with guidance
         print(json.dumps(result))
