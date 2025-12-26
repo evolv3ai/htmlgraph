@@ -13,7 +13,6 @@ if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
 
 from htmlgraph.builders.base import BaseBuilder
-from htmlgraph.models import Edge
 
 
 class PhaseBuilder(BaseBuilder['PhaseBuilder']):
@@ -66,8 +65,7 @@ class PhaseBuilder(BaseBuilder['PhaseBuilder']):
         Example:
             >>> phase.set_start_date(date(2025, 1, 1))
         """
-        self._data["start_date"] = start.isoformat()
-        return self
+        return self._set_date("start_date", start)  # type: ignore
 
     def set_end_date(self, end: date) -> 'PhaseBuilder':
         """
@@ -82,8 +80,7 @@ class PhaseBuilder(BaseBuilder['PhaseBuilder']):
         Example:
             >>> phase.set_end_date(date(2025, 3, 31))
         """
-        self._data["end_date"] = end.isoformat()
-        return self
+        return self._set_date("end_date", end)  # type: ignore
 
     def set_deliverables(self, deliverables: list[str]) -> 'PhaseBuilder':
         """
@@ -114,10 +111,7 @@ class PhaseBuilder(BaseBuilder['PhaseBuilder']):
         Example:
             >>> phase.add_milestone("Alpha release")
         """
-        if "milestones" not in self._data:
-            self._data["milestones"] = []
-        self._data["milestones"].append(milestone)
-        return self
+        return self._append_to_list("milestones", milestone)  # type: ignore
 
     def follows(self, phase_id: str) -> 'PhaseBuilder':
         """
@@ -132,12 +126,7 @@ class PhaseBuilder(BaseBuilder['PhaseBuilder']):
         Example:
             >>> phase.follows("phase-core-library")
         """
-        if "follows" not in self._data["edges"]:
-            self._data["edges"]["follows"] = []
-        self._data["edges"]["follows"].append(
-            Edge(target_id=phase_id, relationship="follows")
-        )
-        return self
+        return self._add_edge("follows", phase_id)  # type: ignore
 
     def set_exit_criteria(self, criteria: list[str]) -> 'PhaseBuilder':
         """

@@ -46,22 +46,6 @@ class BugCollection(BaseCollection['BugCollection']):
         super().__init__(sdk, "bugs", "bug")
         self._sdk = sdk
 
-    def create(self, title: str, **kwargs) -> 'BugBuilder':
-        """
-        Create a new bug with fluent interface.
-
-        Args:
-            title: Bug title/summary
-            **kwargs: Additional bug properties
-
-        Returns:
-            BugBuilder for method chaining
-
-        Example:
-            >>> bug = sdk.bugs.create("Login fails") \\
-            ...     .set_severity("high") \\
-            ...     .set_repro_steps(["Click login", "Enter creds"]) \\
-            ...     .save()
-        """
+        # Set builder class for create() method
         from htmlgraph.builders.bug import BugBuilder
-        return BugBuilder(self._sdk, title, **kwargs)
+        self._builder_class = BugBuilder

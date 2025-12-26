@@ -5,6 +5,13 @@ A lightweight graph database framework using HTML files as nodes,
 hyperlinks as edges, and CSS selectors as the query language.
 """
 
+from htmlgraph.exceptions import (
+    HtmlGraphError,
+    NodeNotFoundError,
+    SessionNotFoundError,
+    ClaimConflictError,
+    ValidationError,
+)
 from htmlgraph.models import (
     Node,
     Edge,
@@ -38,6 +45,12 @@ from htmlgraph.parallel import ParallelWorkflow, ParallelAnalysis, AggregateResu
 
 __version__ = "0.13.3"
 __all__ = [
+    # Exceptions
+    "HtmlGraphError",
+    "NodeNotFoundError",
+    "SessionNotFoundError",
+    "ClaimConflictError",
+    "ValidationError",
     # Core models
     "Node",
     "Edge",

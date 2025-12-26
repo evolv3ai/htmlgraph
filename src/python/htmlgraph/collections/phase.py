@@ -46,23 +46,6 @@ class PhaseCollection(BaseCollection['PhaseCollection']):
         super().__init__(sdk, "phases", "phase")
         self._sdk = sdk
 
-    def create(self, title: str, **kwargs) -> 'PhaseBuilder':
-        """
-        Create a new phase with fluent interface.
-
-        Args:
-            title: Phase title/summary
-            **kwargs: Additional phase properties
-
-        Returns:
-            PhaseBuilder for method chaining
-
-        Example:
-            >>> phase = sdk.phases.create("Phase 2: Integration") \\
-            ...     .set_phase_number(2) \\
-            ...     .follows("phase-1-core") \\
-            ...     .set_exit_criteria(["All tests pass"]) \\
-            ...     .save()
-        """
+        # Set builder class for create() method
         from htmlgraph.builders.phase import PhaseBuilder
-        return PhaseBuilder(self._sdk, title, **kwargs)
+        self._builder_class = PhaseBuilder

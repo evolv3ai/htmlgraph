@@ -46,22 +46,6 @@ class EpicCollection(BaseCollection['EpicCollection']):
         super().__init__(sdk, "epics", "epic")
         self._sdk = sdk
 
-    def create(self, title: str, **kwargs) -> 'EpicBuilder':
-        """
-        Create a new epic with fluent interface.
-
-        Args:
-            title: Epic title/summary
-            **kwargs: Additional epic properties
-
-        Returns:
-            EpicBuilder for method chaining
-
-        Example:
-            >>> epic = sdk.epics.create("Mobile App Launch") \\
-            ...     .set_business_value("Expand to mobile users") \\
-            ...     .set_success_criteria(["10k downloads", "4.5 rating"]) \\
-            ...     .save()
-        """
+        # Set builder class for create() method
         from htmlgraph.builders.epic import EpicBuilder
-        return EpicBuilder(self._sdk, title, **kwargs)
+        self._builder_class = EpicBuilder

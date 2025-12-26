@@ -46,22 +46,6 @@ class ChoreCollection(BaseCollection['ChoreCollection']):
         super().__init__(sdk, "chores", "chore")
         self._sdk = sdk
 
-    def create(self, title: str, **kwargs) -> 'ChoreBuilder':
-        """
-        Create a new chore with fluent interface.
-
-        Args:
-            title: Chore title/summary
-            **kwargs: Additional chore properties
-
-        Returns:
-            ChoreBuilder for method chaining
-
-        Example:
-            >>> chore = sdk.chores.create("Clean up logs") \\
-            ...     .set_chore_type("cleanup") \\
-            ...     .set_estimated_effort(1.5) \\
-            ...     .save()
-        """
+        # Set builder class for create() method
         from htmlgraph.builders.chore import ChoreBuilder
-        return ChoreBuilder(self._sdk, title, **kwargs)
+        self._builder_class = ChoreBuilder

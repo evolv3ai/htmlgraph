@@ -23,6 +23,7 @@ from htmlgraph.event_log import JsonlEventLog, EventRecord
 from htmlgraph.ids import generate_id
 from htmlgraph.agent_detection import detect_agent_name
 from htmlgraph.services import ClaimingService
+from htmlgraph.exceptions import SessionNotFoundError
 
 
 class SessionManager:
@@ -725,7 +726,7 @@ class SessionManager:
         """
         session = self.get_session(session_id)
         if not session:
-            raise ValueError(f"Session not found: {session_id}")
+            raise SessionNotFoundError(session_id)
 
         # Get active features for attribution
         active_features = self.get_active_features()

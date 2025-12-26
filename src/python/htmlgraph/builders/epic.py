@@ -13,7 +13,6 @@ if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
 
 from htmlgraph.builders.base import BaseBuilder
-from htmlgraph.models import Edge
 
 
 class EpicBuilder(BaseBuilder['EpicBuilder']):
@@ -51,12 +50,7 @@ class EpicBuilder(BaseBuilder['EpicBuilder']):
         Example:
             >>> epic.add_child_feature("feat-abc123")
         """
-        if "contains" not in self._data["edges"]:
-            self._data["edges"]["contains"] = []
-        self._data["edges"]["contains"].append(
-            Edge(target_id=feature_id, relationship="contains")
-        )
-        return self
+        return self._add_edge("contains", feature_id)  # type: ignore
 
     def add_child_features(self, feature_ids: list[str]) -> 'EpicBuilder':
         """
@@ -88,8 +82,7 @@ class EpicBuilder(BaseBuilder['EpicBuilder']):
         Example:
             >>> epic.set_target_date(date(2025, 6, 1))
         """
-        self._data["target_date"] = target.isoformat()
-        return self
+        return self._set_date("target_date", target)  # type: ignore
 
     def set_success_criteria(self, criteria: list[str]) -> 'EpicBuilder':
         """

@@ -18,6 +18,9 @@ from htmlgraph.ids import generate_id
 # Generic type for the builder subclass
 BuilderT = TypeVar('BuilderT', bound='BaseBuilder')
 
+# For type hints in helper methods
+from typing_extensions import Self
+
 
 class BaseBuilder(Generic[BuilderT]):
     """
@@ -59,6 +62,29 @@ class BaseBuilder(Generic[BuilderT]):
             **kwargs
         }
 
+    # Helper methods for common patterns
+    def _add_edge(self, edge_type: str, target_id: str, relationship: str | None = None) -> Self:
+        """Add an edge to the node being built."""
+        if edge_type not in self._data["edges"]:
+            self._data["edges"][edge_type] = []
+        self._data["edges"][edge_type].append(
+            Edge(target_id=target_id, relationship=relationship or edge_type)
+        )
+        return self  # type: ignore
+
+    def _set_date(self, field_name: str, date_value) -> Self:
+        """Set a date field in properties, converting to ISO format if needed."""
+        iso_date = date_value.isoformat() if hasattr(date_value, 'isoformat') else date_value
+        self._data["properties"][field_name] = iso_date
+        return self  # type: ignore
+
+    def _append_to_list(self, field_name: str, value) -> Self:
+        """Append a value to a list field in properties, creating list if needed."""
+        if field_name not in self._data["properties"]:
+            self._data["properties"][field_name] = []
+        self._data["properties"][field_name].append(value)
+        return self  # type: ignore
+
     def set_priority(self, priority: str) -> BuilderT:
         """Set node priority (low, medium, high, critical)."""
         self._data["priority"] = priority
@@ -87,21 +113,11 @@ class BaseBuilder(Generic[BuilderT]):
 
     def blocks(self, node_id: str) -> BuilderT:
         """Add blocking relationship (this node blocks another)."""
-        if "blocks" not in self._data["edges"]:
-            self._data["edges"]["blocks"] = []
-        self._data["edges"]["blocks"].append(
-            Edge(target_id=node_id, relationship="blocks")
-        )
-        return self  # type: ignore
+        return self._add_edge("blocks", node_id)  # type: ignore
 
     def blocked_by(self, node_id: str) -> BuilderT:
         """Add blocked-by relationship (this node is blocked by another)."""
-        if "blocked_by" not in self._data["edges"]:
-            self._data["edges"]["blocked_by"] = []
-        self._data["edges"]["blocked_by"].append(
-            Edge(target_id=node_id, relationship="blocked_by")
-        )
-        return self  # type: ignore
+        return self._add_edge("blocked_by", node_id)  # type: ignore
 
     def set_track(self, track_id: str) -> BuilderT:
         """Link to a track."""

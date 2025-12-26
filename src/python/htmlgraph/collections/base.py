@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, TypeVar, Generic, Any, Iterator, Callable
 from contextlib import contextmanager
 from datetime import datetime
 
+from htmlgraph.exceptions import NodeNotFoundError, ClaimConflictError
+
 if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
     from htmlgraph.models import Node
@@ -40,6 +42,7 @@ class BaseCollection(Generic[CollectionT]):
 
     _collection_name: str = "nodes"  # Override in subclasses
     _node_type: str = "node"  # Override in subclasses
+    _builder_class: type | None = None  # Override in subclasses to enable builder pattern
 
     def __init__(self, sdk: 'SDK', collection_name: str | None = None, node_type: str | None = None):
         """
@@ -71,9 +74,12 @@ class BaseCollection(Generic[CollectionT]):
         priority: str = "medium",
         status: str = "todo",
         **kwargs
-    ) -> Node:
+    ):
         """
         Create a new node in this collection.
+
+        If `_builder_class` is set, returns a builder instance for fluent interface.
+        Otherwise, creates and saves a simple Node directly.
 
         Args:
             title: Node title
@@ -82,12 +88,29 @@ class BaseCollection(Generic[CollectionT]):
             **kwargs: Additional node properties
 
         Returns:
-            Created Node instance
+            Builder instance if `_builder_class` is set, else created Node instance
 
         Example:
-            >>> bug = sdk.bugs.create("Login fails", priority="critical")
-            >>> chore = sdk.chores.create("Update dependencies", priority="medium")
+            >>> # With builder (FeatureCollection, BugCollection, etc.)
+            >>> feature = sdk.features.create("User Auth") \\
+            ...     .set_priority("high") \\
+            ...     .save()
+            >>>
+            >>> # Without builder (simple collections)
+            >>> node = sdk.nodes.create("Simple task", priority="medium")
         """
+        # If builder class is configured, use it
+        if self._builder_class is not None:
+            # Pass priority and status to builder via kwargs
+            return self._builder_class(
+                self._sdk,
+                title,
+                priority=priority,
+                status=status,
+                **kwargs
+            )
+
+        # Fallback to simple node creation
         from htmlgraph.ids import generate_id
         from htmlgraph.models import Node
 
@@ -139,7 +162,7 @@ class BaseCollection(Generic[CollectionT]):
             The node to edit
 
         Raises:
-            ValueError: If node not found
+            NodeNotFoundError: If node not found
 
         Example:
             >>> with sdk.features.edit("feat-001") as feature:
@@ -148,7 +171,7 @@ class BaseCollection(Generic[CollectionT]):
         graph = self._ensure_graph()
         node = graph.get(node_id)
         if not node:
-            raise ValueError(f"{self._node_type.capitalize()} {node_id} not found")
+            raise NodeNotFoundError(self._node_type, node_id)
 
         yield node
 
@@ -475,8 +498,8 @@ class BaseCollection(Generic[CollectionT]):
 
         Raises:
             ValueError: If agent not provided and SDK has no agent
-            ValueError: If node not found
-            ValueError: If node already claimed by different agent
+            NodeNotFoundError: If node not found
+            ClaimConflictError: If node already claimed by different agent
         """
         agent = agent or self._sdk.agent
         if not agent:
@@ -494,10 +517,10 @@ class BaseCollection(Generic[CollectionT]):
         graph = self._ensure_graph()
         node = graph.get(node_id)
         if not node:
-            raise ValueError(f"Node {node_id} not found")
+            raise NodeNotFoundError(self._node_type, node_id)
 
         if node.agent_assigned and node.agent_assigned != agent:
-            raise ValueError(f"Node {node_id} is already claimed by {node.agent_assigned}")
+            raise ClaimConflictError(node_id, node.agent_assigned)
 
         node.agent_assigned = agent
         node.claimed_at = datetime.now()

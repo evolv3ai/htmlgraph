@@ -19,6 +19,7 @@ from htmlgraph.parser import HtmlParser
 from htmlgraph.edge_index import EdgeIndex, EdgeRef
 from htmlgraph.query_builder import QueryBuilder
 from htmlgraph.find_api import FindAPI
+from htmlgraph.exceptions import NodeNotFoundError
 
 
 class HtmlGraph:
@@ -143,10 +144,10 @@ class HtmlGraph:
             Path to updated HTML file
 
         Raises:
-            KeyError: If node doesn't exist
+            NodeNotFoundError: If node doesn't exist
         """
         if node.id not in self._nodes:
-            raise KeyError(f"Node not found: {node.id}")
+            raise NodeNotFoundError(node.type, node.id)
 
         # Get current outgoing edges from the edge index (source of truth)
         # This handles the case where node and self._nodes[node.id] are the same object
