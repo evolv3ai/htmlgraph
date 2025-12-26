@@ -6,20 +6,23 @@
 # ]
 # ///
 """
-Pre-Work Validation Hook
+Pre-Work Validation Hook (GUIDANCE MODE)
 
-Enforces HtmlGraph workflow by requiring active work items for code changes.
+Provides guidance for HtmlGraph workflow - NEVER blocks tool execution.
 
 Core Principles:
 1. SDK is the ONLY interface to .htmlgraph/ - never direct Write/Edit
-2. ALL spikes (auto-generated and manual) are for planning only:
-   - Allow: Read operations, SDK commands, running tests
-   - Deny: Write, Edit, Delete (code changes)
-   - File creation/editing only in .htmlgraph/ via SDK Bash commands
+2. ALL spikes (auto-generated and manual) are for planning only
 3. Features/bugs/chores are for code implementation
 
+Philosophy:
+- Hooks GUIDE agents with suggestions, they do NOT block
+- Agents decide how to proceed based on guidance
+- Trust the agent to make good decisions
+- Blocking breaks flow and frustrates users
+
 Hook Input (stdin): JSON with tool call details
-Hook Output (stdout): JSON permission decision {"decision": "allow|deny", "reason": "...", "suggestion": "..."}
+Hook Output (stdout): JSON with guidance {"decision": "allow", "guidance": "...", "suggestion": "..."}
 """
 
 import json
@@ -125,28 +128,26 @@ def get_active_work_item() -> Optional[dict]:
 
 def validate_tool_call(tool: str, params: dict, config: dict) -> dict:
     """
-    Validate tool call and return permission decision.
+    Validate tool call and return GUIDANCE (never blocks).
 
     Returns:
-        dict: {"decision": "allow|deny", "reason": "...", "suggestion": "..."}
+        dict: {"decision": "allow", "guidance": "...", "suggestion": "..."}
+              All operations are ALLOWED - guidance is informational only.
     """
-    templates = config.get("permission_responses", {}).get("templates", {})
-
-    # Step 1: Always allow read-only tools
+    # Step 1: Read-only tools - no guidance needed
     if is_always_allowed(tool, params, config):
-        return templates.get("read_only_allowed", {
+        return {
             "decision": "allow",
-            "reason": "Read-only operation"
-        })
+            "guidance": None
+        }
 
-    # Step 2: Always deny direct writes to .htmlgraph/
+    # Step 2: Direct writes to .htmlgraph/ - provide SDK guidance
     is_htmlgraph_write, file_path = is_direct_htmlgraph_write(tool, params)
     if is_htmlgraph_write:
-        template = templates.get("direct_htmlgraph_write_denied", {})
         return {
-            "decision": "deny",
-            "reason": template.get("reason", "Direct writes to .htmlgraph/ are forbidden"),
-            "suggestion": template.get("suggestion", "Use SDK: uv run htmlgraph feature create")
+            "decision": "allow",
+            "guidance": "Direct writes to .htmlgraph/ bypass the SDK. Consider using SDK commands instead.",
+            "suggestion": "Use SDK: uv run htmlgraph feature create"
         }
 
     # Step 3: Classify operation
@@ -159,68 +160,52 @@ def validate_tool_call(tool: str, params: dict, config: dict) -> dict:
     # Step 5: No active work item
     if active is None:
         if is_sdk_cmd:
-            # Creating work items is OK
-            return templates.get("sdk_command_no_work", {
-                "decision": "allow",
-                "reason": "Creating work item via SDK"
-            })
-
-        if is_code_op or tool in ["Write", "Edit", "Delete"]:
-            # Code changes require work item
-            template = templates.get("no_work_item_code_change", {})
             return {
-                "decision": "deny",
-                "reason": template.get("reason", "No active work item"),
-                "suggestion": template.get("suggestion", "Create a work item first")
+                "decision": "allow",
+                "guidance": "Creating work item via SDK"
             }
 
-        # Other operations allowed
+        if is_code_op or tool in ["Write", "Edit", "Delete"]:
+            # Guide: suggest creating work item (but allow)
+            return {
+                "decision": "allow",
+                "guidance": "No active work item. Consider creating one to track this work.",
+                "suggestion": "uv run htmlgraph feature create 'Feature title'"
+            }
+
         return {
             "decision": "allow",
-            "reason": "Exploratory operation"
+            "guidance": None
         }
 
-    # Step 6: Active work is a spike (planning only - ALL spikes)
-    # ALL spikes (auto-generated and manual) enforce planning-only rules:
-    # - Allow: Read operations, SDK commands, running tests
-    # - Deny: Write, Edit, Delete (code changes)
-    # - File creation/editing only in .htmlgraph/ via SDK Bash commands
+    # Step 6: Active work is a spike (planning phase)
     if active.get("type") == "spike":
         spike_id = active.get("id")
 
         if is_sdk_cmd:
-            # Planning: creating work items via SDK is OK
-            template = templates.get("sdk_command_with_spike", {})
-            reason = template.get("reason", "Planning with spike: creating work items via SDK")
             return {
                 "decision": "allow",
-                "reason": reason.format(spike_id=spike_id)
+                "guidance": f"Planning with spike {spike_id}"
             }
 
         if tool in ["Write", "Edit", "Delete", "NotebookEdit"] or is_code_op:
-            # Code changes require feature/bug/chore
-            template = templates.get("spike_code_change_denied", {})
-            reason = template.get("reason", "Spike is for planning only")
-            suggestion = template.get("suggestion", "Create a feature for code changes")
+            # Guide: suggest creating feature (but allow)
             return {
-                "decision": "deny",
-                "reason": reason.format(spike_id=spike_id),
-                "suggestion": suggestion
+                "decision": "allow",
+                "guidance": f"Active spike ({spike_id}) is for planning. Consider creating a feature for implementation.",
+                "suggestion": "uv run htmlgraph feature create 'Feature title'"
             }
 
-        # Other operations (exploratory) allowed
         return {
             "decision": "allow",
-            "reason": f"Exploratory operation with spike {spike_id}"
+            "guidance": None
         }
 
-    # Step 7: Active work is feature/bug/chore - allow code operations
+    # Step 7: Active work is feature/bug/chore - all good
     work_item_id = active.get("id")
-    template = templates.get("implementation_work_active", {})
-    reason = template.get("reason", "Active implementation work")
     return {
         "decision": "allow",
-        "reason": reason.format(work_item_id=work_item_id)
+        "guidance": f"Working on {work_item_id}"
     }
 
 
@@ -236,23 +221,20 @@ def main():
         # Load config
         config = load_validation_config()
 
-        # Validate and get permission decision
-        decision = validate_tool_call(tool, params, config)
+        # Get guidance (never blocks)
+        result = validate_tool_call(tool, params, config)
 
-        # Output JSON decision
-        print(json.dumps(decision))
+        # Output JSON with guidance
+        print(json.dumps(result))
 
-        # Exit with appropriate code
-        if decision.get("decision") == "deny":
-            sys.exit(1)
-        else:
-            sys.exit(0)
+        # ALWAYS exit 0 - guidance mode never blocks
+        sys.exit(0)
 
     except Exception as e:
         # Graceful degradation - allow on error
         print(json.dumps({
             "decision": "allow",
-            "reason": f"Validation hook error: {e}"
+            "guidance": f"Validation hook error: {e}"
         }))
         sys.exit(0)
 
