@@ -1368,6 +1368,7 @@ class SessionManager:
         *,
         agent: str | None = None,
         log_activity: bool = True,
+        transcript_id: str | None = None,
     ) -> Node | None:
         """
         Mark a feature as done.
@@ -1377,6 +1378,8 @@ class SessionManager:
             collection: Collection name
             agent: Optional agent name for attribution/logging
             log_activity: If true, write an event record (requires agent)
+            transcript_id: Optional transcript ID (agent session) that implemented this feature.
+                          Used to link parallel agent transcripts to features.
 
         Returns:
             Updated Node or None
@@ -1389,15 +1392,25 @@ class SessionManager:
         node.status = "done"
         node.updated = datetime.now()
         node.properties["completed_at"] = datetime.now().isoformat()
+
+        # Link transcript if provided (for parallel agent tracking)
+        if transcript_id:
+            self._link_transcript_to_feature(node, transcript_id, graph)
+
         graph.update(node)
 
         if log_activity and agent:
+            # Include transcript_id in payload for traceability
+            payload = {"collection": collection, "action": "complete"}
+            if transcript_id:
+                payload["transcript_id"] = transcript_id
+
             self._maybe_log_work_item_action(
                 agent=agent,
                 tool="FeatureComplete",
                 summary=f"Completed: {collection}/{feature_id}",
                 feature_id=feature_id,
-                payload={"collection": collection, "action": "complete"},
+                payload=payload,
             )
 
         # Auto-import transcript on work item completion
@@ -1808,6 +1821,67 @@ class SessionManager:
 
             # Save the updated session
             self.session_converter.save(session)
+
+    def _link_transcript_to_feature(
+        self,
+        node: Node,
+        transcript_id: str,
+        graph: HtmlGraph,
+    ) -> None:
+        """
+        Link a Claude Code transcript to a feature.
+
+        Adds an "implemented-by" edge to the feature pointing to the transcript.
+        Also aggregates tool analytics from the transcript into feature properties.
+
+        Args:
+            node: Feature node to link
+            transcript_id: Claude Code transcript/agent session ID
+            graph: Graph containing the node
+        """
+        from htmlgraph.models import Edge
+
+        # Check if edge already exists
+        existing_transcripts = node.edges.get("implemented-by", [])
+        already_linked = any(edge.target_id == transcript_id for edge in existing_transcripts)
+
+        if already_linked:
+            return
+
+        # Try to get transcript analytics
+        tool_count = 0
+        duration_seconds = 0
+        tool_breakdown = {}
+
+        try:
+            from htmlgraph.transcript import TranscriptReader
+            reader = TranscriptReader()
+            transcript = reader.read_session(transcript_id)
+            if transcript:
+                tool_count = transcript.tool_call_count
+                duration_seconds = int(transcript.duration_seconds or 0)
+                tool_breakdown = transcript.tool_breakdown
+        except Exception:
+            pass
+
+        # Add implemented-by edge with analytics
+        edge = Edge(
+            target_id=transcript_id,
+            relationship="implemented-by",
+            title=transcript_id,
+            since=datetime.now(),
+            properties={
+                "tool_count": tool_count,
+                "duration_seconds": duration_seconds,
+                "tool_breakdown": tool_breakdown,
+            },
+        )
+        node.add_edge(edge)
+
+        # Also store aggregated transcript analytics in properties
+        if tool_count > 0:
+            node.properties["transcript_tool_count"] = tool_count
+            node.properties["transcript_duration_seconds"] = duration_seconds
 
     def _get_graph(self, collection: str) -> HtmlGraph:
         """Get graph for a collection."""

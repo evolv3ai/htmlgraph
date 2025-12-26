@@ -378,7 +378,12 @@ class BaseCollection(Generic[CollectionT]):
         self._ensure_graph().update(node)
         return node
 
-    def complete(self, node_id: str, agent: str | None = None) -> Node | None:
+    def complete(
+        self,
+        node_id: str,
+        agent: str | None = None,
+        transcript_id: str | None = None,
+    ) -> Node | None:
         """
         Complete a node.
 
@@ -386,10 +391,13 @@ class BaseCollection(Generic[CollectionT]):
         1. Update status
         2. Log 'FeatureComplete' event
         3. Release claim (optional behavior)
+        4. Link transcript if provided (for parallel agent tracking)
 
         Args:
             node_id: Node ID to complete
             agent: Agent ID (defaults to SDK agent)
+            transcript_id: Optional transcript ID (agent session) that implemented
+                          this feature. Used for parallel agent tracking.
 
         Returns:
             Updated Node
@@ -402,7 +410,8 @@ class BaseCollection(Generic[CollectionT]):
                 feature_id=node_id,
                 collection=self._collection_name,
                 agent=agent,
-                log_activity=True
+                log_activity=True,
+                transcript_id=transcript_id,
             )
 
         # Fallback

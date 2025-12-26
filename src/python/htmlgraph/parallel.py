@@ -436,3 +436,144 @@ Return a summary including:
                 step_lines.append(f"{i}. {status} {desc}")
             return "## Steps\n" + "\n".join(step_lines)
         return "Complete this feature according to its description."
+
+    def link_transcripts(
+        self,
+        feature_transcript_pairs: list[tuple[str, str]],
+    ) -> dict[str, Any]:
+        """
+        Link Claude Code transcripts to features after parallel execution.
+
+        This enables full traceability from features to the agent sessions
+        that implemented them.
+
+        Args:
+            feature_transcript_pairs: List of (feature_id, transcript_id) tuples
+
+        Returns:
+            Summary of linking results
+
+        Example:
+            >>> workflow = ParallelWorkflow(sdk)
+            >>> # After parallel agents complete...
+            >>> results = workflow.link_transcripts([
+            ...     ("feat-001", "agent-a91736"),
+            ...     ("feat-002", "agent-748080"),
+            ...     ("feat-003", "agent-0ef7b6"),
+            ... ])
+            >>> print(results["linked_count"])  # 3
+        """
+        from htmlgraph.session_manager import SessionManager
+
+        manager = SessionManager(self._graph_dir)
+        linked = []
+        failed = []
+
+        for feature_id, transcript_id in feature_transcript_pairs:
+            try:
+                feature = self.sdk.features.get(feature_id)
+                if not feature:
+                    failed.append({
+                        "feature_id": feature_id,
+                        "transcript_id": transcript_id,
+                        "error": "Feature not found",
+                    })
+                    continue
+
+                graph = manager.features_graph
+                manager._link_transcript_to_feature(feature, transcript_id, graph)
+                graph.update(feature)
+
+                linked.append({
+                    "feature_id": feature_id,
+                    "transcript_id": transcript_id,
+                    "tool_count": feature.properties.get("transcript_tool_count", 0),
+                    "duration_seconds": feature.properties.get("transcript_duration_seconds", 0),
+                })
+            except Exception as e:
+                failed.append({
+                    "feature_id": feature_id,
+                    "transcript_id": transcript_id,
+                    "error": str(e),
+                })
+
+        return {
+            "linked_count": len(linked),
+            "failed_count": len(failed),
+            "linked": linked,
+            "failed": failed,
+        }
+
+    def auto_link_by_timestamp(
+        self,
+        feature_ids: list[str],
+        time_window_minutes: int = 30,
+    ) -> dict[str, Any]:
+        """
+        Auto-link transcripts to features based on completion timestamp matching.
+
+        Finds agent transcripts that ran within the time window of each feature's
+        completion and links them.
+
+        Args:
+            feature_ids: Features to find transcripts for
+            time_window_minutes: Maximum time difference to consider a match
+
+        Returns:
+            Summary with linked features and their transcripts
+        """
+        from htmlgraph.transcript import TranscriptReader
+        from datetime import timedelta
+
+        reader = TranscriptReader()
+        pairs = []
+        unmatched = []
+
+        for feature_id in feature_ids:
+            feature = self.sdk.features.get(feature_id)
+            if not feature:
+                unmatched.append(feature_id)
+                continue
+
+            completed_at = feature.properties.get("completed_at")
+            if not completed_at:
+                unmatched.append(feature_id)
+                continue
+
+            # Parse completion time
+            try:
+                completion_time = datetime.fromisoformat(completed_at)
+            except (ValueError, TypeError):
+                unmatched.append(feature_id)
+                continue
+
+            # Find transcripts in time window
+            since = completion_time - timedelta(minutes=time_window_minutes)
+            sessions = reader.list_sessions(since=since)
+
+            # Find agent sessions (not main sessions)
+            for session in sessions:
+                if session.session_id.startswith("agent-"):
+                    # Check if within time window
+                    if session.ended_at:
+                        time_diff = abs((session.ended_at - completion_time).total_seconds())
+                        if time_diff <= time_window_minutes * 60:
+                            pairs.append((feature_id, session.session_id))
+                            break
+
+            if not any(p[0] == feature_id for p in pairs):
+                unmatched.append(feature_id)
+
+        # Link the matched pairs
+        if pairs:
+            result = self.link_transcripts(pairs)
+            result["unmatched_features"] = unmatched
+            return result
+
+        return {
+            "linked_count": 0,
+            "failed_count": 0,
+            "linked": [],
+            "failed": [],
+            "unmatched_features": unmatched,
+        }

@@ -1778,6 +1778,43 @@ def cmd_transcript_track_stats(args):
                     break
 
 
+def cmd_transcript_link_feature(args):
+    """Link a Claude Code transcript to a feature for parallel agent tracking."""
+    import json
+    from htmlgraph.session_manager import SessionManager
+    from htmlgraph.graph import HtmlGraph
+
+    manager = SessionManager(args.graph_dir)
+    graph = manager.features_graph
+
+    # Get the feature
+    feature = graph.get(args.to_feature)
+    if not feature:
+        print(f"Feature '{args.to_feature}' not found.", file=sys.stderr)
+        sys.exit(1)
+
+    # Link the transcript
+    manager._link_transcript_to_feature(feature, args.transcript_id, graph)
+    graph.update(feature)
+
+    if args.format == "json":
+        result = {
+            "success": True,
+            "feature_id": args.to_feature,
+            "transcript_id": args.transcript_id,
+            "tool_count": feature.properties.get("transcript_tool_count", 0),
+            "duration_seconds": feature.properties.get("transcript_duration_seconds", 0),
+        }
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"✅ Linked transcript '{args.transcript_id}' to feature '{args.to_feature}'")
+        tool_count = feature.properties.get("transcript_tool_count", 0)
+        duration = feature.properties.get("transcript_duration_seconds", 0)
+        if tool_count > 0:
+            print(f"   Tools: {tool_count}")
+            print(f"   Duration: {duration}s")
+
+
 def cmd_track(args):
     """Track an activity in the current session."""
     from htmlgraph import SDK
@@ -3005,6 +3042,16 @@ curl Examples:
     transcript_track.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
     transcript_track.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
 
+    # transcript link-feature (link transcript to feature for parallel agent tracking)
+    transcript_link_feature = transcript_subparsers.add_parser(
+        "link-feature",
+        help="Link a Claude Code transcript to a feature (for parallel agent tracking)"
+    )
+    transcript_link_feature.add_argument("transcript_id", help="Claude Code transcript/agent session ID")
+    transcript_link_feature.add_argument("--to-feature", "-f", required=True, help="Feature ID to link to")
+    transcript_link_feature.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    transcript_link_feature.add_argument("--format", choices=["text", "json"], default="text", help="Output format")
+
     # =========================================================================
     # Work Management (Smart Routing)
     # =========================================================================
@@ -3388,6 +3435,8 @@ curl Examples:
             cmd_transcript_export(args)
         elif args.transcript_command == "track-stats":
             cmd_transcript_track_stats(args)
+        elif args.transcript_command == "link-feature":
+            cmd_transcript_link_feature(args)
         else:
             transcript_parser.print_help()
             sys.exit(1)
