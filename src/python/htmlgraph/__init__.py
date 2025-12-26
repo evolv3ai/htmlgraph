@@ -36,7 +36,7 @@ from htmlgraph.collections import BaseCollection, FeatureCollection, SpikeCollec
 from htmlgraph.agent_detection import detect_agent_name, get_agent_display_name
 from htmlgraph.parallel import ParallelWorkflow, ParallelAnalysis, AggregateResult
 
-__version__ = "0.13.2"
+__version__ = "0.13.3"
 __all__ = [
     # Core models
     "Node",
