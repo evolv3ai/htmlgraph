@@ -90,6 +90,14 @@ class TranscriptEntry:
             if isinstance(content, str):
                 message_content = content
             elif isinstance(content, list):
+                # Check for tool_result blocks (these are type=user but contain tool results)
+                has_tool_result = any(
+                    isinstance(b, dict) and b.get("type") == "tool_result"
+                    for b in content
+                )
+                if has_tool_result and entry_type == "user":
+                    entry_type = "tool_result"
+
                 # Handle content blocks (text, tool_use, etc.)
                 text_parts = []
                 for block in content:
