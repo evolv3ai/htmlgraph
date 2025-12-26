@@ -22,6 +22,7 @@ from htmlgraph.converter import session_to_html, html_to_session, SessionConvert
 from htmlgraph.event_log import JsonlEventLog, EventRecord
 from htmlgraph.ids import generate_id
 from htmlgraph.agent_detection import detect_agent_name
+from htmlgraph.services import ClaimingService
 
 
 class SessionManager:
@@ -103,6 +104,13 @@ class SessionManager:
         # Feature graphs
         self.features_graph = HtmlGraph(self.features_dir, auto_load=True)
         self.bugs_graph = HtmlGraph(self.bugs_dir, auto_load=True)
+
+        # Claiming service (handles feature claims/releases)
+        self.claiming_service = ClaimingService(
+            features_graph=self.features_graph,
+            bugs_graph=self.bugs_graph,
+            session_manager=self,
+        )
 
         # Cache for active session
         self._active_session: Session | None = None
@@ -682,18 +690,7 @@ class SessionManager:
         Returns:
             List of released feature IDs
         """
-        released = []
-        for collection in ["features", "bugs"]:
-            graph = self._get_graph(collection)
-            for node in graph:
-                if node.claimed_by_session == session_id:
-                    node.agent_assigned = None
-                    node.claimed_at = None
-                    node.claimed_by_session = None
-                    node.updated = datetime.now()
-                    graph.update(node)
-                    released.append(node.id)
-        return released
+        return self.claiming_service.release_session_features(session_id)
 
     # =========================================================================
     # Activity Tracking
@@ -1670,39 +1667,11 @@ class SessionManager:
         Returns:
             Updated Node or None
         """
-        graph = self._get_graph(collection)
-        node = graph.get(feature_id)
-        if not node:
-            return None
-
-        # Check if already claimed by someone else
-        if node.agent_assigned and node.agent_assigned != agent:
-            # Check if session that claimed it is still active
-            if node.claimed_by_session:
-                session = self.get_session(node.claimed_by_session)
-                if session and session.status == "active":
-                    raise ValueError(
-                        f"Feature '{feature_id}' is already claimed by {node.agent_assigned} "
-                        f"(session {node.claimed_by_session})"
-                    )
-
-        session = self._ensure_session_for_agent(agent)
-
-        node.agent_assigned = agent
-        node.claimed_at = datetime.now()
-        node.claimed_by_session = session.id
-        node.updated = datetime.now()
-        graph.update(node)
-
-        self._maybe_log_work_item_action(
-            agent=agent,
-            tool="FeatureClaim",
-            summary=f"Claimed: {collection}/{feature_id}",
+        return self.claiming_service.claim_feature(
             feature_id=feature_id,
-            payload={"collection": collection, "action": "claim"},
+            collection=collection,
+            agent=agent,
         )
-
-        return node
 
     def release_feature(
         self,
@@ -1722,32 +1691,11 @@ class SessionManager:
         Returns:
             Updated Node or None
         """
-        graph = self._get_graph(collection)
-        node = graph.get(feature_id)
-        if not node:
-            return None
-
-        if node.agent_assigned and node.agent_assigned != agent:
-            raise ValueError(f"Feature '{feature_id}' is claimed by {node.agent_assigned}, not {agent}")
-
-        node.agent_assigned = None
-        node.claimed_at = None
-        node.claimed_by_session = None
-        node.updated = datetime.now()
-        graph.update(node)
-
-        # Invalidate active features cache
-        self._features_cache_dirty = True
-
-        self._maybe_log_work_item_action(
-            agent=agent,
-            tool="FeatureRelease",
-            summary=f"Released: {collection}/{feature_id}",
+        return self.claiming_service.release_feature(
             feature_id=feature_id,
-            payload={"collection": collection, "action": "release"},
+            collection=collection,
+            agent=agent,
         )
-
-        return node
 
     def auto_release_features(self, agent: str) -> list[str]:
         """
@@ -1759,18 +1707,7 @@ class SessionManager:
         Returns:
             List of released feature IDs
         """
-        released = []
-        for collection in ["features", "bugs"]:
-            graph = self._get_graph(collection)
-            for node in graph:
-                if node.agent_assigned == agent:
-                    node.agent_assigned = None
-                    node.claimed_at = None
-                    node.claimed_by_session = None
-                    node.updated = datetime.now()
-                    graph.update(node)
-                    released.append(node.id)
-        return released
+        return self.claiming_service.auto_release_features(agent)
 
     def create_handoff(
         self,

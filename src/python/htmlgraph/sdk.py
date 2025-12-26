@@ -415,6 +415,9 @@ class SDK:
         """
         Identify tasks blocking the most downstream work.
 
+        Note: Prefer using sdk.dep_analytics.find_bottlenecks() directly.
+        This method exists for backward compatibility.
+
         Args:
             top_n: Maximum number of bottlenecks to return
 
@@ -423,15 +426,35 @@ class SDK:
 
         Example:
             >>> sdk = SDK(agent="claude")
+            >>> # Preferred approach
+            >>> bottlenecks = sdk.dep_analytics.find_bottlenecks(top_n=3)
+            >>> # Or via SDK (backward compatibility)
             >>> bottlenecks = sdk.find_bottlenecks(top_n=3)
             >>> for bn in bottlenecks:
-            ...     print(f"{bn['title']} blocks {bn['blocks_count']} tasks")
+            ...     print(f"{bn.title} blocks {bn.transitive_blocking} tasks")
         """
-        return self._agent_interface.find_bottlenecks(top_n=top_n)
+        bottlenecks = self.dep_analytics.find_bottlenecks(top_n=top_n)
+
+        # Convert to agent-friendly dict format for backward compatibility
+        return [
+            {
+                "id": bn.id,
+                "title": bn.title,
+                "status": bn.status,
+                "priority": bn.priority,
+                "blocks_count": bn.transitive_blocking,
+                "impact_score": bn.weighted_impact,
+                "blocked_tasks": bn.blocked_nodes[:5]
+            }
+            for bn in bottlenecks
+        ]
 
     def get_parallel_work(self, max_agents: int = 5) -> dict[str, Any]:
         """
         Find tasks that can be worked on simultaneously.
+
+        Note: Prefer using sdk.dep_analytics.find_parallelizable_work() directly.
+        This method exists for backward compatibility.
 
         Args:
             max_agents: Maximum number of parallel agents to plan for
@@ -441,15 +464,31 @@ class SDK:
 
         Example:
             >>> sdk = SDK(agent="claude")
+            >>> # Preferred approach
+            >>> report = sdk.dep_analytics.find_parallelizable_work(status="todo")
+            >>> # Or via SDK (backward compatibility)
             >>> parallel = sdk.get_parallel_work(max_agents=3)
             >>> print(f"Can work on {parallel['max_parallelism']} tasks at once")
             >>> print(f"Ready now: {parallel['ready_now']}")
         """
-        return self._agent_interface.get_parallel_work(max_agents=max_agents)
+        report = self.dep_analytics.find_parallelizable_work(status="todo")
+
+        ready_now = report.dependency_levels[0].nodes if report.dependency_levels else []
+
+        return {
+            "max_parallelism": report.max_parallelism,
+            "ready_now": ready_now[:max_agents],
+            "total_ready": len(ready_now),
+            "level_count": len(report.dependency_levels),
+            "next_level": report.dependency_levels[1].nodes if len(report.dependency_levels) > 1 else []
+        }
 
     def recommend_next_work(self, agent_count: int = 1) -> list[dict[str, Any]]:
         """
         Get smart recommendations for what to work on next.
+
+        Note: Prefer using sdk.dep_analytics.recommend_next_tasks() directly.
+        This method exists for backward compatibility.
 
         Considers priority, dependencies, and transitive impact.
 
@@ -461,16 +500,39 @@ class SDK:
 
         Example:
             >>> sdk = SDK(agent="claude")
+            >>> # Preferred approach
+            >>> recs = sdk.dep_analytics.recommend_next_tasks(agent_count=3)
+            >>> # Or via SDK (backward compatibility)
             >>> recs = sdk.recommend_next_work(agent_count=3)
             >>> for rec in recs:
             ...     print(f"{rec['title']} (score: {rec['score']})")
             ...     print(f"  Reasons: {rec['reasons']}")
         """
-        return self._agent_interface.recommend_next_work(agent_count=agent_count)
+        recommendations = self.dep_analytics.recommend_next_tasks(
+            agent_count=agent_count,
+            lookahead=5
+        )
+
+        return [
+            {
+                "id": rec.id,
+                "title": rec.title,
+                "priority": rec.priority,
+                "score": rec.score,
+                "reasons": rec.reasons,
+                "estimated_hours": rec.estimated_effort,
+                "unlocks_count": len(rec.unlocks),
+                "unlocks": rec.unlocks[:3]
+            }
+            for rec in recommendations.recommendations
+        ]
 
     def assess_risks(self) -> dict[str, Any]:
         """
         Assess dependency-related risks in the project.
+
+        Note: Prefer using sdk.dep_analytics.assess_dependency_risk() directly.
+        This method exists for backward compatibility.
 
         Identifies single points of failure, circular dependencies,
         and orphaned tasks.
@@ -480,15 +542,38 @@ class SDK:
 
         Example:
             >>> sdk = SDK(agent="claude")
+            >>> # Preferred approach
+            >>> risk = sdk.dep_analytics.assess_dependency_risk()
+            >>> # Or via SDK (backward compatibility)
             >>> risks = sdk.assess_risks()
             >>> if risks['high_risk_count'] > 0:
             ...     print(f"Warning: {risks['high_risk_count']} high-risk tasks")
         """
-        return self._agent_interface.assess_risks()
+        risk = self.dep_analytics.assess_dependency_risk()
+
+        return {
+            "high_risk_count": len(risk.high_risk),
+            "high_risk_tasks": [
+                {
+                    "id": node.id,
+                    "title": node.title,
+                    "risk_score": node.risk_score,
+                    "risk_factors": [f.description for f in node.risk_factors]
+                }
+                for node in risk.high_risk
+            ],
+            "circular_dependencies": risk.circular_dependencies,
+            "orphaned_count": len(risk.orphaned_nodes),
+            "orphaned_tasks": risk.orphaned_nodes[:5],
+            "recommendations": risk.recommendations
+        }
 
     def analyze_impact(self, node_id: str) -> dict[str, Any]:
         """
         Analyze the impact of completing a specific task.
+
+        Note: Prefer using sdk.dep_analytics.impact_analysis() directly.
+        This method exists for backward compatibility.
 
         Args:
             node_id: Task to analyze
@@ -498,10 +583,22 @@ class SDK:
 
         Example:
             >>> sdk = SDK(agent="claude")
+            >>> # Preferred approach
+            >>> impact = sdk.dep_analytics.impact_analysis("feature-001")
+            >>> # Or via SDK (backward compatibility)
             >>> impact = sdk.analyze_impact("feature-001")
             >>> print(f"Completing this unlocks {impact['unlocks_count']} tasks")
         """
-        return self._agent_interface.analyze_impact(node_id)
+        impact = self.dep_analytics.impact_analysis(node_id)
+
+        return {
+            "node_id": node_id,
+            "direct_dependents": impact.direct_dependents,
+            "total_impact": impact.transitive_dependents,
+            "completion_impact": impact.completion_impact,
+            "unlocks_count": len(impact.affected_nodes),
+            "affected_tasks": impact.affected_nodes[:10]
+        }
 
     def get_work_queue(
         self,
