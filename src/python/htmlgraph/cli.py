@@ -1481,6 +1481,73 @@ def cmd_transcript_insights(args):
             print(f"   {rec}")
 
 
+def cmd_transcript_export(args):
+    """Export transcript to HTML format."""
+    from pathlib import Path
+    from htmlgraph.transcript import TranscriptReader
+
+    reader = TranscriptReader()
+    transcript = reader.read_session(args.transcript_id)
+
+    if not transcript:
+        print(f"Transcript '{args.transcript_id}' not found.", file=sys.stderr)
+        sys.exit(1)
+
+    html = transcript.to_html(include_thinking=args.include_thinking)
+
+    if args.output:
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(html)
+        print(f"Exported to: {output_path}")
+    else:
+        print(html)
+
+
+def cmd_transcript_track_stats(args):
+    """Get aggregated transcript stats for a track."""
+    import json
+    from htmlgraph.transcript_analytics import TranscriptAnalytics
+
+    analytics = TranscriptAnalytics(args.graph_dir)
+    stats = analytics.get_track_stats(args.track_id)
+
+    if not stats:
+        print(f"Track '{args.track_id}' not found or has no transcript data.", file=sys.stderr)
+        sys.exit(1)
+
+    if args.format == "json":
+        print(json.dumps(stats.to_dict(), indent=2))
+    else:
+        print(f"📊 Track Transcript Stats: {args.track_id}")
+        print("=" * 50)
+        print(f"Sessions: {stats.session_count}")
+        print(f"User Messages: {stats.total_user_messages}")
+        print(f"Tool Calls: {stats.total_tool_calls}")
+        print(f"Total Duration: {stats._format_duration(stats.total_duration_seconds)}")
+        print(f"Avg Health: {stats.avg_session_health:.0%}")
+        print(f"Health Trend: {stats.health_trend}")
+        print(f"Anti-Patterns: {stats.anti_patterns_detected}")
+
+        if stats.tool_frequency:
+            print()
+            print("🔧 Top Tools:")
+            for tool, count in list(stats.tool_frequency.items())[:8]:
+                bar = "█" * min(count // 5, 15)
+                print(f"   {tool:15} {count:4} {bar}")
+
+        if stats.session_ids:
+            print()
+            print("📂 Sessions:")
+            for i, (sid, health) in enumerate(zip(stats.session_ids, stats.session_healths)):
+                print(f"   {sid[:20]:20} health: {health:.0%}")
+                if i >= 9:
+                    remaining = len(stats.session_ids) - 10
+                    if remaining > 0:
+                        print(f"   ... and {remaining} more sessions")
+                    break
+
+
 def cmd_track(args):
     """Track an activity in the current session."""
     from htmlgraph import SDK
@@ -2682,6 +2749,18 @@ curl Examples:
     transcript_insights.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
     transcript_insights.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
 
+    # transcript export (HTML export)
+    transcript_export = transcript_subparsers.add_parser("export", help="Export transcript to HTML format")
+    transcript_export.add_argument("transcript_id", help="Transcript/session ID to export")
+    transcript_export.add_argument("-o", "--output", help="Output file path (prints to stdout if not specified)")
+    transcript_export.add_argument("--include-thinking", action="store_true", help="Include thinking traces in output")
+
+    # transcript track-stats (track-level aggregation)
+    transcript_track = transcript_subparsers.add_parser("track-stats", help="Get aggregated transcript stats for a track")
+    transcript_track.add_argument("track_id", help="Track ID to aggregate")
+    transcript_track.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    transcript_track.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
     # =========================================================================
     # Work Management (Smart Routing)
     # =========================================================================
@@ -3059,6 +3138,10 @@ curl Examples:
             cmd_transcript_recommendations(args)
         elif args.transcript_command == "insights":
             cmd_transcript_insights(args)
+        elif args.transcript_command == "export":
+            cmd_transcript_export(args)
+        elif args.transcript_command == "track-stats":
+            cmd_transcript_track_stats(args)
         else:
             transcript_parser.print_help()
             sys.exit(1)

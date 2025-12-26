@@ -806,6 +806,114 @@ Example:
 
 ---
 
+## Claude Code Transcript Integration
+
+HtmlGraph integrates with Claude Code transcripts to capture development context and enable analytics.
+
+### What Are Transcripts?
+
+Claude Code stores conversation transcripts as JSONL files in:
+```
+~/.claude/projects/[encoded-path]/[session-uuid].jsonl
+```
+
+These contain:
+- User messages and assistant responses
+- Tool calls (Read, Write, Edit, Bash, etc.)
+- Thinking traces (optional)
+- Timestamps and session metadata
+- Git branch context
+
+### Why Transcripts Matter
+
+Transcripts capture the **reasoning** behind code changes:
+- **What was asked for** - Original user prompts
+- **What Claude suggested** - AI recommendations and alternatives
+- **Decisions made** - Why certain approaches were chosen
+- **Implementation context** - Claude's reasoning during development
+
+### CLI Commands
+
+```bash
+# List available transcripts
+uv run htmlgraph transcript list [--limit N]
+
+# Import a transcript session
+uv run htmlgraph transcript import SESSION_ID [--link-feature FEAT_ID]
+
+# Auto-link transcripts by git branch
+uv run htmlgraph transcript auto-link [--branch BRANCH]
+
+# Export transcript to HTML
+uv run htmlgraph transcript export SESSION_ID -o output.html
+
+# Get session health metrics
+uv run htmlgraph transcript health SESSION_ID
+
+# Detect workflow patterns
+uv run htmlgraph transcript patterns [--transcript-id ID]
+
+# Show tool transition matrix
+uv run htmlgraph transcript transitions
+
+# Get improvement recommendations
+uv run htmlgraph transcript recommendations
+
+# Comprehensive analytics
+uv run htmlgraph transcript insights
+
+# Track-level aggregation
+uv run htmlgraph transcript track-stats TRACK_ID
+```
+
+### Analytics Features
+
+**Session Health Scoring:**
+- Efficiency score (tool calls per user message)
+- Retry rate (consecutive same-tool usage)
+- Context rebuilds (repeated file reads)
+- Tool diversity (variety of tools used)
+
+**Pattern Detection:**
+- Anti-patterns: 4x Bash, 3x Edit, 3x Grep, 4x Read (repeated)
+- Optimal patterns: Grep→Read, Read→Edit, Edit→Bash
+
+**Track-Level Aggregation:**
+- Aggregate stats across all sessions in a track
+- Health trends (improving/stable/declining)
+- Combined tool frequency and transitions
+
+### PreToolUse Hook Integration
+
+HtmlGraph's PreToolUse hook provides real-time guidance based on transcript patterns:
+
+```python
+# Active learning from tool history
+ANTI_PATTERNS = {
+    ("Bash", "Bash", "Bash", "Bash"): "4 consecutive Bash commands. Check for errors.",
+    ("Edit", "Edit", "Edit"): "3 consecutive Edits. Consider batching.",
+}
+
+OPTIMAL_PATTERNS = {
+    ("Grep", "Read"): "Good: Search then read - efficient exploration.",
+    ("Read", "Edit"): "Good: Read then edit - informed changes.",
+}
+```
+
+The hook tracks tool usage and provides guidance (never blocks) to improve workflows.
+
+### HTML Export
+
+Export transcripts to browser-viewable HTML:
+
+```bash
+uv run htmlgraph transcript export SESSION_ID -o transcript.html --include-thinking
+```
+
+Compatible with [claude-code-transcripts](https://github.com/simonw/claude-code-transcripts) format.
+
+---
+
 ## Troubleshooting
 
 ### SDK not finding .htmlgraph directory

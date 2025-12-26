@@ -229,6 +229,119 @@ class TranscriptSession:
         """Check if session has any thinking traces."""
         return any(e.thinking for e in self.entries)
 
+    def to_html(self, include_thinking: bool = False) -> str:
+        """
+        Export transcript to HTML format.
+
+        Compatible with claude-code-transcripts format.
+
+        Args:
+            include_thinking: Include thinking traces in output
+
+        Returns:
+            HTML string of the transcript
+        """
+        import html as html_module
+
+        lines = [
+            "<!DOCTYPE html>",
+            '<html lang="en">',
+            "<head>",
+            '    <meta charset="UTF-8">',
+            '    <meta name="viewport" content="width=device-width, initial-scale=1.0">',
+            f"    <title>Claude Code Session: {self.session_id}</title>",
+            "    <style>",
+            "        body { font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; line-height: 1.6; }",
+            "        .metadata { background: #f5f5f5; padding: 1rem; border-radius: 8px; margin-bottom: 2rem; }",
+            "        .metadata dt { font-weight: bold; display: inline; }",
+            "        .metadata dd { display: inline; margin: 0 1rem 0 0; }",
+            "        .entry { margin-bottom: 1.5rem; padding: 1rem; border-radius: 8px; }",
+            "        .entry-user { background: #e3f2fd; border-left: 4px solid #1976d2; }",
+            "        .entry-assistant { background: #f3e5f5; border-left: 4px solid #7b1fa2; }",
+            "        .entry-tool { background: #e8f5e9; border-left: 4px solid #388e3c; }",
+            "        .entry-result { background: #fff3e0; border-left: 4px solid #f57c00; }",
+            "        .entry-header { display: flex; justify-content: space-between; margin-bottom: 0.5rem; }",
+            "        .entry-type { font-weight: bold; text-transform: capitalize; }",
+            "        .entry-time { color: #666; font-size: 0.875rem; }",
+            "        .entry-content { white-space: pre-wrap; font-family: inherit; }",
+            "        .tool-name { font-family: monospace; background: #e0e0e0; padding: 0.2rem 0.5rem; border-radius: 4px; }",
+            "        .tool-input { background: #f5f5f5; padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem; font-family: monospace; font-size: 0.875rem; overflow-x: auto; }",
+            "        .thinking { background: #fff8e1; padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem; font-style: italic; color: #666; }",
+            "        summary { cursor: pointer; font-weight: bold; }",
+            "        pre { margin: 0; white-space: pre-wrap; word-wrap: break-word; }",
+            "    </style>",
+            "</head>",
+            "<body>",
+            f'    <h1>Session: {html_module.escape(self.session_id[:20])}...</h1>',
+            "",
+            '    <dl class="metadata">',
+        ]
+
+        if self.cwd:
+            lines.append(f"        <dt>Directory:</dt><dd>{html_module.escape(self.cwd)}</dd>")
+        if self.git_branch:
+            lines.append(f"        <dt>Branch:</dt><dd>{html_module.escape(self.git_branch)}</dd>")
+        if self.started_at:
+            lines.append(f"        <dt>Started:</dt><dd>{self.started_at.isoformat()}</dd>")
+        if self.ended_at:
+            lines.append(f"        <dt>Ended:</dt><dd>{self.ended_at.isoformat()}</dd>")
+        if self.duration_seconds:
+            mins = int(self.duration_seconds // 60)
+            lines.append(f"        <dt>Duration:</dt><dd>{mins} minutes</dd>")
+
+        lines.append(f"        <dt>Messages:</dt><dd>{self.user_message_count}</dd>")
+        lines.append(f"        <dt>Tool Calls:</dt><dd>{self.tool_call_count}</dd>")
+        lines.append("    </dl>")
+        lines.append("")
+
+        # Output entries
+        for entry in self.entries:
+            entry_class = {
+                "user": "entry-user",
+                "assistant": "entry-assistant",
+                "tool_use": "entry-tool",
+                "tool_result": "entry-result",
+            }.get(entry.entry_type, "entry")
+
+            lines.append(f'    <div class="entry {entry_class}">')
+            lines.append('        <div class="entry-header">')
+
+            if entry.entry_type == "tool_use" and entry.tool_name:
+                lines.append(f'            <span class="entry-type">Tool: <span class="tool-name">{html_module.escape(entry.tool_name)}</span></span>')
+            else:
+                lines.append(f'            <span class="entry-type">{entry.entry_type}</span>')
+
+            lines.append(f'            <span class="entry-time">{entry.timestamp.strftime("%H:%M:%S")}</span>')
+            lines.append("        </div>")
+
+            # Content
+            if entry.message_content:
+                content = html_module.escape(entry.message_content)
+                lines.append(f'        <div class="entry-content">{content}</div>')
+
+            # Tool input
+            if entry.tool_input and entry.entry_type == "tool_use":
+                lines.append("        <details>")
+                lines.append("            <summary>Input</summary>")
+                input_str = json.dumps(entry.tool_input, indent=2)
+                lines.append(f'            <pre class="tool-input">{html_module.escape(input_str)}</pre>')
+                lines.append("        </details>")
+
+            # Thinking (if enabled)
+            if include_thinking and entry.thinking:
+                lines.append("        <details>")
+                lines.append("            <summary>Thinking</summary>")
+                lines.append(f'            <div class="thinking">{html_module.escape(entry.thinking)}</div>')
+                lines.append("        </details>")
+
+            lines.append("    </div>")
+            lines.append("")
+
+        lines.append("</body>")
+        lines.append("</html>")
+
+        return "\n".join(lines)
+
 
 class TranscriptReader:
     """

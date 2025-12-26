@@ -99,6 +99,56 @@ class TranscriptInsights:
     recommendations: list[str] = field(default_factory=list)
 
 
+@dataclass
+class TrackTranscriptStats:
+    """Aggregated transcript stats for a track (multi-session)."""
+    track_id: str
+    session_count: int
+    total_user_messages: int
+    total_tool_calls: int
+    total_duration_seconds: float
+
+    # Per-session breakdown
+    session_ids: list[str] = field(default_factory=list)
+    session_healths: list[float] = field(default_factory=list)
+
+    # Aggregated tool usage
+    tool_frequency: dict[str, int] = field(default_factory=dict)
+    tool_transitions: dict[str, dict[str, int]] = field(default_factory=dict)
+
+    # Patterns across sessions
+    common_patterns: list[WorkflowPattern] = field(default_factory=list)
+    anti_patterns_detected: int = 0
+
+    # Learning metrics
+    avg_session_health: float = 0.0
+    health_trend: str = "stable"  # "improving", "declining", "stable"
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for API responses."""
+        return {
+            "track_id": self.track_id,
+            "session_count": self.session_count,
+            "total_user_messages": self.total_user_messages,
+            "total_tool_calls": self.total_tool_calls,
+            "total_duration_seconds": self.total_duration_seconds,
+            "total_duration_formatted": self._format_duration(self.total_duration_seconds),
+            "session_ids": self.session_ids,
+            "tool_frequency": self.tool_frequency,
+            "avg_session_health": round(self.avg_session_health, 2),
+            "health_trend": self.health_trend,
+            "anti_patterns_detected": self.anti_patterns_detected,
+        }
+
+    def _format_duration(self, seconds: float) -> str:
+        """Format duration as human-readable string."""
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        if hours > 0:
+            return f"{hours}h {minutes}m"
+        return f"{minutes}m"
+
+
 class TranscriptAnalytics:
     """
     Analytics engine for Claude Code transcripts.
@@ -465,6 +515,146 @@ class TranscriptAnalytics:
                 transcripts.append(t)
 
         return transcripts
+
+    def get_track_stats(self, track_id: str) -> TrackTranscriptStats | None:
+        """
+        Get aggregated transcript stats for a track.
+
+        Aggregates transcript data across all sessions linked to the track.
+
+        Args:
+            track_id: Track ID to aggregate
+
+        Returns:
+            TrackTranscriptStats or None if track not found
+        """
+        from htmlgraph.graph import HtmlGraph
+        from htmlgraph.session_manager import SessionManager
+
+        session_mgr = SessionManager(self.graph_dir)
+
+        # Load the track using HtmlGraph
+        tracks_dir = self.graph_dir / "tracks"
+        if not tracks_dir.exists():
+            return None
+
+        try:
+            graph = HtmlGraph(tracks_dir, auto_load=True, pattern=["*.html", "*/index.html"])
+            track = graph.get(track_id)
+        except Exception:
+            return None
+
+        if not track:
+            return None
+
+        # Get session IDs from track (stored in edges or properties)
+        session_ids = track.edges.get("sessions", []) if hasattr(track, 'edges') else []
+        # Also check properties for sessions
+        if not session_ids and hasattr(track, 'properties'):
+            session_ids = track.properties.get("sessions", [])
+        if not session_ids:
+            # Return empty stats
+            return TrackTranscriptStats(
+                track_id=track_id,
+                session_count=0,
+                total_user_messages=0,
+                total_tool_calls=0,
+                total_duration_seconds=0.0,
+            )
+
+        # Aggregate stats from each session's transcript
+        total_user_messages = 0
+        total_tool_calls = 0
+        total_duration = 0.0
+        all_session_ids = []
+        session_healths = []
+        combined_tool_freq: Counter[str] = Counter()
+        combined_transitions: dict[str, dict[str, int]] = {}
+        anti_pattern_count = 0
+
+        for session_id in session_ids:
+            session = session_mgr.get_session(session_id)
+            if not session or not session.transcript_id:
+                continue
+
+            transcript = self.get_transcript(session.transcript_id)
+            if not transcript:
+                continue
+
+            all_session_ids.append(session_id)
+
+            # Count messages
+            user_msgs = [e for e in transcript.entries if e.entry_type == "user"]
+            tool_calls = [e for e in transcript.entries if e.tool_name]
+
+            total_user_messages += len(user_msgs)
+            total_tool_calls += len(tool_calls)
+
+            # Calculate duration
+            if transcript.entries and len(transcript.entries) >= 2:
+                first = transcript.entries[0].timestamp
+                last = transcript.entries[-1].timestamp
+                if first and last:
+                    total_duration += (last - first).total_seconds()
+
+            # Tool frequency
+            for entry in transcript.entries:
+                if entry.tool_name:
+                    combined_tool_freq[entry.tool_name] += 1
+
+            # Tool transitions
+            transitions = self.get_tool_transitions(session.transcript_id)
+            for from_tool, to_tools in transitions.items():
+                if from_tool not in combined_transitions:
+                    combined_transitions[from_tool] = {}
+                for to_tool, count in to_tools.items():
+                    combined_transitions[from_tool][to_tool] = (
+                        combined_transitions[from_tool].get(to_tool, 0) + count
+                    )
+
+            # Session health
+            health = self.calculate_session_health(session.transcript_id)
+            if health:
+                session_healths.append(health.overall_score())
+
+            # Anti-patterns
+            anti_patterns = self.detect_anti_patterns(session.transcript_id)
+            anti_pattern_count += sum(p[0].count for p in anti_patterns)
+
+        # Calculate averages and trends
+        avg_health = sum(session_healths) / len(session_healths) if session_healths else 0.0
+
+        # Calculate health trend (compare first half to second half)
+        health_trend = "stable"
+        if len(session_healths) >= 4:
+            mid = len(session_healths) // 2
+            first_half = sum(session_healths[:mid]) / mid
+            second_half = sum(session_healths[mid:]) / (len(session_healths) - mid)
+            diff = second_half - first_half
+            if diff > 0.1:
+                health_trend = "improving"
+            elif diff < -0.1:
+                health_trend = "declining"
+
+        # Detect common patterns across sessions
+        patterns = self.detect_patterns()
+        optimal_patterns = [p for p in patterns if p.category == "optimal"][:5]
+
+        return TrackTranscriptStats(
+            track_id=track_id,
+            session_count=len(all_session_ids),
+            total_user_messages=total_user_messages,
+            total_tool_calls=total_tool_calls,
+            total_duration_seconds=total_duration,
+            session_ids=all_session_ids,
+            session_healths=session_healths,
+            tool_frequency=dict(combined_tool_freq.most_common()),
+            tool_transitions=combined_transitions,
+            common_patterns=optimal_patterns,
+            anti_patterns_detected=anti_pattern_count,
+            avg_session_health=avg_health,
+            health_trend=health_trend,
+        )
 
     def _categorize_pattern(self, sequence: list[str]) -> str:
         """Categorize a pattern as optimal, anti-pattern, or neutral."""
