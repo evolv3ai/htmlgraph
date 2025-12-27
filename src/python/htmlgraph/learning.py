@@ -43,8 +43,7 @@ class LearningPersistence:
         health = self._calculate_health(session)
 
         # Create insight
-        insight = self.sdk.insights.builder() \
-            .title(f"Session Analysis: {session_id}") \
+        insight = self.sdk.insights.create(f"Session Analysis: {session_id}") \
             .for_session(session_id) \
             .set_health_scores(
                 efficiency=health.get("efficiency", 0.0),
@@ -170,8 +169,7 @@ class LearningPersistence:
                 else:
                     # Create new pattern
                     pattern_type = self._classify_pattern(list(seq))
-                    pattern = self.sdk.patterns.builder() \
-                        .title(f"Pattern: {' -> '.join(seq)}") \
+                    pattern = self.sdk.patterns.create(f"Pattern: {' -> '.join(seq)}") \
                         .set_sequence(list(seq)) \
                         .set_pattern_type(pattern_type) \
                         .save()
@@ -252,12 +250,15 @@ class LearningPersistence:
             return None
 
         # Calculate aggregate metrics
-        efficiency_scores = [i.efficiency_score for i in period_insights if i.efficiency_score]
+        efficiency_scores = [
+            getattr(i, 'efficiency_score', 0.0)
+            for i in period_insights
+            if getattr(i, 'efficiency_score', None)
+        ]
         avg_efficiency = sum(efficiency_scores) / len(efficiency_scores) if efficiency_scores else 0.0
 
         # Create metric
-        metric = self.sdk.metrics.builder() \
-            .title(f"Efficiency Metric: {period} ending {end.strftime('%Y-%m-%d')}") \
+        metric = self.sdk.metrics.create(f"Efficiency Metric: {period} ending {end.strftime('%Y-%m-%d')}") \
             .set_scope("session") \
             .set_period(period, start, end) \
             .set_metrics({
@@ -266,12 +267,14 @@ class LearningPersistence:
             }) \
             .save()
 
-        # Add sessions
-        for insight in period_insights:
-            if hasattr(insight, 'session_id') and insight.session_id:
-                metric.sessions_in_period.append(insight.session_id)
-
-        metric.data_points_count = len(period_insights)
+        # Note: After save(), metric is a Node object
+        # The sessions_in_period is tracked in metric_values
+        metric.properties = metric.properties or {}
+        metric.properties["data_points_count"] = len(period_insights)
+        metric.properties["sessions_in_period"] = [
+            getattr(i, 'session_id', i.id) for i in period_insights
+            if hasattr(i, 'session_id') or hasattr(i, 'id')
+        ]
         self.sdk.metrics.update(metric)
 
         return metric.id
