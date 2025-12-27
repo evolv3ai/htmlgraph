@@ -15,10 +15,8 @@ import time
 from collections import defaultdict, deque
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime
-from functools import lru_cache
 from pathlib import Path
 from typing import Any
 

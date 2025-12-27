@@ -12,7 +12,6 @@ from pathlib import Path
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
-
 # Collection-specific file patterns for smart filtering
 COLLECTION_PATTERNS = {
     "features": ["feat-*.html", "feature-*.html"],

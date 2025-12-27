@@ -7,12 +7,13 @@ This module now provides TrackCollection and re-exports TrackBuilder for backwar
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from htmlgraph.sdk import SDK
     from htmlgraph.models import Node
+    from htmlgraph.sdk import SDK
 
 # Import TrackBuilder from its new location
 from htmlgraph.builders.track import TrackBuilder  # noqa: F401
