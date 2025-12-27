@@ -6,9 +6,10 @@ Analyzes sessions and persists patterns, insights, and metrics to the graph.
 """
 
 from __future__ import annotations
+
+from collections import Counter
 from datetime import datetime
 from typing import TYPE_CHECKING
-from collections import Counter
 
 if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
@@ -24,7 +25,7 @@ class LearningPersistence:
         >>> learning.persist_patterns()
     """
 
-    def __init__(self, sdk: "SDK"):
+    def __init__(self, sdk: SDK):
         self.sdk = sdk
 
     def persist_session_insight(self, session_id: str) -> str | None:
@@ -36,15 +37,18 @@ class LearningPersistence:
         Returns:
             Insight ID if created, None if session not found
         """
-        session = self.sdk.sessions.get(session_id)
+        # Use session_manager to get full Session object with activity_log
+        # (sdk.sessions.get returns generic Node without activity_log)
+        session = self.sdk.session_manager.get_session(session_id)
         if not session:
             return None
 
         # Calculate health metrics from activity log
         health = self._calculate_health(session)
 
-        # Create insight
-        insight = (
+        # Create insight using builder pattern
+        # Add issues and recommendations BEFORE save() since Node objects are immutable
+        builder = (
             self.sdk.insights.create(f"Session Analysis: {session_id}")
             .for_session(session_id)
             .set_health_scores(
@@ -54,21 +58,18 @@ class LearningPersistence:
                 tool_diversity=health.get("tool_diversity", 0.0),
                 error_recovery=health.get("error_recovery", 0.0),
             )
-            .save()
         )
 
-        # Add issues
+        # Add issues via builder
         for issue in health.get("issues", []):
-            insight.issues_detected.append(issue)
+            builder.add_issue(issue)
 
-        # Add recommendations
+        # Add recommendations via builder
         for rec in health.get("recommendations", []):
-            insight.recommendations.append(rec)
+            builder.add_recommendation(rec)
 
-        # Update insight
-        if health.get("issues") or health.get("recommendations"):
-            self.sdk.insights.update(insight)
-
+        # Save and return
+        insight = builder.save()
         return insight.id
 
     def _calculate_health(self, session) -> dict:
@@ -158,9 +159,10 @@ class LearningPersistence:
             List of persisted pattern IDs
         """
         # Collect tool sequences from all sessions
+        # Use session_manager to get full Session objects with activity_log
         sequences = []
-        for session in self.sdk.sessions.all():
-            if hasattr(session, "activity_log") and session.activity_log:
+        for session in self.sdk.session_manager.session_converter.load_all():
+            if session.activity_log:
                 tools = [
                     a.tool if hasattr(a, "tool") else a.get("tool", "")
                     for a in session.activity_log
@@ -181,25 +183,25 @@ class LearningPersistence:
                 # Check if pattern already exists
                 existing = self.sdk.patterns.find_by_sequence(list(seq))
                 if existing:
-                    # Update count
+                    # Update count - use properties dict for updates
                     pattern = existing[0]
-                    pattern.detection_count = count
-                    pattern.last_detected = datetime.now()
+                    pattern.properties["detection_count"] = count
+                    pattern.properties["last_detected"] = datetime.now().isoformat()
                     self.sdk.patterns.update(pattern)
                     pattern_ids.append(pattern.id)
                 else:
-                    # Create new pattern
+                    # Create new pattern using builder methods
                     pattern_type = self._classify_pattern(list(seq))
+                    now = datetime.now()
                     pattern = (
                         self.sdk.patterns.create(f"Pattern: {' -> '.join(seq)}")
                         .set_sequence(list(seq))
                         .set_pattern_type(pattern_type)
+                        .set_detection_count(count)
+                        .set_first_detected(now)
+                        .set_last_detected(now)
                         .save()
                     )
-                    pattern.detection_count = count
-                    pattern.first_detected = datetime.now()
-                    pattern.last_detected = datetime.now()
-                    self.sdk.patterns.update(pattern)
                     pattern_ids.append(pattern.id)
 
         return pattern_ids
@@ -316,7 +318,7 @@ class LearningPersistence:
         return metric.id
 
 
-def auto_persist_on_session_end(sdk: "SDK", session_id: str) -> dict:
+def auto_persist_on_session_end(sdk: SDK, session_id: str) -> dict:
     """Convenience function to auto-persist learning data when session ends.
 
     Returns:

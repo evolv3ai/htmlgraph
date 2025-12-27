@@ -7,10 +7,11 @@ tracking optimal and anti-pattern tool sequences.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from htmlgraph.models import Node
+    from htmlgraph.models import Pattern
     from htmlgraph.sdk import SDK
 
 from htmlgraph.builders.base import BaseBuilder
@@ -124,7 +125,46 @@ class PatternBuilder(BaseBuilder["PatternBuilder"]):
         self._data["detection_count"] = self._data.get("detection_count", 0) + 1
         return self
 
-    def save(self) -> Node:
+    def set_detection_count(self, count: int) -> PatternBuilder:
+        """
+        Set detection count directly.
+
+        Args:
+            count: Number of times pattern was detected
+
+        Returns:
+            Self for method chaining
+        """
+        self._data["detection_count"] = count
+        return self
+
+    def set_first_detected(self, dt: datetime) -> PatternBuilder:
+        """
+        Set first detection timestamp.
+
+        Args:
+            dt: Timestamp of first detection
+
+        Returns:
+            Self for method chaining
+        """
+        self._data["first_detected"] = dt
+        return self
+
+    def set_last_detected(self, dt: datetime) -> PatternBuilder:
+        """
+        Set last detection timestamp.
+
+        Args:
+            dt: Timestamp of last detection
+
+        Returns:
+            Self for method chaining
+        """
+        self._data["last_detected"] = dt
+        return self
+
+    def save(self) -> Pattern:
         """
         Save the pattern and return the Node instance.
 
@@ -141,10 +181,10 @@ class PatternBuilder(BaseBuilder["PatternBuilder"]):
                 title=self._data.get("title", ""),
             )
 
-        # Import Node here to avoid circular imports
-        from htmlgraph.models import Node
+        # Import Pattern here to avoid circular imports
+        from htmlgraph.models import Pattern
 
-        node = Node(**self._data)
+        node = Pattern(**self._data)
 
         # Save to the patterns collection
         if hasattr(self._sdk, "patterns") and self._sdk.patterns is not None:
