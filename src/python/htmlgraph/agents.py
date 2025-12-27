@@ -1,10 +1,76 @@
 """
-Agent interface for HtmlGraph.
+Agent interface for simplified task management.
 
-Provides a simplified API for AI agents with:
-- Lightweight context generation
-- Task claiming and completion
-- Progress tracking
+IMPERATIVE USAGE INSTRUCTIONS
+=============================
+
+The AgentInterface provides lightweight task claiming and progress tracking.
+
+TASK LIFECYCLE
+==============
+
+1. CLAIM A TASK
+   ```python
+   from htmlgraph.agents import AgentInterface
+
+   agent = AgentInterface("features/")
+   task = agent.get_next_task(
+       agent_id="claude",
+       priority="high",  # Optional filter
+       auto_claim=True   # Automatically claim the task
+   )
+   ```
+
+2. WORK ON TASK
+   ```python
+   # Get lightweight context for LLM
+   context = agent.get_context(task.id)
+   # Returns: "# feature-001: Title\\nStatus: in-progress..."
+
+   # Complete steps as you work
+   agent.complete_step(task.id, step_index=0, agent_id="claude")
+   agent.complete_step(task.id, step_index=1, agent_id="claude")
+   ```
+
+3. COMPLETE TASK
+   ```python
+   agent.complete_task(task.id, agent_id="claude")
+   ```
+
+4. IF BLOCKED
+   ```python
+   agent.release_task(task.id, agent_id="claude")
+   # Task becomes available for other agents
+   ```
+
+DISCOVERY METHODS
+=================
+
+| Method | Purpose |
+|--------|---------|
+| `get_available_tasks()` | Find all matching tasks |
+| `get_next_task()` | Get single next task |
+| `get_blocked_tasks()` | Find blocked work |
+| `get_in_progress_tasks()` | Get agent's active work |
+
+ANTI-PATTERNS
+=============
+
+NEVER:
+- Work on unclaimed tasks
+- Skip step completion updates
+- Leave tasks in-progress when blocked
+
+ALWAYS:
+- Claim before working
+- Update progress incrementally
+- Release if you can't complete
+
+Available Classes
+=================
+
+AgentInterface: Simplified interface for task management
+AgentRegistry: Capability-based agent routing
 """
 
 from datetime import datetime

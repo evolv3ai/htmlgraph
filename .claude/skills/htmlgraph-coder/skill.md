@@ -127,3 +127,60 @@ Task: Add a new method to the User class
 4. Run `pytest tests/test_user.py`
 5. Fix any failures
 6. Report: Summary, files modified, test results, COMPLETE
+
+---
+
+## SDK INTEGRATION (IMPERATIVE)
+
+You MUST use the HtmlGraph SDK for all work tracking. Follow these steps exactly:
+
+### 1. AT START OF IMPLEMENTATION
+
+```python
+from htmlgraph import SDK
+sdk = SDK(agent="claude")
+
+# Get context from orchestrator
+feature = sdk.features.get("feat-XXXXX")  # Use ID from your prompt
+if feature:
+    sdk.features.start(feature.id)
+```
+
+### 2. AFTER EACH MAJOR STEP
+
+```python
+# Mark step complete when done
+with sdk.features.edit(feature.id) as f:
+    f.complete_step(0)  # Step index from feature.steps
+```
+
+### 3. WHEN IMPLEMENTATION COMPLETE
+
+```python
+# Mark feature complete
+sdk.features.complete(feature.id)
+```
+
+### 4. IF YOU ENCOUNTER BLOCKERS
+
+```python
+# Report blockers
+with sdk.features.edit(feature.id) as f:
+    f.status = "blocked"
+    f.add_note("Blocked by: [reason]")
+```
+
+### 5. SDK METHODS YOU SHOULD USE
+
+| Method | When to Use |
+|--------|-------------|
+| `sdk.features.get(id)` | Get feature context at start |
+| `sdk.features.start(id)` | Mark work as in-progress |
+| `sdk.features.complete(id)` | Mark work as done |
+| `sdk.features.edit(id)` | Update steps, add notes |
+| `sdk.bugs.create(title)` | Report new bugs found during implementation |
+
+### NEVER:
+- Edit .htmlgraph/*.html files directly
+- Skip progress updates
+- Forget to mark work complete

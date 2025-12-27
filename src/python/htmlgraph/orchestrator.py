@@ -1,48 +1,86 @@
 """
-Subagent Orchestrator for spawning specialized explorer and coder agents.
+SubagentOrchestrator for context-preserving delegation.
 
-This module enables the main agent to delegate work to specialized subagents,
-preserving context for orchestration decisions while subagents handle detailed
-exploration and coding tasks. This pattern optimizes context usage and allows
-more tasks to be completed before the main session context fills up.
+IMPERATIVE USAGE INSTRUCTIONS
+=============================
 
-Available Classes:
-    - SubagentType: Enum of specialized subagent types (EXPLORER, CODER, REVIEWER, TESTER)
-    - SubagentPrompt: Prepared prompt for spawning a subagent via Task tool
-    - SubagentResult: Parsed result from a subagent execution
-    - SubagentOrchestrator: Main orchestrator for spawning and managing subagents
+As an orchestrator, you MUST follow these steps:
 
-Key Patterns:
-    1. Two-phase workflow: Explorer discovers → Coder implements
-    2. Stateless subagents: Each spawned agent is ephemeral and task-focused
-    3. Context efficiency: Main session reserves context for orchestration
-    4. Parallel execution: Multiple subagents can work simultaneously
+1. INITIALIZE
+   ```python
+   from htmlgraph import SDK
+   sdk = SDK(agent="claude")
+   ```
 
-Usage:
-    from htmlgraph import SDK
-    from htmlgraph.orchestrator import SubagentOrchestrator
+2. SPAWN EXPLORER (for codebase discovery)
+   ```python
+   explorer = sdk.spawn_explorer(
+       task="Find all API endpoints",
+       scope="src/api/"
+   )
+   # Use with Task tool:
+   # Task(prompt=explorer["prompt"], subagent_type=explorer["subagent_type"])
+   ```
 
-    sdk = SDK(agent="claude")
-    orchestrator = SubagentOrchestrator(sdk)
+3. SPAWN CODER (for implementation)
+   ```python
+   coder = sdk.spawn_coder(
+       feature_id="feat-123",
+       context="Explorer found endpoints in src/api/routes.py",
+       test_command="uv run pytest"
+   )
+   # Use with Task tool:
+   # Task(prompt=coder["prompt"], subagent_type=coder["subagent_type"])
+   ```
 
-    # Phase 1: Spawn explorer for codebase discovery
-    explorer_prompt = orchestrator.spawn_explorer(
-        task="Find all API endpoints",
-        scope="src/",
-        patterns=["**/*.py"]
-    )
-    # Use with Task tool: Task(prompt=explorer_prompt, ...)
+4. FULL ORCHESTRATION (explore + implement)
+   ```python
+   prompts = sdk.orchestrate(
+       feature_id="feat-123",
+       exploration_scope="src/",
+       test_command="uv run pytest"
+   )
+   # Returns: {"explorer": {...}, "coder": {...}}
+   ```
 
-    # Phase 2: Spawn coder for implementation
-    coder_prompt = orchestrator.spawn_coder(
-        feature_id="feat-123",
-        context=explorer_results,
-        test_command="uv run pytest"
-    )
+DECISION GUIDE
+==============
 
-    # Parse and update from results
-    result = orchestrator.parse_coder_result(coder_output)
-    orchestrator.update_feature_from_result("feat-123", result)
+| Scenario | Method |
+|----------|--------|
+| Unknown codebase | spawn_explorer first, then spawn_coder |
+| Known codebase | spawn_coder directly |
+| Complex feature | orchestrate for full workflow |
+| Multiple features | spawn_coder in parallel |
+
+ANTI-PATTERNS
+=============
+
+NEVER:
+- Implement without exploration on unknown codebases
+- Spawn coder without feature_id (create feature first!)
+- Edit code yourself when you should delegate
+
+ALWAYS:
+- Create work item before spawning coder
+- Pass explorer context to coder
+- Let subagents do the heavy lifting
+
+Available Classes
+=================
+
+SubagentType: Enum of subagent types (EXPLORER, CODER, REVIEWER, TESTER)
+SubagentPrompt: Prepared prompt for spawning subagent via Task tool
+SubagentResult: Parsed results from subagent execution
+SubagentOrchestrator: Main orchestration class
+
+Key Patterns
+============
+
+1. Two-phase workflow: Explorer discovers → Coder implements
+2. Stateless subagents: Each spawned agent is ephemeral and task-focused
+3. Context efficiency: Main session reserves context for orchestration
+4. Parallel execution: Multiple subagents can work simultaneously
 """
 
 from __future__ import annotations
