@@ -90,9 +90,48 @@ print('  Analytics:')
 print('    sdk.find_bottlenecks()              # Find blocked items')
 print('    sdk.recommend_next_work()           # Get suggestions')
 print('    sdk.get_parallel_work(max_agents)   # Parallelizable tasks')
+print('  Learning:')
+print('    sdk.patterns.get_anti_patterns()   # Patterns to avoid')
+print('    sdk.insights.get_low_efficiency()  # Sessions needing improvement')
+print('    LearningPersistence(sdk).persist_session_insight(id)  # Save insights')
 print('  Help:')
 print('    sdk.help()                          # Show all methods')
 print('    sdk.help(\"features\")               # Topic-specific help')
+
+# Learning insights section
+print()
+print('LEARNING INSIGHTS:')
+
+try:
+    # Check for anti-patterns
+    anti_patterns = list(sdk.patterns.where(pattern_type=\"anti-pattern\"))
+    if anti_patterns:
+        print('  ⚠️  Anti-patterns to avoid:')
+        for p in anti_patterns[:2]:
+            seq = getattr(p, 'sequence', [])
+            print(f'      - {\" -> \".join(seq)}')
+
+    # Check recent efficiency
+    insights = list(sdk.insights.all())
+    if insights:
+        recent = insights[0]
+        eff = getattr(recent, 'efficiency_score', 0)
+        if eff > 0:
+            print(f'  📊 Last session efficiency: {eff:.0%}')
+            issues = getattr(recent, 'issues_detected', [])
+            for issue in issues[:2]:
+                print(f'      💡 {issue}')
+
+    # Show optimal patterns
+    optimal = list(sdk.patterns.where(pattern_type=\"optimal\"))
+    if optimal:
+        print('  ✅ Optimal patterns:')
+        for p in optimal[:2]:
+            seq = getattr(p, 'sequence', [])
+            print(f'      - {\" -> \".join(seq)}')
+except Exception as e:
+    print(f'  (Learning data not available: {e})')
+
 print()
 " 2>/dev/null || echo "SDK not available"
 

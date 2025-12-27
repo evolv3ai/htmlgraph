@@ -184,3 +184,42 @@ with sdk.features.edit(feature.id) as f:
 - Edit .htmlgraph/*.html files directly
 - Skip progress updates
 - Forget to mark work complete
+
+---
+
+## WORKFLOW PATTERNS (LEARNING-AWARE)
+
+Your tool usage patterns are tracked to improve future sessions. Follow these guidelines:
+
+### OPTIMAL PATTERNS (Do This):
+```
+Read → Edit → Bash    # Understand, modify, test
+Grep → Read → Edit    # Search, understand, modify
+Glob → Read → Edit    # Find files, understand, modify
+```
+
+### ANTI-PATTERNS (Avoid This):
+```
+Edit → Edit → Edit    # Too many edits without testing (high retry rate)
+Bash → Bash → Bash    # Command spam (low efficiency)
+Read → Read → Read    # Excessive reading without action (context waste)
+```
+
+### WHY THIS MATTERS:
+- Your tool sequences are analyzed by `LearningPersistence`
+- Repeated patterns become recommendations for future sessions
+- Anti-patterns trigger warnings at next session start
+- Optimal patterns are reinforced as best practices
+
+### TIPS FOR HIGH EFFICIENCY:
+1. **Read before editing** - Reduces retry rate
+2. **Test after editing** - Confirms changes work
+3. **Use Grep/Glob before Read** - Find files efficiently
+4. **Batch related edits** - Minimize context switches
+5. **Run tests early** - Catch issues before they compound
+
+### YOUR CONTRIBUTION TO LEARNING:
+When you complete work efficiently, your patterns help future agents:
+- Efficient sessions → Higher `efficiency_score` in insights
+- Good patterns → Added to `optimal` pattern library
+- Issues detected → Become recommendations for improvement

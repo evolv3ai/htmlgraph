@@ -292,6 +292,74 @@ sdk.end_session(
 
 ---
 
+## LEARNING & IMPROVEMENT (IMPERATIVE)
+
+The HtmlGraph SDK includes an Active Learning system that learns from your sessions. Use it to improve over time.
+
+### AT SESSION START - Check Insights:
+```python
+from htmlgraph import SDK, LearningPersistence
+
+sdk = SDK(agent="claude")
+
+# Check for anti-patterns from previous sessions
+anti_patterns = list(sdk.patterns.get_anti_patterns())
+if anti_patterns:
+    print("⚠️ Avoid these patterns:")
+    for p in anti_patterns[:3]:
+        print(f"  - {p.sequence}: {p.recommendation}")
+
+# Check for low efficiency sessions
+low_eff = sdk.insights.get_low_efficiency(threshold=0.7)
+if low_eff:
+    print("💡 Previous session issues:")
+    for i in low_eff[:3]:
+        for issue in i.issues_detected:
+            print(f"  - {issue}")
+```
+
+### AT SESSION END - Persist Learning:
+```python
+from htmlgraph import LearningPersistence
+
+learning = LearningPersistence(sdk)
+
+# Analyze this session
+learning.persist_session_insight(session_id)
+
+# Detect new patterns
+learning.persist_patterns()
+
+# Update weekly metrics
+learning.persist_metrics(period="weekly")
+```
+
+### LEARN FROM PATTERNS:
+
+| Pattern Type | What It Means | Action |
+|--------------|---------------|--------|
+| `optimal` | Efficient workflow | Keep doing this |
+| `anti-pattern` | Wasteful workflow | Avoid this sequence |
+| `neutral` | Neither good nor bad | Monitor for trends |
+
+### COMMON ANTI-PATTERNS TO AVOID:
+- `["Edit", "Edit", "Edit"]` - Too many edits without testing
+- `["Bash", "Bash", "Bash"]` - Command spam without checking results
+- `["Read", "Read", "Read"]` - Excessive reading without action
+
+### OPTIMAL PATTERNS TO FOLLOW:
+- `["Read", "Edit", "Bash"]` - Understand, modify, test
+- `["Grep", "Read", "Edit"]` - Search, understand, modify
+- `["Glob", "Read", "Edit"]` - Find files, understand, modify
+
+### CONTINUOUS IMPROVEMENT:
+1. Check `sdk.insights.all()` for session health trends
+2. Monitor `sdk.metrics.get_latest()` for weekly efficiency
+3. Query `sdk.patterns.get_optimal_patterns()` for best practices
+4. Use insights to guide subagent prompts
+
+---
+
 ## Anti-Patterns to Avoid
 
 1. **Don't fill context with exploration**: Delegate to explorer subagent
