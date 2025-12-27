@@ -2213,23 +2213,41 @@ class SessionManager:
         if agent:
             sessions = [s for s in sessions if s.agent == agent]
 
+        # Helper to normalize datetimes for comparison
+        # (handles timezone-aware vs timezone-naive)
+        def normalize_dt(dt: datetime | None) -> datetime | None:
+            if dt is None:
+                return None
+            # If timezone-aware, convert to naive UTC
+            if dt.tzinfo is not None:
+                from datetime import timezone
+
+                return dt.astimezone(timezone.utc).replace(tzinfo=None)
+            return dt
+
         # Match by time overlap and git branch
         for transcript in transcripts:
             if not transcript.started_at:
                 continue
+
+            transcript_start = normalize_dt(transcript.started_at)
+            transcript_end = normalize_dt(transcript.ended_at)
 
             for session in sessions:
                 # Skip if already linked
                 if session.transcript_id:
                     continue
 
+                session_start = normalize_dt(session.started_at)
+                session_end = normalize_dt(session.ended_at)
+
                 # Check if session overlaps with transcript time
-                if session.started_at and transcript.ended_at:
-                    if session.started_at > transcript.ended_at:
+                if session_start and transcript_end:
+                    if session_start > transcript_end:
                         continue  # Session started after transcript ended
 
-                if session.ended_at and transcript.started_at:
-                    if session.ended_at < transcript.started_at:
+                if session_end and transcript_start:
+                    if session_end < transcript_start:
                         continue  # Session ended before transcript started
 
                 # Link them
