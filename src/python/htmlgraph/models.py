@@ -1040,8 +1040,8 @@ class Session(BaseModel):
         """
         events = self.get_events(limit=None, events_dir=events_dir)
 
-        by_tool = {}
-        by_feature = {}
+        by_tool: dict[str, int] = {}
+        by_feature: dict[str, int] = {}
 
         for evt in events:
             # Count by tool

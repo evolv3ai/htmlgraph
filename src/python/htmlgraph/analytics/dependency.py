@@ -281,7 +281,7 @@ class DependencyAnalytics:
             in_degree[node.id] = count
 
         levels = []
-        processed = set()
+        processed: set[str] = set()
 
         while len(processed) < len(node_ids):
             # Find all nodes with in-degree 0 (no unprocessed dependencies)
@@ -751,7 +751,7 @@ class DependencyAnalytics:
 
         return dependents_set
 
-    def invalidate_cache(self):
+    def invalidate_cache(self) -> None:
         """
         Clear the transitive dependency cache.
 

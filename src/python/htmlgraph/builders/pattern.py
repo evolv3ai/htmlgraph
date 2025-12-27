@@ -8,7 +8,7 @@ tracking optimal and anti-pattern tool sequences.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from htmlgraph.models import Pattern
@@ -37,7 +37,7 @@ class PatternBuilder(BaseBuilder["PatternBuilder"]):
 
     node_type = "pattern"
 
-    def __init__(self, sdk: SDK, title: str, **kwargs):
+    def __init__(self, sdk: SDK, title: str, **kwargs: Any):
         """Initialize pattern builder with pattern-specific defaults."""
         super().__init__(sdk, title, **kwargs)
         # Set pattern-specific defaults

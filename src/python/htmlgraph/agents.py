@@ -200,7 +200,9 @@ class AgentInterface:
         if auto_claim and agent_id:
             self.claim_task(task.id, agent_id)
             # Reload to get updated state
-            task = self.graph.get(task.id)
+            reloaded_task = self.graph.get(task.id)
+            if reloaded_task:
+                task = reloaded_task
 
         return task
 
@@ -256,10 +258,11 @@ class AgentInterface:
         # Sort by capability match quality
         agent_caps = set(agent_capabilities)
 
-        def capability_score(node: Node) -> tuple[int, str]:
-            """Return (negative_exact_matches, priority) for sorting."""
+        def capability_score(node: Node) -> tuple[int, int]:
+            """Return (negative_exact_matches, priority_order) for sorting."""
             if not node.required_capabilities:
-                return (0, node.priority)
+                priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+                return (0, priority_order.get(node.priority, 99))
             exact_matches = len(set(node.required_capabilities) & agent_caps)
             # Sort by exact matches (descending), then by priority
             priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
@@ -297,7 +300,9 @@ class AgentInterface:
         if auto_claim and agent_id:
             self.claim_task(task.id, agent_id)
             # Reload to get updated state
-            task = self.graph.get(task.id)
+            reloaded_task = self.graph.get(task.id)
+            if reloaded_task:
+                task = reloaded_task
 
         return task
 
@@ -923,9 +928,10 @@ class AgentInterface:
             Tuple of (agent_id, score) or None if no match
         """
         # Get candidate agents
+        agents: list[AgentProfile]
         if candidate_agents:
-            agents = [self.registry.get(aid) for aid in candidate_agents]
-            agents = [a for a in agents if a and a.active]
+            agents_maybe = [self.registry.get(aid) for aid in candidate_agents]
+            agents = [a for a in agents_maybe if a and a.active]
         else:
             # Find capable agents based on requirements
             required_caps = getattr(task, "required_capabilities", None)
@@ -1005,7 +1011,10 @@ class AgentInterface:
                 )
 
         # Sort by score (highest first)
-        queue.sort(key=lambda x: x["score"], reverse=True)
+        queue.sort(
+            key=lambda x: float(x["score"]) if x["score"] is not None else 0.0,
+            reverse=True,
+        )
 
         return queue[:limit]
 

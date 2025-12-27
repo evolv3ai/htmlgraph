@@ -504,7 +504,7 @@ class SessionManager:
         if not sessions:
             return None
 
-        def sort_key(session: Session):
+        def sort_key(session: Session) -> datetime:
             if session.ended_at:
                 return session.ended_at
             if session.last_activity:
@@ -1220,7 +1220,7 @@ class SessionManager:
         recent_tools = [a.tool for a in feature_activities[-10:]]
         if len(recent_tools) >= 6:
             # Check for repetitive patterns
-            tool_counts = {}
+            tool_counts: dict[str, int] = {}
             for t in recent_tools:
                 tool_counts[t] = tool_counts.get(t, 0) + 1
             max_repeat = max(tool_counts.values())
@@ -2095,7 +2095,7 @@ class SessionManager:
         session_id: str,
         transcript_session: Any,  # TranscriptSession from transcript module
         overwrite: bool = False,
-    ) -> dict[str, int]:
+    ) -> dict[str, int | str]:
         """
         Import events from a Claude Code transcript into an HtmlGraph session.
 

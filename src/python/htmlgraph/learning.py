@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
@@ -70,11 +70,11 @@ class LearningPersistence:
 
         # Save and return
         insight = builder.save()
-        return insight.id
+        return cast(str, insight.id)
 
-    def _calculate_health(self, session) -> dict:
+    def _calculate_health(self, session: Any) -> dict[str, Any]:
         """Calculate health metrics from session activity log."""
-        health = {
+        health: dict[str, Any] = {
             "efficiency": 0.8,  # Default reasonable value
             "retry_rate": 0.0,
             "context_rebuilds": 0,
@@ -160,7 +160,7 @@ class LearningPersistence:
         """
         # Collect tool sequences from all sessions
         # Use session_manager to get full Session objects with activity_log
-        sequences = []
+        sequences: list[tuple[Any, ...]] = []
         for session in self.sdk.session_manager.session_converter.load_all():
             if session.activity_log:
                 tools = [
@@ -177,8 +177,8 @@ class LearningPersistence:
         seq_counts = Counter(sequences)
 
         # Persist patterns with min_count
-        pattern_ids = []
-        for seq, count in seq_counts.items():
+        pattern_ids: list[str | Any] = []
+        for seq, count in seq_counts.items():  # type: ignore[assignment]
             if count >= min_count:
                 # Check if pattern already exists
                 existing = self.sdk.patterns.find_by_sequence(list(seq))
@@ -315,9 +315,9 @@ class LearningPersistence:
         ]
         self.sdk.metrics.update(metric)
 
-        return metric.id
+        return cast(str, metric.id)
 
-    def analyze_for_orchestrator(self, session_id: str) -> dict:
+    def analyze_for_orchestrator(self, session_id: str) -> dict[str, Any]:
         """Analyze session and return compact feedback for orchestrator.
 
         This method is called on work item completion to surface:
@@ -332,7 +332,7 @@ class LearningPersistence:
         Returns:
             Dict with analysis results for orchestrator feedback
         """
-        result = {
+        result: dict[str, Any] = {
             "session_id": session_id,
             "anti_patterns": [],
             "errors": [],
@@ -389,7 +389,7 @@ class LearningPersistence:
         ]
 
         # Count anti-pattern occurrences
-        anti_pattern_counts = Counter()
+        anti_pattern_counts: Counter[tuple[str, ...]] = Counter()
         for i in range(len(tools) - 2):
             seq = tuple(tools[i : i + 3])
             if seq in anti_patterns:
