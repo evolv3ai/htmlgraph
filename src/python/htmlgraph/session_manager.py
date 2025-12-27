@@ -1524,7 +1524,11 @@ class SessionManager:
         graph = self._get_graph(collection)
         node = graph.get(feature_id)
         if not node:
-            return None
+            # Node might have been created by SDK's collection (different graph instance)
+            # Try reloading from disk
+            node = graph.reload_node(feature_id)
+            if not node:
+                return None
 
         node.status = "done"
         node.updated = datetime.now()
@@ -1575,6 +1579,29 @@ class SessionManager:
         # Auto-create transition spike for post-completion activities
         if session:
             self._create_transition_spike(session, from_feature_id=feature_id)
+
+        # Analyze session for anti-patterns and errors on completion
+        # This surfaces feedback to the orchestrator about mistakes made
+        if session:
+            try:
+                from htmlgraph.learning import LearningPersistence
+                from htmlgraph.sdk import SDK
+
+                # Create SDK instance for analysis (shares same graph directory)
+                sdk = SDK(agent=agent or "unknown", directory=self.graph_dir)
+                learning = LearningPersistence(sdk)
+                analysis = learning.analyze_for_orchestrator(session.id)
+                node.properties["completion_analysis"] = analysis
+
+                # Log analysis summary if issues detected
+                if analysis.get("summary", "").startswith("⚠️"):
+                    logger.info(
+                        f"Work item {feature_id} completed with issues: {analysis['summary']}"
+                    )
+                    # Update node in graph with analysis
+                    graph.update(node)
+            except Exception as e:
+                logger.warning(f"Failed to analyze session on completion: {e}")
 
         return node
 

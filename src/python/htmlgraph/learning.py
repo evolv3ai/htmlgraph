@@ -317,6 +317,152 @@ class LearningPersistence:
 
         return metric.id
 
+    def analyze_for_orchestrator(self, session_id: str) -> dict:
+        """Analyze session and return compact feedback for orchestrator.
+
+        This method is called on work item completion to surface:
+        - Anti-patterns detected in the session
+        - Errors encountered
+        - Efficiency metrics
+        - Actionable recommendations
+
+        Args:
+            session_id: Session to analyze
+
+        Returns:
+            Dict with analysis results for orchestrator feedback
+        """
+        result = {
+            "session_id": session_id,
+            "anti_patterns": [],
+            "errors": [],
+            "error_count": 0,
+            "efficiency": 0.8,
+            "issues": [],
+            "recommendations": [],
+            "summary": "",
+        }
+
+        session = self.sdk.session_manager.get_session(session_id)
+        if (
+            not session
+            or not hasattr(session, "activity_log")
+            or not session.activity_log
+        ):
+            result["summary"] = "No activity data available for analysis"
+            return result
+
+        activities = session.activity_log
+
+        # Count errors (success=False)
+        errors = []
+        for a in activities:
+            success = (
+                getattr(a, "success", True)
+                if hasattr(a, "success")
+                else a.get("success", True)
+            )
+            if not success:
+                tool = (
+                    getattr(a, "tool", "") if hasattr(a, "tool") else a.get("tool", "")
+                )
+                summary = (
+                    getattr(a, "summary", "")
+                    if hasattr(a, "summary")
+                    else a.get("summary", "")
+                )
+                errors.append({"tool": tool, "summary": summary[:100]})
+
+        result["errors"] = errors[:10]  # Limit to 10 most recent
+        result["error_count"] = len(errors)
+
+        # Detect anti-patterns in this session
+        tools = [
+            a.tool if hasattr(a, "tool") else a.get("tool", "") for a in activities
+        ]
+
+        # Known anti-patterns
+        anti_patterns = [
+            ("Edit", "Edit", "Edit"),
+            ("Bash", "Bash", "Bash"),
+            ("Read", "Read", "Read"),
+        ]
+
+        # Count anti-pattern occurrences
+        anti_pattern_counts = Counter()
+        for i in range(len(tools) - 2):
+            seq = tuple(tools[i : i + 3])
+            if seq in anti_patterns:
+                anti_pattern_counts[seq] += 1
+
+        for seq, count in anti_pattern_counts.most_common():
+            result["anti_patterns"].append(
+                {
+                    "sequence": list(seq),
+                    "count": count,
+                    "description": self._describe_anti_pattern(seq),
+                }
+            )
+
+        # Calculate health metrics
+        health = self._calculate_health(session)
+        result["efficiency"] = health.get("efficiency", 0.8)
+        result["issues"] = health.get("issues", [])
+        result["recommendations"] = health.get("recommendations", [])
+
+        # Generate summary
+        summary_parts = []
+        if result["error_count"] > 0:
+            summary_parts.append(f"{result['error_count']} errors")
+        if result["anti_patterns"]:
+            total_anti = sum(p["count"] for p in result["anti_patterns"])
+            summary_parts.append(f"{total_anti} anti-pattern occurrences")
+        if result["efficiency"] < 0.7:
+            summary_parts.append(f"low efficiency ({result['efficiency']:.0%})")
+
+        if summary_parts:
+            result["summary"] = "⚠️ Issues: " + ", ".join(summary_parts)
+        else:
+            result["summary"] = "✓ Session completed cleanly"
+
+        return result
+
+    def _describe_anti_pattern(self, seq: tuple) -> str:
+        """Return human-readable description of an anti-pattern."""
+        descriptions = {
+            (
+                "Edit",
+                "Edit",
+                "Edit",
+            ): "Multiple edits without testing - run tests between changes",
+            ("Bash", "Bash", "Bash"): "Command spam - plan commands before executing",
+            (
+                "Read",
+                "Read",
+                "Read",
+            ): "Excessive reading - take notes or use grep to find specific content",
+        }
+        return descriptions.get(seq, f"Repeated {seq[0]} without variation")
+
+
+def analyze_on_completion(sdk: SDK, session_id: str) -> dict:
+    """Analyze session on work item completion and return orchestrator feedback.
+
+    This is the main entry point called by complete_feature().
+
+    Returns:
+        Dict with:
+        - anti_patterns: List of detected anti-patterns with counts
+        - errors: List of error summaries
+        - error_count: Total error count
+        - efficiency: Efficiency score (0.0-1.0)
+        - issues: List of detected issues
+        - recommendations: List of recommendations
+        - summary: One-line summary for orchestrator
+    """
+    learning = LearningPersistence(sdk)
+    return learning.analyze_for_orchestrator(session_id)
+
 
 def auto_persist_on_session_end(sdk: SDK, session_id: str) -> dict:
     """Convenience function to auto-persist learning data when session ends.
