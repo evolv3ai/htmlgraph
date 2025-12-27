@@ -8,6 +8,7 @@ Provides:
 - Bottleneck detection
 """
 
+import os
 import time
 from collections import defaultdict, deque
 from collections.abc import Callable, Iterator
@@ -41,7 +42,7 @@ class HtmlGraph:
         self,
         directory: Path | str,
         stylesheet_path: str = "../styles.css",
-        auto_load: bool = True,
+        auto_load: bool = False,
         pattern: str | list[str] = "*.html",
     ):
         """
@@ -50,7 +51,7 @@ class HtmlGraph:
         Args:
             directory: Directory containing HTML node files
             stylesheet_path: Default stylesheet path for new files
-            auto_load: Whether to load all nodes on init
+            auto_load: Whether to load all nodes on init (default: False for lazy loading)
             pattern: Glob pattern(s) for node files. Can be a single pattern or list.
                      Examples: "*.html", ["*.html", "*/index.html"]
         """
@@ -62,9 +63,20 @@ class HtmlGraph:
         self._nodes: dict[str, Node] = {}
         self._converter = NodeConverter(directory, stylesheet_path)
         self._edge_index = EdgeIndex()
+        self._query_cache: dict[str, list[Node]] = {}
+        self._cache_enabled: bool = True
+        self._explicitly_loaded: bool = False
+
+        # Check for env override (backwards compatibility)
+        if os.environ.get("HTMLGRAPH_EAGER_LOAD") == "1":
+            auto_load = True
 
         if auto_load:
             self.reload()
+
+    def _invalidate_cache(self) -> None:
+        """Clear query cache. Called when graph is modified."""
+        self._query_cache.clear()
 
     def reload(self) -> int:
         """
@@ -73,14 +85,25 @@ class HtmlGraph:
         Returns:
             Number of nodes loaded
         """
-        self._nodes.clear()
-        for node in self._converter.load_all(self.pattern):
-            self._nodes[node.id] = node
+        self._cache_enabled = False  # Disable during reload
+        try:
+            self._nodes.clear()
+            for node in self._converter.load_all(self.pattern):
+                self._nodes[node.id] = node
 
-        # Rebuild edge index for O(1) reverse lookups
-        self._edge_index.rebuild(self._nodes)
+            # Rebuild edge index for O(1) reverse lookups
+            self._edge_index.rebuild(self._nodes)
 
-        return len(self._nodes)
+            self._explicitly_loaded = True
+            return len(self._nodes)
+        finally:
+            self._cache_enabled = True
+            self._invalidate_cache()
+
+    def _ensure_loaded(self) -> None:
+        """Ensure nodes are loaded. Called lazily on first access."""
+        if not self._explicitly_loaded and not self._nodes:
+            self.reload()
 
     @property
     def nodes(self) -> dict[str, Node]:
@@ -148,6 +171,7 @@ class HtmlGraph:
             >>> # Works with any iterable operation
             >>> high_priority = list(filter(lambda n: n.priority == "high", graph))
         """
+        self._ensure_loaded()
         return iter(self._nodes.values())
 
     # =========================================================================
@@ -183,6 +207,7 @@ class HtmlGraph:
             for edge in edges:
                 self._edge_index.add(node.id, edge.target_id, edge.relationship)
 
+        self._invalidate_cache()
         return filepath
 
     def update(self, node: Node) -> Path:
@@ -219,6 +244,7 @@ class HtmlGraph:
 
         filepath = self._converter.save(node)
         self._nodes[node.id] = node
+        self._invalidate_cache()
         return filepath
 
     def get(self, node_id: str) -> Node | None:
@@ -231,6 +257,7 @@ class HtmlGraph:
         Returns:
             Node instance or None if not found
         """
+        self._ensure_loaded()
         return self._nodes.get(node_id)
 
     def get_or_load(self, node_id: str) -> Node | None:
@@ -261,7 +288,9 @@ class HtmlGraph:
             # Remove all edges involving this node from index
             self._edge_index.remove_node(node_id)
             del self._nodes[node_id]
-            return self._converter.delete(node_id)
+            result = self._converter.delete(node_id)
+            self._invalidate_cache()
+            return result
         return False
 
     def delete(self, node_id: str) -> bool:
@@ -304,9 +333,10 @@ class HtmlGraph:
 
     def query(self, selector: str) -> list[Node]:
         """
-        Query nodes using CSS selector.
+        Query nodes using CSS selector with caching.
 
         Selector is applied to article element of each node.
+        Uses cached nodes instead of re-parsing from disk for better performance.
 
         Args:
             selector: CSS selector string
@@ -318,21 +348,32 @@ class HtmlGraph:
             graph.query("[data-status='blocked']")
             graph.query("[data-priority='high'][data-type='feature']")
         """
+        self._ensure_loaded()
+        # Check cache first
+        if self._cache_enabled and selector in self._query_cache:
+            return self._query_cache[selector].copy()  # Return copy to prevent mutation
+
+        # Perform query using cached nodes instead of disk I/O
         matching = []
 
-        patterns = [self.pattern] if isinstance(self.pattern, str) else self.pattern
-        for pat in patterns:
-            for filepath in self.directory.glob(pat):
-                if filepath.is_file():
-                    try:
-                        parser = HtmlParser.from_file(filepath)
-                        # Query for article matching selector
-                        if parser.query(f"article{selector}"):
-                            node_id = parser.get_node_id()
-                            if node_id and node_id in self._nodes:
-                                matching.append(self._nodes[node_id])
-                    except Exception:
-                        continue
+        for node in self._nodes.values():
+            try:
+                # Convert node to HTML in-memory
+                html_content = node.to_html()
+
+                # Parse the HTML string
+                parser = HtmlParser.from_string(html_content)
+
+                # Check if selector matches
+                if parser.query(f"article{selector}"):
+                    matching.append(node)
+            except Exception:
+                # Skip nodes that fail to parse
+                continue
+
+        # Cache result
+        if self._cache_enabled:
+            self._query_cache[selector] = matching.copy()
 
         return matching
 
@@ -354,6 +395,7 @@ class HtmlGraph:
         Example:
             graph.filter(lambda n: n.status == "todo" and n.priority == "high")
         """
+        self._ensure_loaded()
         return [node for node in self._nodes.values() if predicate(node)]
 
     def by_status(self, status: str) -> list[Node]:
@@ -542,6 +584,14 @@ class HtmlGraph:
     def edge_index(self) -> EdgeIndex:
         """Access the edge index for advanced queries."""
         return self._edge_index
+
+    @property
+    def cache_stats(self) -> dict:
+        """Get cache statistics."""
+        return {
+            "cached_queries": len(self._query_cache),
+            "cache_enabled": self._cache_enabled,
+        }
 
     # =========================================================================
     # Graph Algorithms
