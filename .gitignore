@@ -25,6 +25,7 @@ wheels/
 .coverage
 .pytest_cache/
 htmlcov/
+tests/benchmarks/baseline.json
 
 # Playwright
 .playwright-mcp/

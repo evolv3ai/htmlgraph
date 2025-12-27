@@ -20,7 +20,7 @@ from htmlgraph.exceptions import (
     ValidationError,
 )
 from htmlgraph.find_api import FindAPI, find, find_all
-from htmlgraph.graph import HtmlGraph
+from htmlgraph.graph import CompiledQuery, HtmlGraph
 from htmlgraph.ids import (
     generate_hierarchical_id,
     generate_id,
@@ -104,6 +104,7 @@ __all__ = [
     "MaintenanceType",
     # Graph operations
     "HtmlGraph",
+    "CompiledQuery",
     "EdgeIndex",
     "EdgeRef",
     "QueryBuilder",
