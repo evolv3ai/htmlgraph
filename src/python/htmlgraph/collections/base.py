@@ -164,7 +164,10 @@ class BaseCollection(Generic[CollectionT]):
             type=self._node_type,
             priority=cast(Literal["low", "medium", "high", "critical"], priority),
             status=cast(
-                Literal["todo", "in-progress", "blocked", "done", "archived"], status
+                Literal[
+                    "todo", "in-progress", "blocked", "done", "active", "ended", "stale"
+                ],
+                status,
             ),
             **kwargs,
         )
