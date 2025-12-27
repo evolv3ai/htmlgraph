@@ -326,6 +326,10 @@ class HtmlGraph:
             for edge in edges:
                 self._edge_index.add(node.id, edge.target_id, edge.relationship)
 
+        # Update attribute index
+        old_node = self._nodes[node.id]
+        self._attr_index.update_node(node.id, old_node, node)
+
         filepath = self._converter.save(node)
         self._nodes[node.id] = node
 
@@ -473,8 +477,10 @@ class HtmlGraph:
             if filepath:
                 self._file_hashes.pop(str(filepath), None)
 
-            # Remove all edges involving this node from index
+            # Remove node from indexes
+            old_node = self._nodes[node_id]
             self._edge_index.remove_node(node_id)
+            self._attr_index.remove_node(node_id, old_node)
             del self._nodes[node_id]
             result = self._converter.delete(node_id)
             self._invalidate_cache()
