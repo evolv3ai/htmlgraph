@@ -30,13 +30,16 @@ from htmlgraph.ids import (
 )
 from htmlgraph.models import (
     ActivityEntry,
+    AggregatedMetric,
     Chore,
     ContextSnapshot,
     Edge,
     Graph,
     MaintenanceType,
     Node,
+    Pattern,
     Session,
+    SessionInsight,
     Spike,
     SpikeType,
     Step,
@@ -72,6 +75,7 @@ from htmlgraph.types import (
     WorkRecommendation,
 )
 from htmlgraph.work_type_utils import infer_work_type, infer_work_type_from_id
+from htmlgraph.learning import LearningPersistence, auto_persist_on_session_end
 
 __version__ = "0.13.3"
 __all__ = [
@@ -91,6 +95,9 @@ __all__ = [
     "ContextSnapshot",
     "Spike",
     "Chore",
+    "Pattern",
+    "SessionInsight",
+    "AggregatedMetric",
     # Work type classification (Phase 1)
     "WorkType",
     "SpikeType",
@@ -160,4 +167,7 @@ __all__ = [
     "TaskPrompt",
     "ParallelGuidelines",
     "AggregateResultsDict",
+    # Active Learning Persistence
+    "LearningPersistence",
+    "auto_persist_on_session_end",
 ]

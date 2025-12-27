@@ -1421,3 +1421,101 @@ class Graph(BaseModel):
     def to_context(self) -> str:
         """Generate lightweight context for all nodes."""
         return "\n\n".join(node.to_context() for node in self.nodes.values())
+
+
+class Pattern(Node):
+    """Learned workflow pattern for agent optimization.
+
+    Stores detected tool sequences that are either optimal patterns
+    to encourage or anti-patterns to avoid.
+    """
+    pattern_type: Literal["optimal", "anti-pattern", "neutral"] = "neutral"
+    sequence: list[str] = Field(default_factory=list)  # ["Bash", "Edit", "Read"]
+
+    # Detection metrics
+    detection_count: int = 0
+    success_rate: float = 0.0  # 0.0-1.0
+    avg_duration_seconds: float = 0.0
+
+    # Sessions where detected
+    detected_in_sessions: list[str] = Field(default_factory=list)
+
+    # Recommendation
+    recommendation: str | None = None
+
+    # Trend
+    first_detected: datetime | None = None
+    last_detected: datetime | None = None
+    detection_trend: Literal["increasing", "stable", "decreasing"] = "stable"
+
+    def __init__(self, **data: Any):
+        # Ensure type is always "pattern"
+        data["type"] = "pattern"
+        super().__init__(**data)
+
+
+class SessionInsight(Node):
+    """Session analysis and health metrics.
+
+    Stores efficiency scores, detected issues, and recommendations
+    for a specific session.
+    """
+    session_id: str = ""
+    insight_type: Literal["health", "recommendation", "anomaly"] = "health"
+
+    # Health metrics
+    efficiency_score: float = 0.0  # 0.0-1.0
+    retry_rate: float = 0.0
+    context_rebuild_count: int = 0
+    tool_diversity: float = 0.0
+    error_recovery_rate: float = 0.0
+    overall_health_score: float = 0.0
+
+    # Detections
+    issues_detected: list[str] = Field(default_factory=list)
+    patterns_matched: list[str] = Field(default_factory=list)  # Pattern IDs
+    anti_patterns_matched: list[str] = Field(default_factory=list)
+
+    # Recommendations
+    recommendations: list[str] = Field(default_factory=list)
+
+    # Metadata
+    analyzed_at: datetime | None = None
+
+    def __init__(self, **data: Any):
+        # Ensure type is always "session-insight"
+        data["type"] = "session-insight"
+        super().__init__(**data)
+
+
+class AggregatedMetric(Node):
+    """Time-aggregated metrics across sessions.
+
+    Stores weekly/monthly aggregated metrics for trend analysis.
+    """
+    metric_type: Literal["efficiency", "context_usage", "tool_distribution"] = "efficiency"
+    scope: Literal["session", "feature", "track", "agent"] = "session"
+    scope_id: str | None = None
+
+    # Time window
+    period: Literal["daily", "weekly", "monthly"] = "weekly"
+    period_start: datetime | None = None
+    period_end: datetime | None = None
+
+    # Metrics
+    metric_values: dict[str, float] = Field(default_factory=dict)
+    percentiles: dict[str, float] = Field(default_factory=dict)  # {"p50": 0.8, "p90": 0.9}
+
+    # Trend
+    trend_direction: Literal["improving", "stable", "declining"] = "stable"
+    trend_strength: float = 0.0  # 0.0-1.0
+    vs_previous_period_pct: float = 0.0
+
+    # Data source
+    sessions_in_period: list[str] = Field(default_factory=list)
+    data_points_count: int = 0
+
+    def __init__(self, **data: Any):
+        # Ensure type is always "aggregated-metric"
+        data["type"] = "aggregated-metric"
+        super().__init__(**data)

@@ -54,6 +54,9 @@ from htmlgraph.collections import (
     PhaseCollection,
     SpikeCollection,
 )
+from htmlgraph.collections.insight import InsightCollection
+from htmlgraph.collections.metric import MetricCollection
+from htmlgraph.collections.pattern import PatternCollection
 from htmlgraph.context_analytics import ContextAnalytics
 from htmlgraph.graph import HtmlGraph
 from htmlgraph.models import Node, Step
@@ -153,6 +156,16 @@ class SDK:
             self
         )  # Use specialized collection with builder support
         self.agents = BaseCollection(self, "agents", "agent")
+
+        # Learning collections (Active Learning Persistence)
+        self.patterns = PatternCollection(self)
+        self.insights = InsightCollection(self)
+        self.metrics = MetricCollection(self)
+
+        # Create learning directories if needed
+        (self._directory / "patterns").mkdir(exist_ok=True)
+        (self._directory / "insights").mkdir(exist_ok=True)
+        (self._directory / "metrics").mkdir(exist_ok=True)
 
         # Analytics interface (Phase 2: Work Type Analytics)
         self.analytics = Analytics(self)
@@ -1653,6 +1666,11 @@ COLLECTIONS (Non-Work):
   sdk.tracks       - Work tracks with builder support
   sdk.agents       - Agent information
 
+LEARNING (Active Learning):
+  sdk.patterns     - Workflow patterns (optimal/anti-pattern)
+  sdk.insights     - Session health insights
+  sdk.metrics      - Aggregated time-series metrics
+
 CORE METHODS:
   sdk.summary()           - Get project summary
   sdk.my_work()           - Get current agent's workload
@@ -1713,6 +1731,8 @@ For detailed help on a topic:
             'features', 'bugs', 'spikes', 'chores', 'epics', 'phases',
             # Non-work collections
             'tracks', 'sessions', 'agents',
+            # Learning collections
+            'patterns', 'insights', 'metrics',
             # Orchestration
             'spawn_explorer', 'spawn_coder', 'orchestrate',
             # Session management
