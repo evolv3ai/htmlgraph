@@ -114,8 +114,9 @@ class SessionManager:
         self.session_converter = SessionConverter(self.sessions_dir)
 
         # Feature graphs - reuse provided instances to avoid double-loading, or create new with lazy loading
-        self.features_graph = features_graph or HtmlGraph(self.features_dir, auto_load=False)
-        self.bugs_graph = bugs_graph or HtmlGraph(self.bugs_dir, auto_load=False)
+        # Note: Use 'is not None' check because HtmlGraph.__bool__ returns False when empty
+        self.features_graph = features_graph if features_graph is not None else HtmlGraph(self.features_dir, auto_load=False)
+        self.bugs_graph = bugs_graph if bugs_graph is not None else HtmlGraph(self.bugs_dir, auto_load=False)
 
         # Claiming service (handles feature claims/releases)
         self.claiming_service = ClaimingService(

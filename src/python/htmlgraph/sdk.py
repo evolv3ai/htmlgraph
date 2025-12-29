@@ -841,14 +841,21 @@ class SDK:
         """
         agent = agent_id or self._agent_id or "cli"
 
-        # Get work queue
-        queue = self.get_work_queue(agent_id=agent, limit=1, min_score=min_score)
+        # Get work queue - get more items since we filter for actionable (todo) only
+        queue = self.get_work_queue(agent_id=agent, limit=20, min_score=min_score)
 
         if not queue:
             return None
 
-        # Get the top task
-        top_item = queue[0]
+        # Find the first actionable (todo) task - blocked tasks are not actionable
+        top_item = None
+        for item in queue:
+            if item["status"] == "todo":
+                top_item = item
+                break
+
+        if top_item is None:
+            return None
 
         # Fetch the actual node
         task = None
