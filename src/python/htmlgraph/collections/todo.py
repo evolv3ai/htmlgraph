@@ -477,15 +477,14 @@ class TodoCollection:
         completed_count = sum(1 for t in todos if t.status == "completed")
 
         # Calculate average completion time
-        completed_with_duration = [
-            t
+        completed_durations = [
+            t.duration_seconds
             for t in todos
             if t.status == "completed" and t.duration_seconds is not None
         ]
         avg_duration = (
-            sum(t.duration_seconds for t in completed_with_duration)
-            / len(completed_with_duration)
-            if completed_with_duration
+            sum(completed_durations) / len(completed_durations)
+            if completed_durations
             else None
         )
 

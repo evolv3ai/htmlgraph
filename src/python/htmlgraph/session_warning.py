@@ -80,7 +80,9 @@ class SessionWarning:
         """Load warning state from file."""
         if self.state_file.exists():
             try:
-                return json.loads(self.state_file.read_text())
+                data = json.loads(self.state_file.read_text())
+                if isinstance(data, dict):
+                    return data
             except (json.JSONDecodeError, OSError):
                 pass
         return {
