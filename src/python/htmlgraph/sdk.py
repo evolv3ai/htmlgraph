@@ -61,6 +61,7 @@ from htmlgraph.context_analytics import ContextAnalytics
 from htmlgraph.graph import HtmlGraph
 from htmlgraph.models import Node, Step
 from htmlgraph.session_manager import SessionManager
+from htmlgraph.session_warning import SessionWarning, check_and_show_warning
 from htmlgraph.track_builder import TrackCollection
 from htmlgraph.types import (
     ActiveWorkItem,
@@ -241,6 +242,14 @@ class SDK:
         # Lazy-loaded orchestrator for subagent management
         self._orchestrator = None
 
+        # Session warning system (workaround for Claude Code hook bug #10373)
+        # Shows orchestrator instructions on first SDK usage per session
+        self._session_warning = check_and_show_warning(
+            self._directory,
+            agent=self._agent_id,
+            session_id=None,  # Will be set by session manager if available
+        )
+
     @staticmethod
     def _discover_htmlgraph() -> Path:
         """
@@ -266,6 +275,44 @@ class SDK:
     def agent(self) -> str | None:
         """Get current agent ID."""
         return self._agent_id
+
+    def dismiss_session_warning(self) -> bool:
+        """
+        Dismiss the session warning after reading it.
+
+        IMPORTANT: Call this as your FIRST action after seeing the orchestrator
+        warning. This confirms you've read the instructions.
+
+        Returns:
+            True if warning was dismissed, False if already dismissed
+
+        Example:
+            sdk = SDK(agent="claude")
+            # Warning shown automatically...
+
+            # First action: dismiss to confirm you read it
+            sdk.dismiss_session_warning()
+
+            # Now proceed with orchestration
+            sdk.spawn_coder(feature_id="feat-123", ...)
+        """
+        if self._session_warning:
+            return self._session_warning.dismiss(
+                agent=self._agent_id,
+                session_id=None,
+            )
+        return False
+
+    def get_warning_status(self) -> dict[str, Any]:
+        """
+        Get current session warning status.
+
+        Returns:
+            Dict with dismissed status, timestamp, and show count
+        """
+        if self._session_warning:
+            return self._session_warning.get_status()
+        return {"dismissed": True, "show_count": 0}
 
     def reload(self) -> None:
         """Reload all data from disk."""
