@@ -10,7 +10,7 @@
 <body>
     <article id="bug-b3cadd10"
              data-type="bug"
-             data-status="todo"
+             data-status="done"
              data-priority="high"
              data-created="2025-12-29T10:45:23.298717"
              data-updated="2025-12-29T10:45:23.690508">
@@ -18,7 +18,7 @@
         <header>
             <h1>SessionStart hook additionalContext not injected (Claude Code bug)</h1>
             <div class="metadata">
-                <span class="badge status-todo">Todo</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-high">High Priority</span>
             </div>
         </header>
@@ -42,8 +42,7 @@
         </section>
         <section data-content>
             <h3>Description</h3>
-            
-## Root Cause Identified
+            ## Root Cause Identified
 
 **This is a Claude Code bug, not our implementation.**
 
@@ -59,39 +58,34 @@
 
 3. **Issue #14281** - additionalContext injected multiple times (different bug)
 
-### Evidence
+## Workaround Implemented
 
-Our session-start.py outputs correctly:
+Created SDK session warning system (`session_warning.py`) that:
+
+1. Shows orchestrator instructions on SDK initialization
+2. Prints visible banner to stderr (which Claude sees)
+3. Requires explicit dismissal: `sdk.dismiss_session_warning()`
+4. Persists dismissal state in `.htmlgraph/.session-warning-state.json`
+
+This ensures agents always see orchestrator instructions regardless of Claude Code bug.
+
+### Usage
+
 ```python
-print(json.dumps({
-    "continue": True,
-    "hookSpecificOutput": {
-        "hookEventName": "SessionStart",
-        "additionalContext": context  # Contains skill activation instruction
-    }
-}))
+from htmlgraph import SDK
+
+sdk = SDK(agent="claude")
+# Warning automatically shown if not dismissed for this session
+
+# Agent dismisses after reading (as first action)
+sdk.dismiss_session_warning()
 ```
 
-But the agent never sees this context in new conversations.
+## Status
 
-### Workarounds
-
-1. Run `/clear` at session start to trigger hook re-evaluation
-2. Add visible instructions as fallback (in addition to additionalContext)
-3. Consider using a different hook type that works more reliably
-
-### Impact
-
-- Skill activation instructions not surfaced
-- Orchestrator workflow not followed
-- Active learning context not injected
-- Session start context missing
-
-### Resolution Options
-
-1. **Wait for Claude Code fix** - Monitor releases
-2. **Add fallback mechanism** - Output visible text in addition to additionalContext
-3. **Use pre-tool hooks** - More reliable injection point
+- Workaround implemented and tested
+- Waiting for Claude Code fix to issue #10373
+- Will remove workaround when upstream fix is available
 
         </section>
     </article>
