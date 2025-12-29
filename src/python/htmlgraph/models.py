@@ -1507,7 +1507,7 @@ class Pattern(Node):
         # Build trend HTML
         trend_html = ""
         if self.first_detected or self.last_detected:
-            trend_html = f"""
+            trend_html = """
         <section data-trend>
             <h3>Trend Analysis</h3>
             <dl>"""

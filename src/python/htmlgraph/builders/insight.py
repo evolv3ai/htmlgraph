@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from htmlgraph.models import Node, SessionInsight
+    from htmlgraph.models import SessionInsight
     from htmlgraph.sdk import SDK
 
 from htmlgraph.builders.base import BaseBuilder
