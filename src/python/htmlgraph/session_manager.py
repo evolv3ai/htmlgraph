@@ -343,6 +343,10 @@ class SessionManager:
         self._sessions_cache_dirty = True
         self._active_session = session
 
+        # Complete any lingering transition spikes from previous conversations
+        # This marks the end of the previous conversation's transition period
+        self._complete_transition_spikes_on_conversation_start(session.agent)
+
         # Auto-create session-init spike for transitional activities
         self._create_session_init_spike(session)
 
@@ -444,6 +448,58 @@ class SessionManager:
             self.session_converter.save(session)
 
         return spike
+
+    def _complete_transition_spikes_on_conversation_start(
+        self, agent: str
+    ) -> list[Node]:
+        """
+        Complete transition spikes from previous conversations when a new conversation starts.
+
+        This implements the state management pattern:
+        1. Work item completes → creates transition spike
+        2. New conversation starts → completes previous transition spike
+        3. New work item starts → completes session-init spike
+
+        Args:
+            agent: Agent starting the new conversation
+
+        Returns:
+            List of completed transition spikes
+        """
+        from htmlgraph.converter import NodeConverter
+
+        spike_converter = NodeConverter(self.graph_dir / "spikes")
+        completed_spikes = []
+
+        # Complete only TRANSITION spikes (not session-init, which should persist)
+        for spike_id in list(self._active_auto_spikes):
+            spike = spike_converter.load(spike_id)
+
+            if not spike:
+                self._active_auto_spikes.discard(spike_id)
+                continue
+
+            # Only complete transition spikes on conversation start
+            if not (
+                spike.type == "spike"
+                and getattr(spike, "auto_generated", False)
+                and getattr(spike, "spike_subtype", None) == "transition"
+                and spike.status == "in-progress"
+            ):
+                continue
+
+            # Complete the transition spike
+            spike.status = "done"
+            spike.updated = datetime.now()
+            spike.properties["completed_by"] = "conversation-start"
+
+            spike_converter.save(spike)
+            completed_spikes.append(spike)
+            self._active_auto_spikes.discard(spike_id)
+
+            logger.debug(f"Completed transition spike {spike_id} on conversation start")
+
+        return completed_spikes
 
     def _complete_active_auto_spikes(
         self, agent: str, to_feature_id: str
@@ -1610,6 +1666,8 @@ class SessionManager:
                 )
 
         # Auto-create transition spike for post-completion activities
+        # This captures work between features. Completed when next feature starts,
+        # or when a new conversation starts (completing previous conversation's spike).
         if session:
             self._create_transition_spike(session, from_feature_id=feature_id)
 
