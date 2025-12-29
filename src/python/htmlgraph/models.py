@@ -1454,6 +1454,117 @@ class Pattern(Node):
         data["type"] = "pattern"
         super().__init__(**data)
 
+    def to_html(self, stylesheet_path: str = "../styles.css") -> str:
+        """Convert pattern to HTML document with pattern-specific fields."""
+        # Build pattern sequence HTML
+        sequence_html = ""
+        if self.sequence:
+            sequence_items = " → ".join(self.sequence)
+            sequence_html = f"""
+        <section data-pattern-sequence>
+            <h3>Tool Sequence</h3>
+            <p class="sequence">{sequence_items}</p>
+        </section>"""
+
+        # Build pattern metrics HTML
+        metrics_html = f"""
+        <section data-pattern-metrics>
+            <h3>Pattern Metrics</h3>
+            <dl>
+                <dt>Detection Count</dt>
+                <dd>{self.detection_count}</dd>
+                <dt>Success Rate</dt>
+                <dd>{self.success_rate:.1%}</dd>
+                <dt>Avg Duration</dt>
+                <dd>{self.avg_duration_seconds:.1f}s</dd>
+            </dl>
+        </section>"""
+
+        # Build detected sessions HTML
+        detected_sessions_html = ""
+        if self.detected_in_sessions:
+            session_links = "\n                    ".join(
+                f'<li><a href="../sessions/{sid}.html">{sid}</a></li>'
+                for sid in self.detected_in_sessions
+            )
+            detected_sessions_html = f"""
+        <section data-detected-sessions>
+            <h3>Detected In Sessions</h3>
+            <ul>
+                {session_links}
+            </ul>
+        </section>"""
+
+        # Build recommendation HTML
+        recommendation_html = ""
+        if self.recommendation:
+            recommendation_html = f"""
+        <section data-recommendation>
+            <h3>Recommendation</h3>
+            <p>{self.recommendation}</p>
+        </section>"""
+
+        # Build trend HTML
+        trend_html = ""
+        if self.first_detected or self.last_detected:
+            trend_html = f"""
+        <section data-trend>
+            <h3>Trend Analysis</h3>
+            <dl>"""
+            if self.first_detected:
+                trend_html += f"""
+                <dt>First Detected</dt>
+                <dd>{self.first_detected.strftime('%Y-%m-%d %H:%M')}</dd>"""
+            if self.last_detected:
+                trend_html += f"""
+                <dt>Last Detected</dt>
+                <dd>{self.last_detected.strftime('%Y-%m-%d %H:%M')}</dd>"""
+            trend_html += f"""
+                <dt>Detection Trend</dt>
+                <dd class="trend-{self.detection_trend}">{self.detection_trend.title()}</dd>
+            </dl>
+        </section>"""
+
+        # Build pattern-specific attributes
+        pattern_attrs = f' data-pattern-type="{self.pattern_type}"'
+        pattern_attrs += f' data-detection-count="{self.detection_count}"'
+        pattern_attrs += f' data-success-rate="{self.success_rate:.2f}"'
+        pattern_attrs += f' data-detection-trend="{self.detection_trend}"'
+        if self.sequence:
+            import json
+            sequence_json = json.dumps(self.sequence)
+            pattern_attrs += f" data-sequence='{sequence_json}'"
+
+        return f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>{self.title}</title>
+    <link rel="stylesheet" href="{stylesheet_path}">
+</head>
+<body>
+    <article id="{self.id}"
+             data-type="{self.type}"
+             data-status="{self.status}"
+             data-priority="{self.priority}"
+             data-created="{self.created.isoformat()}"
+             data-updated="{self.updated.isoformat()}"{pattern_attrs}>
+
+        <header>
+            <h1>{self.title}</h1>
+            <div class="metadata">
+                <span class="badge status-{self.status}">{self.status.replace("-", " ").title()}</span>
+                <span class="badge pattern-{self.pattern_type}">{self.pattern_type.title()}</span>
+            </div>
+        </header>
+{sequence_html}{metrics_html}{detected_sessions_html}{recommendation_html}{trend_html}
+    </article>
+</body>
+</html>
+'''
+
 
 class SessionInsight(Node):
     """Session analysis and health metrics.
@@ -1488,6 +1599,149 @@ class SessionInsight(Node):
         # Ensure type is always "session-insight"
         data["type"] = "session-insight"
         super().__init__(**data)
+
+    def to_html(self, stylesheet_path: str = "../styles.css") -> str:
+        """Convert session insight to HTML document with insight-specific fields."""
+        # Build health metrics HTML
+        metrics_html = f"""
+        <section data-health-metrics>
+            <h3>Health Metrics</h3>
+            <dl>
+                <dt>Efficiency Score</dt>
+                <dd>{self.efficiency_score:.2f}</dd>
+                <dt>Retry Rate</dt>
+                <dd>{self.retry_rate:.1%}</dd>
+                <dt>Context Rebuild Count</dt>
+                <dd>{self.context_rebuild_count}</dd>
+                <dt>Tool Diversity</dt>
+                <dd>{self.tool_diversity:.2f}</dd>
+                <dt>Error Recovery Rate</dt>
+                <dd>{self.error_recovery_rate:.1%}</dd>
+                <dt>Overall Health Score</dt>
+                <dd class="health-score">{self.overall_health_score:.2f}</dd>
+            </dl>
+        </section>"""
+
+        # Build issues detected HTML
+        issues_html = ""
+        if self.issues_detected:
+            issues_items = "\n                ".join(
+                f"<li>{issue}</li>" for issue in self.issues_detected
+            )
+            issues_html = f"""
+        <section data-issues-detected>
+            <h3>Issues Detected</h3>
+            <ul>
+                {issues_items}
+            </ul>
+        </section>"""
+
+        # Build patterns matched HTML
+        patterns_html = ""
+        if self.patterns_matched or self.anti_patterns_matched:
+            patterns_section = """
+        <section data-patterns-matched>
+            <h3>Patterns Matched</h3>"""
+
+            if self.patterns_matched:
+                pattern_links = "\n                    ".join(
+                    f'<li><a href="../patterns/{pid}.html" data-pattern-type="optimal">{pid}</a></li>'
+                    for pid in self.patterns_matched
+                )
+                patterns_section += f"""
+            <div data-optimal-patterns>
+                <h4>Optimal Patterns:</h4>
+                <ul>
+                    {pattern_links}
+                </ul>
+            </div>"""
+
+            if self.anti_patterns_matched:
+                anti_pattern_links = "\n                    ".join(
+                    f'<li><a href="../patterns/{pid}.html" data-pattern-type="anti-pattern">{pid}</a></li>'
+                    for pid in self.anti_patterns_matched
+                )
+                patterns_section += f"""
+            <div data-anti-patterns>
+                <h4>Anti-Patterns:</h4>
+                <ul>
+                    {anti_pattern_links}
+                </ul>
+            </div>"""
+
+            patterns_section += """
+        </section>"""
+            patterns_html = patterns_section
+
+        # Build recommendations HTML
+        recommendations_html = ""
+        if self.recommendations:
+            rec_items = "\n                ".join(
+                f"<li>{rec}</li>" for rec in self.recommendations
+            )
+            recommendations_html = f"""
+        <section data-recommendations>
+            <h3>Recommendations</h3>
+            <ul>
+                {rec_items}
+            </ul>
+        </section>"""
+
+        # Build session link HTML
+        session_link_html = ""
+        if self.session_id:
+            session_link_html = f"""
+        <section data-session-link>
+            <h3>Related Session</h3>
+            <p><a href="../sessions/{self.session_id}.html">{self.session_id}</a></p>
+        </section>"""
+
+        # Build insight-specific attributes
+        import json
+
+        insight_attrs = f' data-session-id="{self.session_id}"' if self.session_id else ""
+        insight_attrs += f' data-insight-type="{self.insight_type}"'
+        insight_attrs += f' data-efficiency-score="{self.efficiency_score:.2f}"'
+        insight_attrs += f' data-retry-rate="{self.retry_rate:.2f}"'
+        insight_attrs += f' data-overall-health="{self.overall_health_score:.2f}"'
+
+        if self.analyzed_at:
+            insight_attrs += f' data-analyzed-at="{self.analyzed_at.isoformat()}"'
+
+        if self.issues_detected:
+            issues_json = json.dumps(self.issues_detected)
+            insight_attrs += f" data-issues='{issues_json}'"
+
+        return f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>{self.title}</title>
+    <link rel="stylesheet" href="{stylesheet_path}">
+</head>
+<body>
+    <article id="{self.id}"
+             data-type="{self.type}"
+             data-status="{self.status}"
+             data-priority="{self.priority}"
+             data-created="{self.created.isoformat()}"
+             data-updated="{self.updated.isoformat()}"{insight_attrs}>
+
+        <header>
+            <h1>{self.title}</h1>
+            <div class="metadata">
+                <span class="badge status-{self.status}">{self.status.replace("-", " ").title()}</span>
+                <span class="badge insight-{self.insight_type}">{self.insight_type.title()}</span>
+                <span class="badge health-score">Health: {self.overall_health_score:.2f}</span>
+            </div>
+        </header>
+{session_link_html}{metrics_html}{issues_html}{patterns_html}{recommendations_html}
+    </article>
+</body>
+</html>
+'''
 
 
 class AggregatedMetric(Node):
@@ -1526,3 +1780,165 @@ class AggregatedMetric(Node):
         # Ensure type is always "aggregated-metric"
         data["type"] = "aggregated-metric"
         super().__init__(**data)
+
+    def to_html(self, stylesheet_path: str = "../styles.css") -> str:
+        """Convert aggregated metric to HTML document with metric-specific fields."""
+        # Build metric overview HTML
+        overview_html = f"""
+        <section data-metric-overview>
+            <h3>Metric Overview</h3>
+            <dl>
+                <dt>Metric Type</dt>
+                <dd>{self.metric_type.replace("_", " ").title()}</dd>
+                <dt>Scope</dt>
+                <dd>{self.scope.title()}</dd>"""
+
+        if self.scope_id:
+            overview_html += f"""
+                <dt>Scope ID</dt>
+                <dd>{self.scope_id}</dd>"""
+
+        overview_html += f"""
+                <dt>Period</dt>
+                <dd>{self.period.title()}</dd>"""
+
+        if self.period_start:
+            overview_html += f"""
+                <dt>Period Start</dt>
+                <dd>{self.period_start.strftime('%Y-%m-%d %H:%M')}</dd>"""
+
+        if self.period_end:
+            overview_html += f"""
+                <dt>Period End</dt>
+                <dd>{self.period_end.strftime('%Y-%m-%d %H:%M')}</dd>"""
+
+        overview_html += """
+            </dl>
+        </section>"""
+
+        # Build metric values HTML
+        values_html = ""
+        if self.metric_values:
+            value_items = "\n                ".join(
+                f"<dt>{k.replace('_', ' ').title()}</dt>\n                <dd>{v:.4f}</dd>"
+                for k, v in self.metric_values.items()
+            )
+            values_html = f"""
+        <section data-metric-values>
+            <h3>Metric Values</h3>
+            <dl>
+                {value_items}
+            </dl>
+        </section>"""
+
+        # Build percentiles HTML
+        percentiles_html = ""
+        if self.percentiles:
+            percentile_items = "\n                ".join(
+                f"<dt>{k}</dt>\n                <dd>{v:.4f}</dd>"
+                for k, v in self.percentiles.items()
+            )
+            percentiles_html = f"""
+        <section data-percentiles>
+            <h3>Percentiles</h3>
+            <dl>
+                {percentile_items}
+            </dl>
+        </section>"""
+
+        # Build trend HTML
+        trend_html = f"""
+        <section data-trend>
+            <h3>Trend Analysis</h3>
+            <dl>
+                <dt>Direction</dt>
+                <dd class="trend-{self.trend_direction}">{self.trend_direction.title()}</dd>
+                <dt>Strength</dt>
+                <dd>{self.trend_strength:.1%}</dd>
+                <dt>vs Previous Period</dt>
+                <dd class="{'positive' if self.vs_previous_period_pct > 0 else 'negative'}">{self.vs_previous_period_pct:+.1f}%</dd>
+            </dl>
+        </section>"""
+
+        # Build sessions HTML
+        sessions_html = ""
+        if self.sessions_in_period:
+            session_links = "\n                    ".join(
+                f'<li><a href="../sessions/{sid}.html">{sid}</a></li>'
+                for sid in self.sessions_in_period[:20]  # Limit to first 20
+            )
+            more_sessions = ""
+            if len(self.sessions_in_period) > 20:
+                more_sessions = f"\n                    <li>... and {len(self.sessions_in_period) - 20} more</li>"
+
+            sessions_html = f"""
+        <section data-sessions>
+            <h3>Sessions in Period ({len(self.sessions_in_period)})</h3>
+            <ul>
+                {session_links}{more_sessions}
+            </ul>
+        </section>"""
+
+        # Build data source HTML
+        data_source_html = f"""
+        <section data-data-source>
+            <h3>Data Source</h3>
+            <dl>
+                <dt>Data Points</dt>
+                <dd>{self.data_points_count}</dd>
+                <dt>Sessions Analyzed</dt>
+                <dd>{len(self.sessions_in_period)}</dd>
+            </dl>
+        </section>"""
+
+        # Build metric-specific attributes
+        import json
+
+        metric_attrs = f' data-metric-type="{self.metric_type}"'
+        metric_attrs += f' data-scope="{self.scope}"'
+        if self.scope_id:
+            metric_attrs += f' data-scope-id="{self.scope_id}"'
+        metric_attrs += f' data-period="{self.period}"'
+        metric_attrs += f' data-trend-direction="{self.trend_direction}"'
+        metric_attrs += f' data-trend-strength="{self.trend_strength:.2f}"'
+        metric_attrs += f' data-data-points="{self.data_points_count}"'
+
+        if self.period_start:
+            metric_attrs += f' data-period-start="{self.period_start.isoformat()}"'
+        if self.period_end:
+            metric_attrs += f' data-period-end="{self.period_end.isoformat()}"'
+
+        if self.metric_values:
+            values_json = json.dumps(self.metric_values)
+            metric_attrs += f" data-values='{values_json}'"
+
+        return f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>{self.title}</title>
+    <link rel="stylesheet" href="{stylesheet_path}">
+</head>
+<body>
+    <article id="{self.id}"
+             data-type="{self.type}"
+             data-status="{self.status}"
+             data-priority="{self.priority}"
+             data-created="{self.created.isoformat()}"
+             data-updated="{self.updated.isoformat()}"{metric_attrs}>
+
+        <header>
+            <h1>{self.title}</h1>
+            <div class="metadata">
+                <span class="badge status-{self.status}">{self.status.replace("-", " ").title()}</span>
+                <span class="badge metric-{self.metric_type}">{self.metric_type.replace("_", " ").title()}</span>
+                <span class="badge trend-{self.trend_direction}">{self.trend_direction.title()}</span>
+            </div>
+        </header>
+{overview_html}{values_html}{percentiles_html}{trend_html}{data_source_html}{sessions_html}
+    </article>
+</body>
+</html>
+'''
