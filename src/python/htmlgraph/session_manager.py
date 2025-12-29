@@ -29,6 +29,7 @@ from htmlgraph.graph import HtmlGraph
 from htmlgraph.ids import generate_id
 from htmlgraph.models import ActivityEntry, Node, Session
 from htmlgraph.services import ClaimingService
+from htmlgraph.spike_index import ActiveAutoSpikeIndex
 
 
 class SessionManager:
@@ -107,9 +108,9 @@ class SessionManager:
         # Session converter
         self.session_converter = SessionConverter(self.sessions_dir)
 
-        # Feature graphs
-        self.features_graph = HtmlGraph(self.features_dir, auto_load=True)
-        self.bugs_graph = HtmlGraph(self.bugs_dir, auto_load=True)
+        # Feature graphs (lazy loading - only load when needed)
+        self.features_graph = HtmlGraph(self.features_dir, auto_load=False)
+        self.bugs_graph = HtmlGraph(self.bugs_dir, auto_load=False)
 
         # Claiming service (handles feature claims/releases)
         self.claiming_service = ClaimingService(
@@ -129,46 +130,14 @@ class SessionManager:
         self._active_features_cache: list[Node] | None = None
         self._features_cache_dirty: bool = True
 
-        # Index of active auto-generated spike IDs (session-init, transition, conversation-init)
-        # This avoids loading all spikes from disk just to find the active ones
-        self._active_auto_spikes: set[str] = set()
-        self._init_active_auto_spikes()  # Restore from disk on startup
+        # Fast index for active auto-generated spikes (avoids scanning all spike files)
+        self._spike_index = ActiveAutoSpikeIndex(self.graph_dir)
+        self._active_auto_spikes: set[str] = self._spike_index.get_all()
 
         # Append-only event log (Git-friendly source of truth for activities)
         self.events_dir = self.graph_dir / "events"
         self.event_log = JsonlEventLog(self.events_dir)
 
-    def _init_active_auto_spikes(self) -> None:
-        """
-        Initialize the active auto-spikes index from disk on startup.
-
-        This ensures that auto-generated spikes (session-init, transition)
-        from previous sessions are properly tracked and can be auto-completed
-        when the next feature is started.
-        """
-        from htmlgraph.converter import NodeConverter
-
-        spikes_dir = self.graph_dir / "spikes"
-        if not spikes_dir.exists():
-            return
-
-        spike_converter = NodeConverter(spikes_dir)
-
-        # Scan all spikes for active auto-generated ones
-        for spike in spike_converter.load_all():
-            if (
-                spike.type == "spike"
-                and getattr(spike, "auto_generated", False)
-                and getattr(spike, "spike_subtype", None)
-                in ("session-init", "transition", "conversation-init")
-                and spike.status == "in-progress"
-            ):
-                self._active_auto_spikes.add(spike.id)
-
-        if self._active_auto_spikes:
-            logger.debug(
-                f"Restored {len(self._active_auto_spikes)} active auto-spikes from disk"
-            )
 
     # =========================================================================
     # Session Lifecycle
@@ -1243,7 +1212,7 @@ class SessionManager:
         System overhead includes:
         - Skill invocations for system skills (htmlgraph-tracker, etc.)
         - Read/Write operations on .htmlgraph/ metadata files
-        - Other infrastructure operations
+        - Infrastructure files (config, docs, build artifacts, IDE files)
         """
         # System skills that are overhead, not feature work
         system_skills = {
@@ -1258,13 +1227,102 @@ class SessionManager:
                 if skill_name in summary.lower():
                     return True
 
-        # Check if any file paths are in .htmlgraph/ directory (metadata operations)
+        # Infrastructure file patterns to exclude from drift scoring
+        infrastructure_patterns = [
+            # HtmlGraph metadata
+            ".htmlgraph/",
+
+            # Configuration files
+            "pyproject.toml",
+            "package.json",
+            "package-lock.json",
+            "setup.py",
+            "setup.cfg",
+            "requirements.txt",
+            "requirements-dev.txt",
+            ".gitignore",
+            ".gitattributes",
+            ".editorconfig",
+            "pytest.ini",
+            "tox.ini",
+            ".coveragerc",
+
+            # CI/CD configs
+            ".github/",
+            ".gitlab-ci.yml",
+            ".travis.yml",
+            "circle.yml",
+            ".pre-commit-config.yaml",
+
+            # Build and distribution
+            "dist/",
+            "build/",
+            ".eggs/",
+            "*.egg-info/",
+            "__pycache__/",
+            "*.pyc",
+            "*.pyo",
+            "*.pyd",
+
+            # IDE and editor files
+            ".vscode/",
+            ".idea/",
+            "*.swp",
+            "*.swo",
+            "*~",
+            ".DS_Store",
+            "Thumbs.db",
+
+            # Testing artifacts
+            ".pytest_cache/",
+            ".coverage",
+            "htmlcov/",
+            ".tox/",
+
+            # Environment and secrets
+            ".env",
+            ".env.local",
+            ".env.*.local",
+
+            # Documentation (consider docs/ as infrastructure)
+            "README.md",
+            "CONTRIBUTING.md",
+            "LICENSE",
+            "CHANGELOG.md",
+            "docs/",
+
+            # Other common infrastructure
+            ".contextune/",
+            ".parallel/",
+            "node_modules/",
+            ".venv/",
+            "venv/",
+        ]
+
+        # Check if any file paths match infrastructure patterns
         if file_paths:
             for path in file_paths:
-                # Normalize path to handle both absolute and relative paths
-                path_lower = path.lower()
-                if ".htmlgraph/" in path_lower or path_lower.startswith(".htmlgraph"):
-                    return True
+                # Normalize path
+                path_normalized = path.replace("\\", "/")
+                path_lower = path_normalized.lower()
+
+                for pattern in infrastructure_patterns:
+                    pattern_lower = pattern.lower()
+
+                    # Directory patterns (end with /)
+                    if pattern_lower.endswith("/"):
+                        if pattern_lower in path_lower or path_lower.startswith(pattern_lower):
+                            return True
+                    # Wildcard patterns (e.g., *.pyc)
+                    elif "*" in pattern_lower:
+                        import fnmatch
+                        if fnmatch.fnmatch(path_lower, pattern_lower):
+                            return True
+                    # Exact filename match
+                    else:
+                        # Check if path ends with the pattern (handles both absolute and relative)
+                        if path_lower.endswith(pattern_lower) or f"/{pattern_lower}" in path_lower:
+                            return True
 
         return False
 
