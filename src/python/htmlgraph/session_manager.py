@@ -132,10 +132,43 @@ class SessionManager:
         # Index of active auto-generated spike IDs (session-init, transition, conversation-init)
         # This avoids loading all spikes from disk just to find the active ones
         self._active_auto_spikes: set[str] = set()
+        self._init_active_auto_spikes()  # Restore from disk on startup
 
         # Append-only event log (Git-friendly source of truth for activities)
         self.events_dir = self.graph_dir / "events"
         self.event_log = JsonlEventLog(self.events_dir)
+
+    def _init_active_auto_spikes(self) -> None:
+        """
+        Initialize the active auto-spikes index from disk on startup.
+
+        This ensures that auto-generated spikes (session-init, transition)
+        from previous sessions are properly tracked and can be auto-completed
+        when the next feature is started.
+        """
+        from htmlgraph.converter import NodeConverter
+
+        spikes_dir = self.graph_dir / "spikes"
+        if not spikes_dir.exists():
+            return
+
+        spike_converter = NodeConverter(spikes_dir)
+
+        # Scan all spikes for active auto-generated ones
+        for spike in spike_converter.load_all():
+            if (
+                spike.type == "spike"
+                and getattr(spike, "auto_generated", False)
+                and getattr(spike, "spike_subtype", None)
+                in ("session-init", "transition", "conversation-init")
+                and spike.status == "in-progress"
+            ):
+                self._active_auto_spikes.add(spike.id)
+
+        if self._active_auto_spikes:
+            logger.debug(
+                f"Restored {len(self._active_auto_spikes)} active auto-spikes from disk"
+            )
 
     # =========================================================================
     # Session Lifecycle
