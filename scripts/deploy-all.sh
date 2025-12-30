@@ -208,6 +208,26 @@ with open('packages/gemini-extension/gemini-extension.json', 'w') as f:
         fi
     fi
 
+    # Update marketplace.json
+    if [ -f ".claude-plugin/marketplace.json" ]; then
+        if [ "$DRY_RUN" = true ]; then
+            log_info "[DRY-RUN] Would update marketplace.json version to $version"
+        else
+            uv run python -c "
+import json
+with open('.claude-plugin/marketplace.json', 'r') as f:
+    data = json.load(f)
+data['metadata']['version'] = '$version'
+for plugin in data.get('plugins', []):
+    if plugin.get('name') == 'htmlgraph':
+        plugin['version'] = '$version'
+with open('.claude-plugin/marketplace.json', 'w') as f:
+    json.dump(data, f, indent=2)
+"
+            log_success "Updated marketplace.json"
+        fi
+    fi
+
     echo ""
 }
 
