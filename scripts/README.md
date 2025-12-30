@@ -86,18 +86,70 @@ git push origin main
 
 ---
 
+## Plugin Sync Tool (`sync_plugin_to_local.py`)
+
+**Purpose**: Maintain single source of truth by syncing `packages/claude-plugin/` → `.claude/` for dogfooding.
+
+**What it syncs**:
+- Hook scripts (`hooks/scripts/*.py`)
+- Hook configuration (`hooks/hooks.json`)
+- Skills (`skills/*/SKILL.md`)
+- Config files (`config/*.json`, `config/*.md`)
+
+### Usage
+
+```bash
+# Check sync status
+uv run python scripts/sync_plugin_to_local.py --check
+
+# Preview changes
+uv run python scripts/sync_plugin_to_local.py --dry-run
+
+# Perform sync
+uv run python scripts/sync_plugin_to_local.py
+```
+
+### When to Use
+
+**Before committing plugin changes**:
+```bash
+# 1. Edit plugin files
+vim packages/claude-plugin/hooks/scripts/session-start.py
+
+# 2. Sync to .claude for testing
+uv run python scripts/sync_plugin_to_local.py
+
+# 3. Test locally, then commit both
+git add packages/claude-plugin/ .claude/
+git commit -m "feat: enhance session tracking"
+```
+
+**Before deployment**: The deploy script automatically checks sync status and fails if out of sync.
+
+### Features
+
+- ✅ Ensures `.claude/` matches distributed plugin exactly
+- ✅ Enables proper dogfooding (use what we ship)
+- ✅ Integrated into deployment workflow
+- ✅ Preserves local-only files (session-start.sh, protect-htmlgraph.sh)
+
+See [Plugin Sync Documentation](../docs/PLUGIN_SYNC.md) for details.
+
+---
+
 ## Deployment Script (`deploy-all.sh`)
 
 **Purpose**: Automate the complete deployment workflow from git push to PyPI publish to plugin updates.
 
-**8 Automated Steps**:
-0. **Update version numbers** in all files (NEW!)
-1. Push to git (with tags)
-2. Build Python package
-3. Publish to PyPI
-4. Install locally
-5. Update Claude plugin
-6. Update Gemini extension
+**9 Automated Steps**:
+0. **Pre-flight check** - Verify plugin sync (NEW!)
+1. **Update version numbers** in all files
+2. Push to git (with tags)
+3. Build Python package
+4. Publish to PyPI
+5. Install locally
+6. Update Claude plugin
+7. Update Gemini extension
 7. Update Codex skill (if present)
 
 ### Usage

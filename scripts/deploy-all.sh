@@ -235,6 +235,26 @@ if [ ! -f "pyproject.toml" ]; then
 fi
 
 # ============================================================================
+# PRE-FLIGHT: Verify Plugin Sync
+# ============================================================================
+if [ "$BUILD_ONLY" != true ] && [ "$DOCS_ONLY" != true ]; then
+    log_section "Pre-flight: Verifying Plugin Sync"
+
+    if [ "$DRY_RUN" = true ]; then
+        log_info "[DRY-RUN] Would check plugin sync status"
+    else
+        log_info "Checking if packages/claude-plugin/ and .claude/ are in sync..."
+        if uv run python scripts/sync_plugin_to_local.py --check; then
+            log_success "Plugin and .claude are in sync"
+        else
+            log_error "Plugin and .claude are out of sync!"
+            log_info "Run: uv run python scripts/sync_plugin_to_local.py"
+            exit 1
+        fi
+    fi
+fi
+
+# ============================================================================
 # STEP 0: Update Version Numbers (if version provided)
 # ============================================================================
 if [ "$VERSION" != "unknown" ] && [ "$DOCS_ONLY" != true ]; then
