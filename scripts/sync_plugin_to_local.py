@@ -110,7 +110,7 @@ def sync_plugin_to_local(dry_run: bool = False, check_only: bool = False) -> boo
         plugin_dir / "hooks",
         local_dir / "hooks",
         dry_run=dry_run or check_only,
-        exclude=["__pycache__", ".pyc"],
+        exclude=["__pycache__", ".pyc", "hooks.json"],  # Exclude hooks.json - intentionally different
     )
 
     # Sync skills
