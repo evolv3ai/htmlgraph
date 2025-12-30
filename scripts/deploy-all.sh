@@ -3,16 +3,19 @@
 # HtmlGraph Flexible Deployment Script
 #
 # This script performs deployment operations with flexible options:
-# 0. Pre-flight: Verify plugin sync
-# 1. Update version numbers and commit
-# 2. Push to git with tags
-# 3. Build Python package
-# 4. Publish to PyPI
-# 5. Install latest version locally
-# 6. Update Claude plugin
-# 7. Update Gemini extension
-# 8. Update Codex skill
-# 9. Create GitHub release
+# PRE-FLIGHT:
+#   - Code quality checks (ruff, mypy, pytest)
+#   - Plugin sync verification
+# DEPLOYMENT STEPS:
+#   0. Update version numbers and commit
+#   1. Push to git with tags
+#   2. Build Python package
+#   3. Publish to PyPI
+#   4. Install latest version locally
+#   5. Update Claude plugin (with sync)
+#   6. Update Gemini extension
+#   7. Update Codex skill
+#   8. Create GitHub release
 #
 # Usage:
 #   ./scripts/deploy-all.sh [version] [flags]
@@ -236,6 +239,64 @@ fi
 if [ ! -f "pyproject.toml" ]; then
     log_error "Must be run from project root (where pyproject.toml is)"
     exit 1
+fi
+
+# ============================================================================
+# PRE-FLIGHT: Code Quality Checks
+# ============================================================================
+if [ "$BUILD_ONLY" != true ] && [ "$DOCS_ONLY" != true ]; then
+    log_section "Pre-flight: Code Quality Checks"
+
+    if [ "$DRY_RUN" = true ]; then
+        log_info "[DRY-RUN] Would run quality checks (ruff, mypy)"
+    else
+        # Run ruff linting
+        log_info "Running ruff check..."
+        if uv run ruff check src/ packages/ 2>/dev/null; then
+            log_success "ruff check passed"
+        else
+            log_error "ruff check failed!"
+            log_info "Fix errors before deploying"
+            exit 1
+        fi
+
+        # Run ruff format check
+        log_info "Running ruff format check..."
+        if uv run ruff format --check src/ packages/ 2>/dev/null; then
+            log_success "ruff format check passed"
+        else
+            log_error "ruff format check failed!"
+            log_info "Run: uv run ruff format src/ packages/"
+            exit 1
+        fi
+
+        # Run mypy type checks
+        log_info "Running mypy type checks..."
+        if uv run mypy src/python/htmlgraph/ --ignore-missing-imports 2>/dev/null; then
+            log_success "mypy type checks passed"
+        else
+            log_error "mypy type checks failed!"
+            log_info "Fix type errors before deploying"
+            exit 1
+        fi
+
+        # Run pytest
+        log_info "Running tests..."
+        if uv run pytest tests/ -v 2>/dev/null; then
+            log_success "All tests passed"
+        else
+            log_warning "Some tests failed - review before deploying"
+            if [ "$NO_CONFIRM" != true ]; then
+                read -p "Continue deployment anyway? (y/n) " -n 1 -r
+                echo
+                if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                    exit 1
+                fi
+            else
+                log_info "Continuing despite test failures (--no-confirm mode)"
+            fi
+        fi
+    fi
 fi
 
 # ============================================================================
