@@ -14,14 +14,35 @@ uv pip install htmlgraph
 uv pip install --upgrade htmlgraph
 ```
 
-## Install (local dev marketplace)
+## Installation
 
-1. Start Claude Code from the repository root (the folder that contains `.claude-plugin/marketplace.json`).
-2. Add the marketplace:
-   - `/plugin marketplace add .`
+### From GitHub (Recommended for Users)
+
+```bash
+# Add the htmlgraph marketplace
+claude plugin marketplace add https://github.com/Shakes-tzd/htmlgraph
+
+# Install the plugin
+claude plugin install htmlgraph@htmlgraph
+
+# Updates happen automatically when you pull latest from GitHub
+# Or manually: claude plugin update htmlgraph
+```
+
+### From Local Dev (For Development)
+
+1. Clone the repository and navigate to it
+2. Add the local marketplace:
+   ```bash
+   claude plugin marketplace add .
+   ```
 3. Install the plugin:
-   - `/plugin install htmlgraph@htmlgraph-dev`
-4. Restart Claude Code.
+   ```bash
+   claude plugin install htmlgraph@htmlgraph
+   ```
+4. Restart Claude Code
+
+**Note**: Local dev installation uses the `.claude-plugin/marketplace.json` file in the repo root.
 
 ## What gets written
 
