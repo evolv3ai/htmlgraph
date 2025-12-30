@@ -138,10 +138,9 @@ def install_git_hooks(project_dir: str) -> bool:
 
 
 try:
-    from htmlgraph import SDK
+    from htmlgraph import SDK, generate_id
     from htmlgraph.converter import node_to_dict
     from htmlgraph.graph import HtmlGraph
-    from htmlgraph.models import generate_id
     from htmlgraph.session_manager import SessionManager
 except Exception as e:
     print(
