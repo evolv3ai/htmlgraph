@@ -142,13 +142,13 @@ See [Plugin Sync Documentation](../docs/PLUGIN_SYNC.md) for details.
 **Purpose**: Automate the complete deployment workflow from git push to PyPI publish to plugin updates.
 
 **10 Automated Steps**:
-0. **Pre-flight check** - Verify plugin sync
+0. **Pre-flight check** - Verify plugin sync (fail if out of sync)
 1. **Update version numbers** - Auto-update and commit all version files
 2. **Push to git** - With automatic tag creation
 3. **Build Python package** - Create wheel and source distribution
 4. **Publish to PyPI** - Upload to package index
 5. **Install locally** - Install and verify latest version
-6. **Update Claude plugin** - Sync plugin files
+6. **Update Claude plugin** - Sync packages/claude-plugin → .claude for dogfooding
 7. **Update Gemini extension** - Update version metadata
 8. **Update Codex skill** - If applicable
 9. **Create GitHub release** - With distribution files and release notes

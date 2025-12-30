@@ -451,6 +451,19 @@ fi
 if [ "$SKIP_PLUGINS" != true ]; then
     log_section "Step 5: Updating Claude Plugin"
 
+    # Sync plugin to .claude for local dogfooding
+    log_info "Syncing plugin to .claude directory..."
+    if [ "$DRY_RUN" = true ]; then
+        log_info "[DRY-RUN] Would sync packages/claude-plugin → .claude"
+    else
+        if uv run python scripts/sync_plugin_to_local.py; then
+            log_success "Plugin synced to .claude directory"
+        else
+            log_warning "Plugin sync failed - check scripts/sync_plugin_to_local.py"
+        fi
+    fi
+
+    # Info about plugin distribution
     if command -v claude &> /dev/null; then
         log_info "Claude plugin is installed from GitHub repo"
         log_info "After git push, users will automatically get the latest version"
