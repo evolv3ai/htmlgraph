@@ -28,6 +28,7 @@ import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, cast
 
 # Anti-patterns to detect (tool sequence -> warning message)
 ANTI_PATTERNS = {
@@ -203,7 +204,7 @@ def load_validation_config() -> dict:
     if config_path.exists():
         try:
             with open(config_path) as f:
-                return json.load(f)
+                return cast(dict[Any, Any], json.load(f))
         except Exception:
             pass
 
@@ -281,7 +282,7 @@ def get_active_work_item() -> dict | None:
 
         sdk = SDK()
         active = sdk.get_active_work_item()
-        return active
+        return cast(dict | None, active)
     except Exception:
         # If SDK fails, assume no active work item
         return None

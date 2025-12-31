@@ -29,6 +29,7 @@ import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, cast
 
 from htmlgraph.orchestrator_mode import OrchestratorModeManager
 
@@ -51,8 +52,8 @@ def load_tool_history() -> list[dict]:
         data = json.loads(TOOL_HISTORY_FILE.read_text())
         # Handle both formats: {"history": [...]} and [...] (legacy)
         if isinstance(data, list):
-            return data
-        return data.get("history", [])
+            return cast(list[dict[Any, Any]], data)
+        return cast(list[dict[Any, Any]], data.get("history", []))
     except Exception:
         return []
 

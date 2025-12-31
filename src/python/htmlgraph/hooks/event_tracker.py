@@ -16,6 +16,7 @@ import subprocess
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any, cast
 
 from htmlgraph.session_manager import SessionManager
 
@@ -43,7 +44,7 @@ def load_drift_config() -> dict:
         if config_path.exists():
             try:
                 with open(config_path) as f:
-                    return json.load(f)
+                    return cast(dict[Any, Any], json.load(f))
             except Exception:
                 pass
 
@@ -72,7 +73,7 @@ def load_parent_activity(graph_dir: Path) -> dict:
     if path.exists():
         try:
             with open(path) as f:
-                data = json.load(f)
+                data = cast(dict[Any, Any], json.load(f))
                 # Clean up stale parent activities (older than 5 minutes)
                 if data.get("timestamp"):
                     ts = datetime.fromisoformat(data["timestamp"])
@@ -150,7 +151,7 @@ def load_drift_queue(graph_dir: Path, max_age_hours: int = 48) -> dict:
                     file=sys.stderr,
                 )
 
-            return queue
+            return cast(dict[Any, Any], queue)
         except Exception:
             pass
     return {"activities": [], "last_classification": None}
@@ -317,7 +318,7 @@ def extract_file_paths(tool_input: dict, tool_name: str) -> list[str]:
 
 
 def format_tool_summary(
-    tool_name: str, tool_input: dict, tool_result: dict = None
+    tool_name: str, tool_input: dict, tool_result: dict | None = None
 ) -> str:
     """Format a human-readable summary of the tool call."""
     if tool_name == "Read":
@@ -550,7 +551,7 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
                         if use_headless:
                             try:
                                 # Run claude in print mode for classification
-                                result = subprocess.run(
+                                proc_result = subprocess.run(
                                     [
                                         "claude",
                                         "-p",
@@ -570,7 +571,7 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
                                         "HTMLGRAPH_DISABLE_TRACKING": "1",
                                     },
                                 )
-                                if result.returncode == 0:
+                                if proc_result.returncode == 0:
                                     nudge = "Drift auto-classification completed. Check .htmlgraph/ for new work item."
                                     # Clear the queue after successful classification
                                     clear_drift_queue_activities(graph_dir)
@@ -610,7 +611,7 @@ Or manually create a work item in .htmlgraph/ (bug, feature, spike, or chore).""
             print(f"Warning: Could not track activity: {e}", file=sys.stderr)
 
         # Build response
-        response = {"continue": True}
+        response: dict[str, Any] = {"continue": True}
         if nudge:
             response["hookSpecificOutput"] = {
                 "hookEventName": hook_type,
