@@ -14,325 +14,40 @@ For SDK usage, deployment instructions, and agent workflows, see:
 
 ---
 
-## 🔄 DOGFOODING CONTEXT - CRITICAL
+## 🔄 DOGFOODING CONTEXT
 
 **THIS PROJECT USES HTMLGRAPH TO DEVELOP HTMLGRAPH.**
 
-We are dogfooding our own tool. The `.htmlgraph/` directory in this repo tracks:
-- ✅ **Features** - New capabilities we're building (e.g., strategic analytics, track planning)
-- ✅ **Sessions** - Our development work (tracked automatically via hooks)
-- ✅ **Tracks** - Multi-feature initiatives (e.g., "Planning Workflow")
-- ✅ **Development progress** - What's done, in-progress, and planned
+The `.htmlgraph/` directory contains real examples of HtmlGraph usage - this is our actual development tracking, not demo code.
 
-**What This Means for AI Agents:**
-
-### 1. **Dual Purpose - Examples ARE Real Usage**
-
-When you see workflows in this project:
-- ✅ They're **real examples** of HtmlGraph usage
-- ✅ They're **actual tracking** of HtmlGraph development
-- ✅ Learn from them for YOUR projects
-
-```python
-# This IS real - we use this to track HtmlGraph development
-sdk = SDK(agent="claude")
-feature = sdk.features.create("Add deployment automation")  # Real feature!
-```
-
-### 2. **General vs Project-Specific**
-
-**GENERAL WORKFLOWS** (package these for all users):
-- ✅ Feature creation and tracking → SDK already provides this
-- ✅ Track planning with TrackBuilder → SDK provides this
-- ✅ Strategic analytics (recommend_next_work, find_bottlenecks) → SDK provides this
-- ✅ Session management → Hooks provide this
-- ⚠️ **Deployment automation** → Should package `deploy-all.sh` pattern
-- ⚠️ **Memory file sync** → Should package `sync_memory_files.py` pattern
-
-**PROJECT-SPECIFIC** (only for HtmlGraph development):
-- ❌ Publishing to PyPI (specific to HtmlGraph package)
-- ❌ The specific features in `.htmlgraph/features/` (our roadmap)
-- ❌ Phase 1-6 implementation plan (our project structure)
-
-### 3. **Workflows to Package for Users**
-
-**TODO - Extract these into the package:**
-1. **Deployment Script Pattern** - Generalize `deploy-all.sh` for any Python package
-2. **Memory File Sync** - Include `sync_memory_files.py` in the package
-3. **Project Initialization** - `htmlgraph init` should set up `.htmlgraph/`
-4. **Pre-commit Hooks** - Package the git hooks for automatic tracking
-
-**Current Status:**
-- ✅ SDK provides feature/track/analytics workflows
-- ⚠️ Deployment scripts are project-specific (need to generalize)
-- ⚠️ Memory sync is project-specific (need to package)
-
-### 4. **How to Read This Codebase**
-
-When you see `.htmlgraph/` in this repo:
-- **It's a live example** - This is real usage, not a demo
-- **It's our roadmap** - Features here are what we're building
-- **Learn from it** - Use these patterns in your projects
-
-**Example:**
-```bash
-# In THIS repo
-ls .htmlgraph/features/
-# → feature-20251221-211348.html  # Real feature we're tracking
-# → feat-5f0fca41.html            # Another real feature
-
-# In YOUR project (after using HtmlGraph)
-ls .htmlgraph/features/
-# → Your features will look the same!
-```
+**See:** [.claude/rules/dogfooding.md](./.claude/rules/dogfooding.md) for complete context on dual-purpose usage, general vs project-specific workflows, and how to read this codebase.
 
 ---
 
 ## 🎯 ORCHESTRATOR DIRECTIVES - CRITICAL
 
-**CRITICAL: When operating in orchestrator mode, you MUST delegate ALL operations except a minimal set of strategic activities.**
+**CRITICAL: When operating in orchestrator mode, delegate ALL operations except strategic activities.**
 
-### Core Philosophy
+**Core Philosophy:** Delegation preserves context by isolating tactical execution in subagent threads.
 
-**You don't know the outcome before running a tool.** What looks like "one bash call" often becomes 2, 3, 4+ calls when handling failures, conflicts, hooks, or errors. Delegation preserves strategic context by isolating tactical execution in subagent threads.
-
-### Operations You MUST Delegate
-
-**ALL operations EXCEPT:**
+**Operations You MAY Execute Directly:**
 - `Task()` - Delegation itself
-- `AskUserQuestion()` - Clarifying requirements with user
+- `AskUserQuestion()` - Clarifying requirements
 - `TodoWrite()` - Tracking work items
-- SDK operations - Creating features, spikes, bugs, analytics
+- SDK operations - Creating features, spikes, analytics
 
-**Everything else MUST be delegated**, including:
+**ALWAYS Delegate:**
+- Git operations (commit, push, branch, merge)
+- Code changes (multi-file edits, implementation)
+- Research & exploration (codebase searches)
+- Testing & validation (test suites, debugging)
+- Build & deployment (package publishing)
+- Complex file operations (batch operations)
+- Heavy analysis & computation
 
-#### 1. Git Operations - ALWAYS DELEGATE
-- ❌ NEVER run git commands directly (add, commit, push, branch, merge)
-- ✅ ALWAYS delegate to subagent with error handling
+**Why?** Git operations cascade unpredictably (hooks fail, conflicts occur, tests fail in hooks). Context cost: Direct execution = 7+ tool calls vs Delegation = 2 tool calls.
 
-**Why?** Git operations cascade unpredictably:
-- Commit hooks may fail (need fix + retry)
-- Conflicts may occur (need resolution + retry)
-- Push may fail (need pull + merge + retry)
-- Tests may fail in hooks (need fix + retry)
-
-**Context cost comparison:**
-```
-Direct execution: 7+ tool calls
-  git add → commit fails (hook) → fix code → commit → push fails → pull → push
-
-Delegation: 2 tool calls
-  Task(delegate git workflow) → Read result
-```
-
-**Delegation pattern:**
-```python
-Task(
-    prompt="""
-    Commit and push changes:
-    Files: CLAUDE.md, SKILL.md, git-commit-push.sh
-    Message: "docs: enforce strict git delegation in orchestrator directives"
-
-    Steps:
-    1. git add [files]
-    2. git commit -m "message"
-    3. git push origin main
-    4. Handle any errors (pre-commit hooks, conflicts, etc)
-
-    🔴 CRITICAL - Report Results to HtmlGraph:
-    [include SDK save pattern here]
-    """,
-    subagent_type="general-purpose"
-)
-```
-
-#### 2. Code Changes - DELEGATE Unless Trivial
-- ❌ Multi-file edits
-- ❌ Implementation requiring research
-- ❌ Changes with testing requirements
-- ✅ Single-line typo fixes (OK to do directly)
-
-#### 3. Research & Exploration - ALWAYS DELEGATE
-- ❌ Large codebase searches (multiple Grep/Glob calls)
-- ❌ Understanding unfamiliar systems
-- ❌ Documentation research
-- ✅ Single file quick lookup (OK to do directly)
-
-#### 4. Testing & Validation - ALWAYS DELEGATE
-- ❌ Running test suites
-- ❌ Debugging test failures
-- ❌ Quality gate validation
-- ✅ Checking test command exists (OK to do directly)
-
-#### 5. Build & Deployment - ALWAYS DELEGATE
-- ❌ Build processes
-- ❌ Package publishing
-- ❌ Environment setup
-- ✅ Checking deployment script exists (OK to do directly)
-
-#### 6. File Operations - DELEGATE Complex Operations
-- ❌ Batch file operations (multiple files)
-- ❌ Large file reading/writing
-- ❌ Complex file transformations
-- ✅ Reading single config file (OK to do directly)
-- ✅ Writing single small file (OK to do directly)
-
-#### 7. Analysis & Computation - DELEGATE Heavy Work
-- ❌ Performance profiling
-- ❌ Large-scale analysis
-- ❌ Complex calculations
-- ✅ Simple status checks (OK to do directly)
-
-### Why Strict Delegation Matters
-
-**1. Context Preservation**
-- Each tool call consumes tokens
-- Failed operations consume MORE tokens
-- Cascading failures consume MOST tokens
-- Delegation isolates failure to subagent context
-
-**2. Parallel Efficiency**
-- Multiple subagents can work simultaneously
-- Orchestrator stays available for decisions
-- Higher throughput on independent tasks
-
-**3. Error Isolation**
-- Subagent handles retries and recovery
-- Orchestrator receives clean success/failure
-- No pollution of strategic context
-
-**4. Cognitive Clarity**
-- Orchestrator maintains high-level view
-- Subagents handle tactical details
-- Clear separation of concerns
-
-### Decision Framework
-
-Ask yourself:
-1. **Will this likely be one tool call?**
-   - If uncertain → DELEGATE
-   - If certain → MAY do directly
-
-2. **Does this require error handling?**
-   - If yes → DELEGATE
-
-3. **Could this cascade into multiple operations?**
-   - If yes → DELEGATE
-
-4. **Is this strategic (decisions) or tactical (execution)?**
-   - Strategic → Do directly
-   - Tactical → DELEGATE
-
-### Orchestrator Reflection System
-
-When orchestrator mode is enabled (strict), you'll receive reflections after direct tool execution:
-
-```
-ORCHESTRATOR REFLECTION: You executed code directly.
-
-Ask yourself:
-- Could this have been delegated to a subagent?
-- Would parallel Task() calls have been faster?
-- Is a work item tracking this effort?
-- What if this operation fails - how many retries will consume context?
-```
-
-Use these reflections to adjust your delegation habits.
-
-### Integration with HtmlGraph SDK
-
-Always use SDK to track orchestration activities:
-
-```python
-from htmlgraph import SDK
-sdk = SDK(agent='orchestrator')
-
-# Track what you delegate
-feature = sdk.features.create("Implement authentication") \
-    .set_priority("high") \
-    .add_steps([
-        "Research existing auth patterns (delegated to explorer)",
-        "Implement OAuth flow (delegated to coder)",
-        "Add tests (delegated to test-runner)",
-        "Commit changes (delegated to general-purpose)"
-    ]) \
-    .save()
-
-# Spawn subagents with tracked context
-explorer = sdk.spawn_explorer(
-    task="Find all auth-related code",
-    scope="src/",
-    questions=["What library is used?", "Where is validation?"]
-)
-
-Task(
-    prompt=explorer["prompt"],
-    description=explorer["description"],
-    subagent_type=explorer["subagent_type"]
-)
-```
-
-**See:** `packages/claude-plugin/skills/htmlgraph-orchestrator/SKILL.md` for complete orchestrator patterns
-
-### Task ID Pattern for Parallel Coordination
-
-**Problem:** Timestamp-based lookup cannot distinguish parallel task results.
-
-**Solution:** Generate unique task ID for each delegation.
-
-#### Helper Functions
-
-HtmlGraph provides orchestration helpers in `htmlgraph.orchestration`:
-
-```python
-from htmlgraph.orchestration import delegate_with_id, get_results_by_task_id
-
-# Generate task ID and enhanced prompt
-task_id, prompt = delegate_with_id(
-    "Implement authentication",
-    "Add JWT auth to API endpoints...",
-    "general-purpose"
-)
-
-# Delegate (orchestrator calls Task tool)
-Task(
-    prompt=prompt,
-    description=f"{task_id}: Implement authentication",
-    subagent_type="general-purpose"
-)
-
-# Retrieve results by task ID
-results = get_results_by_task_id(sdk, task_id, timeout=120)
-if results["success"]:
-    print(results["findings"])
-```
-
-#### Parallel Task Coordination
-
-```python
-from htmlgraph.orchestration import delegate_with_id, get_results_by_task_id
-
-# Spawn 3 parallel tasks
-auth_id, auth_prompt = delegate_with_id("Implement auth", "...", "general-purpose")
-test_id, test_prompt = delegate_with_id("Write tests", "...", "general-purpose")
-docs_id, docs_prompt = delegate_with_id("Update docs", "...", "general-purpose")
-
-# Delegate all in parallel (single message, multiple Task calls)
-Task(prompt=auth_prompt, description=f"{auth_id}: Implement auth")
-Task(prompt=test_prompt, description=f"{test_id}: Write tests")
-Task(prompt=docs_prompt, description=f"{docs_id}: Update docs")
-
-# Retrieve results independently (order doesn't matter)
-auth_results = get_results_by_task_id(sdk, auth_id)
-test_results = get_results_by_task_id(sdk, test_id)
-docs_results = get_results_by_task_id(sdk, docs_id)
-```
-
-**Benefits:**
-- Works with parallel delegations
-- Full traceability (Task → task_id → spike → findings)
-- Timeout handling with polling
-- Independent result retrieval
+**See:** [.claude/rules/orchestration.md](./.claude/rules/orchestration.md) for complete orchestrator directives, delegation patterns, decision framework, and parallel coordination helpers.
 
 ---
 
@@ -340,49 +55,18 @@ docs_results = get_results_by_task_id(sdk, docs_id)
 
 **CRITICAL: Always fix ALL errors with every commit, regardless of when they were introduced.**
 
-### Philosophy
+**Philosophy:** Maintaining clean, error-free code is non-negotiable. Every commit should reduce technical debt, not accumulate it.
 
-Maintaining clean, error-free code is non-negotiable. Every commit should reduce technical debt, not accumulate it.
-
-### Rules
-
-1. **Fix All Errors Before Committing**
-   - Run all linters (ruff, mypy) before every commit
-   - Fix ALL errors, even pre-existing ones from previous sessions
-   - Never commit with unresolved type errors, lint warnings, or test failures
-
-2. **No "I'll Fix It Later" Mentality**
-   - Errors compound over time
-   - Pre-existing errors are YOUR responsibility when you touch related code
-   - Clean as you go - leave code better than you found it
-
-3. **Deployment Blockers**
-   - The `deploy-all.sh` script blocks on:
-     - Mypy type errors
-     - Ruff lint errors
-     - Test failures
-   - This is intentional - maintain quality gates
-
-4. **Why This Matters**
-   - **Prevents Error Accumulation** - Small issues don't become large problems
-   - **Better Code Hygiene** - Clean code is easier to maintain
-   - **Faster Development** - No time wasted debugging old errors
-   - **Professional Standards** - Production-grade code quality
-
-### Workflow
-
+**Quick Workflow:**
 ```bash
-# Before every commit:
-1. uv run ruff check --fix
-2. uv run ruff format
-3. uv run mypy src/
-4. uv run pytest
-
+uv run ruff check --fix
+uv run ruff format
+uv run mypy src/
+uv run pytest
 # Only commit when ALL checks pass
-git commit -m "..."
 ```
 
-**Remember: Fixing errors immediately is faster than letting them accumulate.**
+**See:** [.claude/rules/code-hygiene.md](./.claude/rules/code-hygiene.md) for complete code hygiene rules, deployment blockers, and why this matters.
 
 ---
 
@@ -390,165 +74,28 @@ git commit -m "..."
 
 **CRITICAL: HtmlGraph enforces a research-first debugging philosophy.**
 
-### Core Principle
+**Core Principle:** NEVER implement solutions based on assumptions. ALWAYS research documentation first.
 
-**NEVER implement solutions based on assumptions. ALWAYS research documentation first.**
+**The Correct Approach:**
+1. **Research** - Use claude-code-guide agent, read documentation
+2. **Understand** - Identify root cause through evidence
+3. **Implement** - Apply fix based on understanding
+4. **Validate** - Test to confirm fix works
+5. **Document** - Capture learning in HtmlGraph spike
 
-This principle emerged from dogfooding HtmlGraph development. We repeatedly violated it by:
-- ❌ Making multiple trial-and-error attempts before researching
-- ❌ Implementing "fixes" based on guesses instead of documentation
-- ❌ Not using available debugging tools and agents
+**Debugging Agents:**
+- **Researcher Agent** - Research documentation BEFORE implementing solutions
+- **Debugger Agent** - Systematically analyze and resolve errors
+- **Test Runner Agent** - Automatically test changes, enforce quality gates
 
-**The correct approach:**
-1. ✅ **Research** - Use claude-code-guide agent, read documentation
-2. ✅ **Understand** - Identify root cause through evidence
-3. ✅ **Implement** - Apply fix based on understanding
-4. ✅ **Validate** - Test to confirm fix works
-5. ✅ **Document** - Capture learning in HtmlGraph spike
-
-### Debugging Agents (Plugin-Provided)
-
-HtmlGraph plugin includes three specialized agents for systematic debugging:
-
-#### 1. Researcher Agent
-**Purpose**: Research documentation BEFORE implementing solutions
-
-**Use when**:
-- Encountering unfamiliar errors or behaviors
-- Working with Claude Code hooks, plugins, or configuration
-- Before implementing solutions based on assumptions
-- When multiple attempted fixes have failed
-
-**Workflow**:
+**Built-in Debug Tools:**
 ```bash
-# Activate researcher agent
-# Use claude-code-guide for Claude-specific questions
-# Document findings in HtmlGraph spike
+claude --debug <command>    # Verbose output
+/hooks                      # List all active hooks
+/doctor                     # System diagnostics
 ```
 
-**Key resources**:
-- Claude Code docs: https://code.claude.com/docs
-- GitHub issues: https://github.com/anthropics/claude-code/issues
-- Hook documentation: https://code.claude.com/docs/en/hooks.md
-
-#### 2. Debugger Agent
-**Purpose**: Systematically analyze and resolve errors
-
-**Use when**:
-- Error messages appear but root cause is unclear
-- Behavior doesn't match expectations
-- Tests are failing
-- Hooks or plugins aren't working as expected
-
-**Built-in debug tools**:
-```bash
-claude --debug <command>        # Verbose output
-/hooks                          # List all active hooks
-/hooks PreToolUse              # Show specific hook type
-/doctor                         # System diagnostics
-claude --verbose               # More detailed logging
-```
-
-**Methodology**:
-1. Gather evidence (logs, error messages, stack traces)
-2. Reproduce consistently (exact steps, minimal case)
-3. Isolate variables (test one change at a time)
-4. Analyze context (what changed recently?)
-5. Form hypothesis (root cause theory)
-6. Test hypothesis (validate or refute)
-7. Implement fix (minimal change to fix root cause)
-
-#### 3. Test Runner Agent
-**Purpose**: Automatically test changes, enforce quality gates
-
-**Use when**:
-- After implementing code changes
-- Before marking features/tasks complete
-- After fixing bugs
-- Before committing code
-
-**Test commands**:
-```bash
-# Run all tests
-uv run pytest
-
-# Type checking
-uv run mypy src/
-
-# Linting
-uv run ruff check --fix
-uv run ruff format
-
-# Full quality gate (pre-commit)
-uv run ruff check --fix && \
-uv run ruff format && \
-uv run mypy src/ && \
-uv run pytest
-```
-
-### Debugging Workflow Pattern
-
-**Example: Duplicate Hooks Issue**
-
-**❌ What we did initially (wrong)**:
-1. Removed .claude/hooks/hooks.json - Still broken
-2. Cleared plugin cache - Still broken
-3. Removed old plugin versions - Still broken
-4. Removed marketplaces symlink - Still broken
-5. Finally researched documentation
-6. Found root cause: Hook merging behavior
-
-**✅ What we should have done (correct)**:
-1. Research Claude Code hook loading behavior first
-2. Use claude-code-guide agent to understand hook merging
-3. Identify that hooks from multiple sources MERGE, not replace
-4. Check all hook sources (.claude/settings.json, plugin hooks)
-5. Remove duplicates based on understanding
-6. Verify fix works
-7. Document learning in spike
-
-### HtmlGraph Debug Commands
-
-```bash
-# Check orchestrator status
-uv run htmlgraph orchestrator status
-
-# List active features
-uv run htmlgraph status
-
-# View specific feature
-uv run htmlgraph feature show <id>
-
-# Check session state
-uv run htmlgraph session list --active
-```
-
-### Integration with Orchestrator Mode
-
-When orchestrator mode is enabled (strict), you'll receive reflections after direct tool execution:
-
-```
-ORCHESTRATOR REFLECTION: You executed code directly.
-
-Ask yourself:
-- Could this have been delegated to a subagent?
-- Would parallel Task() calls have been faster?
-- Is a work item tracking this effort?
-```
-
-This encourages delegation to specialized agents (researcher, debugger, test-runner) for systematic problem-solving.
-
-### Documentation References
-
-**For debugging agents**: See `packages/claude-plugin/agents/`
-- `researcher.md` - Research-first methodology
-- `debugger.md` - Systematic error analysis
-- `test-runner.md` - Quality gates and testing
-
-**For debugging workflows**: See `.htmlgraph/spikes/`
-- Spikes document research findings and debugging processes
-- Learn from past debugging sessions
-- Avoid repeating the same mistakes
+**See:** [.claude/rules/debugging.md](./.claude/rules/debugging.md) for complete debugging methodology, agent workflows, debug commands, and real-world examples.
 
 ---
 
@@ -1112,407 +659,36 @@ tasks/
 
 ### Quick Git Commit and Push
 
-**IMPORTANT: In orchestrator mode, ALWAYS delegate git operations. NEVER run git commands directly.**
+**IMPORTANT: In orchestrator mode, ALWAYS delegate git operations.**
 
-#### Orchestrator Pattern (REQUIRED)
-
-When operating as orchestrator, delegate ALL git operations:
-
-```python
-# ✅ CORRECT - Delegate git workflow to subagent
-Task(
-    prompt="""
-    Commit and push changes to git:
-
-    Files to commit: [list files or use 'all changes']
-    Commit message: "chore: update session tracking"
-
-    Steps:
-    1. Run ./scripts/git-commit-push.sh "chore: update session tracking" --no-confirm
-    2. If that script doesn't exist, use manual git workflow:
-       - git add [files]
-       - git commit -m "message"
-       - git push origin main
-    3. Handle any errors (pre-commit hooks, conflicts, push failures)
-    4. Retry with fixes if needed
-
-    Report final status: success or failure with details.
-
-    🔴 CRITICAL - Track in HtmlGraph:
-    After successful commit, update the active feature/spike with completion status.
-    """,
-    subagent_type="general-purpose"
-)
-
-# Then read subagent result and continue orchestration
-```
-
-**Why delegate?** Git operations cascade unpredictably:
-- Pre-commit hooks may fail → need code fix → retry commit
-- Push may fail due to conflicts → need pull → merge → retry push
-- Tests may fail in hooks → need debugging → fix → retry
-
-**Context cost:**
-- Direct execution: 5-10+ tool calls (with failures and retries)
-- Delegation: 2 tool calls (Task + result review)
-
-#### Non-Orchestrator Pattern (Direct Execution)
-
-For non-orchestrator agents or when explicitly instructed to execute directly:
-
-**Use the convenience script:**
+**Quick Script:**
 ```bash
-# Recommended: Use the git-commit-push.sh script
-./scripts/git-commit-push.sh "chore: update session tracking"
-
-# With confirmation skip:
-./scripts/git-commit-push.sh "fix: deployment issues" --no-confirm
-
-# Preview changes:
-./scripts/git-commit-push.sh "feat: new feature" --dry-run
+./scripts/git-commit-push.sh "your message" --no-confirm
 ```
 
-**Script features:**
-- ✅ Shows files to be committed before proceeding
-- ✅ Confirms action (unless `--no-confirm`)
-- ✅ Stages all changes (`git add -A`)
-- ✅ Commits with provided message
-- ✅ Pushes to origin/main
-- ✅ Supports `--dry-run` for preview
-
-**Manual git workflow (if script unavailable):**
-```bash
-# 1. Stage changes
-git add [specific files]
-# or
-git add -A  # all changes
-
-# 2. Commit
-git commit -m "your commit message"
-
-# 3. Push
-git push origin main
-```
-
-**See:** [ORCHESTRATOR DIRECTIVES](#-orchestrator-directives---critical) for complete delegation guidelines
+**See:** [.claude/rules/orchestration.md](./.claude/rules/orchestration.md) for orchestrator delegation patterns and [.claude/rules/deployment.md](./.claude/rules/deployment.md) for git workflow details.
 
 ---
 
 ## Deployment & Release
 
-### Using the Deployment Script (FLEXIBLE OPTIONS)
-
 **CRITICAL: Use `./scripts/deploy-all.sh` for all deployment operations.**
 
-**IMPORTANT PRE-DEPLOYMENT CHECKLIST:**
-1. ✅ **MUST be in project root directory** - Script will fail if run from subdirectories like `dist/`
-2. ~~✅ **Commit all changes first**~~ - **AUTOMATED!** Script auto-commits version changes in Step 0
-3. ~~✅ **Verify version numbers**~~ - **AUTOMATED!** Script auto-updates all version numbers in Step 0
-4. ✅ **Run tests** - `uv run pytest` must pass before deployment
-
-**NEW STREAMLINED WORKFLOW (v0.9.4+):**
+**Streamlined Workflow:**
 ```bash
-# 1. Run tests
-uv run pytest
-
-# 2. Deploy (one command, fully automated!)
-./scripts/deploy-all.sh 0.9.4 --no-confirm
-
-# That's it! The script now handles:
-# ✅ Dashboard file sync (index.html ← dashboard.html)
-# ✅ Version updates in all files (Step 0)
-# ✅ Auto-commit of version changes
-# ✅ Git push with tags
-# ✅ Build, publish, install
-# ✅ Plugin updates
-# ✅ No interactive prompts with --no-confirm
+uv run pytest  # Run tests first
+./scripts/deploy-all.sh 0.9.4 --no-confirm  # Deploy
 ```
 
-**Session Tracking Files Excluded:**
-```
-.gitignore now excludes regenerable session tracking:
-- .htmlgraph/sessions/*.jsonl
-- .htmlgraph/events/*.jsonl
-- .htmlgraph/parent-activity.json
-
-This eliminates the multi-commit cycle problem.
-```
-
-**Quick Usage:**
-```bash
-# Full release (non-interactive, recommended)
-./scripts/deploy-all.sh 0.9.4 --no-confirm
-
-# Full release (with confirmations)
-./scripts/deploy-all.sh 0.9.4
-
-# Documentation changes only (commit + push)
-./scripts/deploy-all.sh --docs-only
-
-# Build package only (test builds)
-./scripts/deploy-all.sh --build-only
-
-# Skip PyPI publishing (build + install only)
-./scripts/deploy-all.sh 0.9.4 --skip-pypi
-
-# Preview what would happen (dry-run)
-./scripts/deploy-all.sh --dry-run
-
-# Show all options
-./scripts/deploy-all.sh --help
-```
-
-**Available Flags:**
-- `--no-confirm` - Skip all confirmation prompts (non-interactive mode) **[NEW]**
-- `--docs-only` - Only commit and push to git (skip build/publish)
-- `--build-only` - Only build package (skip git/publish/install)
-- `--skip-pypi` - Skip PyPI publishing step
-- `--skip-plugins` - Skip plugin update steps
-- `--dry-run` - Show what would happen without executing
-
-**What the Script Does (9 Steps):**
-- **Pre-flight: Dashboard Sync** - Sync `src/python/htmlgraph/dashboard.html` → `index.html` **[NEW]**
-- **Pre-flight: Code Quality** - Run linters (ruff, mypy) and tests
-- **Pre-flight: Plugin Sync** - Verify packages/claude-plugin and .claude are synced
-0. **Update & Commit Versions** - Auto-update version numbers in all files and commit
-1. **Git Push** - Push commits and tags to origin/main
-2. **Build Package** - Create wheel and source distributions
-3. **Publish to PyPI** - Upload package to PyPI
-4. **Local Install** - Install latest version locally
-5. **Update Claude Plugin** - Run `claude plugin update htmlgraph`
-6. **Update Gemini Extension** - Update version in gemini-extension.json
-7. **Update Codex Skill** - Check for Codex and update if present
-8. **Create GitHub Release** - Create release with distribution files
-
-**See:** `scripts/README.md` for complete documentation
-
----
-
-## Memory File Synchronization
-
-**CRITICAL: Use `uv run htmlgraph sync-docs` to maintain documentation consistency.**
-
-HtmlGraph uses a centralized documentation pattern:
-- **AGENTS.md** - Single source of truth (SDK, API, CLI, workflows)
-- **CLAUDE.md** - Platform-specific notes + references AGENTS.md
-- **GEMINI.md** - Platform-specific notes + references AGENTS.md
-
-**Quick Usage:**
-```bash
-# Check if files are synchronized
-uv run htmlgraph sync-docs --check
-
-# Generate platform-specific file
-uv run htmlgraph sync-docs --generate gemini
-uv run htmlgraph sync-docs --generate claude
-
-# Synchronize all files (default)
-uv run htmlgraph sync-docs
-```
-
-**Why This Matters:**
-- ✅ Single source of truth in AGENTS.md
-- ✅ Platform-specific notes in separate files
-- ✅ Easy maintenance (update once, not 3+ times)
-- ✅ Consistency across all platforms
-
-**See:** `scripts/README.md` for complete documentation
-
----
-
-## Dashboard File Synchronization
-
-**AUTOMATIC: Dashboard sync happens automatically during deployment.**
-
-HtmlGraph maintains two versions of the dashboard HTML file:
-- **Source of Truth**: `src/python/htmlgraph/dashboard.html` (packaged with Python library)
-- **Project Root**: `index.html` (for easy viewing in development)
-
-**Automatic Sync Behavior:**
-- ✅ **During Deployment**: `deploy-all.sh` automatically syncs dashboard files in pre-flight
-- ✅ **Auto-Commit**: If changes detected, automatically commits with message "chore: sync index.html with dashboard.html"
-- ✅ **Idempotent**: Safe to run multiple times, only commits when out of sync
-- ✅ **Dry-Run Support**: `--dry-run` flag shows what would be synced without executing
-
-**Manual Sync (if needed):**
-```bash
-# Sync manually (rare - deployment handles this)
-cp src/python/htmlgraph/dashboard.html index.html
-
-# Check if files are in sync
-git diff --quiet index.html && echo "In sync" || echo "Out of sync"
-```
-
-**Why This Matters:**
-- ✅ Ensures packaged dashboard matches development version
-- ✅ Eliminates manual copy-paste errors
-- ✅ Prevents deployment with stale dashboard
-- ✅ Maintains consistency automatically
-
----
-
-## Release & Publishing Workflow
-
-### Version Numbering
-
-HtmlGraph follows [Semantic Versioning](https://semver.org/):
-- **MAJOR.MINOR.PATCH** (e.g., 0.3.0)
-- **MAJOR**: Breaking changes
-- **MINOR**: New features (backward compatible)
-- **PATCH**: Bug fixes (backward compatible)
-
-**Version Files to Update:**
-1. `pyproject.toml` - Package version
-2. `src/python/htmlgraph/__init__.py` - `__version__` variable
-3. `packages/claude-plugin/.claude-plugin/plugin.json` - Claude plugin version
-4. `packages/gemini-extension/gemini-extension.json` - Gemini extension version
-
-### Publishing Checklist
-
-**Pre-Release:**
-- [ ] All tests pass: `uv run pytest`
-- [ ] Documentation updated
-- [ ] CHANGELOG.md updated (if exists)
-- [ ] Version bumped in all files
-- [ ] Changes committed to git
-- [ ] Create git tag: `git tag v0.3.0`
-
-**Build & Publish:**
-```bash
-# 1. Update versions (example for 0.3.0)
-# Edit: pyproject.toml, __init__.py, plugin.json, gemini-extension.json
-
-# 2. Commit version bump
-git add pyproject.toml src/python/htmlgraph/__init__.py \
-  packages/claude-plugin/.claude-plugin/plugin.json \
-  packages/gemini-extension/gemini-extension.json
-git commit -m "chore: bump version to 0.3.0"
-
-# 3. Create git tag
-git tag v0.3.0
-git push origin main --tags
-
-# 4. Build distributions
-uv build
-# Creates: dist/htmlgraph-0.3.0-py3-none-any.whl
-#          dist/htmlgraph-0.3.0.tar.gz
-
-# 5. Publish to PyPI
-source .env  # Load PyPI_API_TOKEN
-uv publish dist/htmlgraph-0.3.0* --token "$PyPI_API_TOKEN"
-
-# Alternative: Set token as environment variable
-export UV_PUBLISH_TOKEN="pypi-YOUR_TOKEN_HERE"
-uv publish dist/htmlgraph-0.3.0*
-
-# 6. Verify publication
-open https://pypi.org/project/htmlgraph/
-```
-
-### PyPI Credentials Setup
-
-**Option 1: API Token (Recommended)**
-1. Create token at: https://pypi.org/manage/account/token/
-2. Add to `.env` file:
-   ```bash
-   PyPI_API_TOKEN=pypi-YOUR_TOKEN_HERE
-   ```
-3. Use with: `source .env && uv publish dist/* --token "$PyPI_API_TOKEN"`
-
-**Option 2: Environment Variable**
-```bash
-export UV_PUBLISH_TOKEN="pypi-YOUR_TOKEN_HERE"
-uv publish dist/*
-```
-
-**Option 3: Command-line Arguments**
-```bash
-uv publish dist/* --username YOUR_USERNAME --password YOUR_PASSWORD
-```
-
-### Post-Release
-
-**Update Claude Plugin:**
-```bash
-# Users update with:
-claude plugin update htmlgraph
-
-# Or fresh install:
-claude plugin install htmlgraph@0.3.0
-```
-
-**Update Gemini Extension:**
-```bash
-# Distribution mechanism TBD
-# Users may need to manually update or use extension marketplace
-```
-
-**Verify Installation:**
-```bash
-# Test PyPI package
-pip install htmlgraph==0.3.0
-python -c "import htmlgraph; print(htmlgraph.__version__)"
-
-# Check PyPI page
-curl -s https://pypi.org/pypi/htmlgraph/json | \
-  python -c "import sys, json; print(json.load(sys.stdin)['info']['version'])"
-```
-
-### Common Release Commands
-
-**Full Release Workflow:**
-```bash
-#!/bin/bash
-# release.sh - Complete release workflow
-
-VERSION="0.3.0"
-
-# Update versions
-sed -i '' "s/version = \".*\"/version = \"$VERSION\"/" pyproject.toml
-sed -i '' "s/__version__ = \".*\"/__version__ = \"$VERSION\"/" src/python/htmlgraph/__init__.py
-sed -i '' "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" packages/claude-plugin/.claude-plugin/plugin.json
-sed -i '' "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" packages/gemini-extension/gemini-extension.json
-
-# Commit and tag
-git add pyproject.toml src/python/htmlgraph/__init__.py \
-  packages/claude-plugin/.claude-plugin/plugin.json \
-  packages/gemini-extension/gemini-extension.json
-git commit -m "chore: bump version to $VERSION"
-git tag "v$VERSION"
-git push origin main --tags
-
-# Build and publish
-uv build
-source .env
-uv publish dist/htmlgraph-$VERSION* --token "$PyPI_API_TOKEN"
-
-echo "✅ Published htmlgraph $VERSION to PyPI"
-echo "📦 https://pypi.org/project/htmlgraph/$VERSION/"
-```
-
-### Rollback / Unpublish
-
-**⚠️ WARNING: PyPI does NOT allow unpublishing or replacing versions.**
-
-Once published, a version is permanent. If you need to fix an issue:
-
-1. **Patch Release:** Bump to next patch version (e.g., 0.3.0 → 0.3.1)
-2. **Yank Release:** Mark as unavailable (doesn't delete):
-   ```bash
-   # Use twine to yank (uv doesn't support this yet)
-   pip install twine
-   twine yank htmlgraph 0.3.0 -r pypi
-   ```
-3. **Publish Fix:** Release corrected version
-
-### Version History
-
-Track major releases and their features:
-
-- **0.3.0** (2025-12-22) - TrackBuilder fluent API, multi-pattern glob support
-- **0.2.2** (2025-12-21) - Enhanced session tracking, drift detection
-- **0.2.0** (2025-12-21) - Initial public release with SDK
-- **0.1.x** - Development versions
+**Quick Commands:**
+- `./scripts/deploy-all.sh VERSION --no-confirm` - Full release (automated)
+- `./scripts/deploy-all.sh --docs-only` - Docs changes only
+- `./scripts/deploy-all.sh --build-only` - Build package only
+- `./scripts/deploy-all.sh --dry-run` - Preview what would happen
+
+**What It Does:** Dashboard sync, version updates, auto-commit, git push, build, publish to PyPI, plugin updates, GitHub release.
+
+**See:** [.claude/rules/deployment.md](./.claude/rules/deployment.md) for complete deployment documentation, publishing workflow, PyPI credentials, version numbering, and rollback procedures.
 
 ---
 

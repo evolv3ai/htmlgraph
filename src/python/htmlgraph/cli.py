@@ -41,8 +41,32 @@ import argparse
 import os
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+
+def create_json_response(
+    command: str,
+    data: dict | list,
+    success: bool = True,
+    metadata: dict | None = None,
+    warnings: list[str] | None = None,
+    errors: list[str] | None = None,
+) -> dict:
+    """Create standardized JSON response for CLI commands."""
+    import htmlgraph
+
+    return {
+        "success": success,
+        "timestamp": datetime.now().isoformat(),
+        "version": htmlgraph.__version__,
+        "command": command,
+        "data": data,
+        "metadata": metadata or {},
+        "warnings": warnings or [],
+        "errors": errors or [],
+    }
 
 
 def cmd_install_gemini_extension(args: argparse.Namespace) -> None:
@@ -753,13 +777,16 @@ def cmd_status(args: argparse.Namespace) -> None:
 
     # Output based on format flag
     if args.format == "json":
-        output = {
-            "graph_dir": args.graph_dir,
-            "total_nodes": total,
-            "by_collection": dict(sorted(by_collection.items())),
-            "by_status": dict(sorted(by_status.items())),
-        }
-        print(json.dumps(output, indent=2))
+        response = create_json_response(
+            command="status",
+            data={
+                "total_nodes": total,
+                "by_collection": dict(sorted(by_collection.items())),
+                "by_status": dict(sorted(by_status.items())),
+            },
+            metadata={"graph_dir": args.graph_dir},
+        )
+        print(json.dumps(response, indent=2))
     else:
         # Text output (default)
         if not args.quiet:
@@ -2798,7 +2825,16 @@ def cmd_feature_list(args: argparse.Namespace) -> None:
     nodes.sort(key=sort_key, reverse=True)
 
     if args.format == "json":
-        print(json.dumps([node_to_dict(n) for n in nodes], indent=2, default=str))
+        response = create_json_response(
+            command="feature list",
+            data=[node_to_dict(n) for n in nodes],
+            metadata={
+                "graph_dir": args.graph_dir,
+                "status_filter": args.status,
+                "total_count": len(nodes),
+            },
+        )
+        print(json.dumps(response, indent=2, default=str))
     else:
         if not nodes:
             if not args.quiet:
@@ -4058,9 +4094,7 @@ For more help: https://github.com/Shakes-tzd/htmlgraph
     feature_list.add_argument(
         "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
     )
-    feature_list.add_argument(
-        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
-    )
+    # Note: --format flag is inherited from global parser (line 3312)
 
     # feature step-complete
     feature_step_complete = feature_subparsers.add_parser(
