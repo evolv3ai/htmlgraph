@@ -327,7 +327,7 @@ class TestImplementationBlocked:
             cwd=temp_graph_dir.parent
         )
 
-        assert response["continue"] is False
+        assert response["continue"] is True  # Advisory-only: warnings but no blocking
         assert "Edit is implementation work" in response["hookSpecificOutput"]["additionalContext"]
         assert "Task(" in response["hookSpecificOutput"]["additionalContext"]
         assert "Coder subagent" in response["hookSpecificOutput"]["additionalContext"]
@@ -344,7 +344,7 @@ class TestImplementationBlocked:
             cwd=temp_graph_dir.parent
         )
 
-        assert response["continue"] is False
+        assert response["continue"] is True  # Advisory-only: warnings but no blocking
         assert "Write is implementation work" in response["hookSpecificOutput"]["additionalContext"]
         assert "Task(" in response["hookSpecificOutput"]["additionalContext"]
 
@@ -360,7 +360,7 @@ class TestImplementationBlocked:
             cwd=temp_graph_dir.parent
         )
 
-        assert response["continue"] is False
+        assert response["continue"] is True  # Advisory-only: warnings but no blocking
         assert "NotebookEdit is implementation work" in response["hookSpecificOutput"]["additionalContext"]
 
     def test_delete_blocked(self, hook_script, temp_graph_dir, clean_tool_history):
@@ -375,7 +375,7 @@ class TestImplementationBlocked:
             cwd=temp_graph_dir.parent
         )
 
-        assert response["continue"] is False
+        assert response["continue"] is True  # Advisory-only: warnings but no blocking
         assert "Delete is a destructive" in response["hookSpecificOutput"]["additionalContext"]
 
 
@@ -394,7 +394,7 @@ class TestTestBuildBlocked:
             cwd=temp_graph_dir.parent
         )
 
-        assert response["continue"] is False
+        assert response["continue"] is True  # Advisory-only: warnings but no blocking
         assert "Testing/building" in response["hookSpecificOutput"]["additionalContext"]
         assert "Task tool" in response["hookSpecificOutput"]["additionalContext"]
 
@@ -410,7 +410,7 @@ class TestTestBuildBlocked:
             cwd=temp_graph_dir.parent
         )
 
-        assert response["continue"] is False
+        assert response["continue"] is True  # Advisory-only: warnings but no blocking
         assert "Testing/building" in response["hookSpecificOutput"]["additionalContext"]
 
     def test_npm_build_blocked(self, hook_script, temp_graph_dir, clean_tool_history):
@@ -425,7 +425,7 @@ class TestTestBuildBlocked:
             cwd=temp_graph_dir.parent
         )
 
-        assert response["continue"] is False
+        assert response["continue"] is True  # Advisory-only: warnings but no blocking
         assert "Testing/building" in response["hookSpecificOutput"]["additionalContext"]
 
 
