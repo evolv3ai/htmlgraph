@@ -14,10 +14,11 @@ ALIASES = {
     "hg-feat-done": "uv run htmlgraph feature complete",
     "hg-feat-claim": "uv run htmlgraph feature claim",
     "hg-feat-release": "uv run htmlgraph feature release",
-    "hg-track": "uv run htmlgraph activity", # Legacy mapping
+    "hg-track": "uv run htmlgraph activity",  # Legacy mapping
     "hg-serve": "uv run htmlgraph serve",
     "hg-publish": "uv run htmlgraph publish",
 }
+
 
 def generate_bash():
     print("# HtmlGraph Aliases (Bash/Zsh)")
@@ -25,6 +26,7 @@ def generate_bash():
     print("")
     for alias, command in ALIASES.items():
         print(f"alias {alias}='{command}'")
+
 
 if __name__ == "__main__":
     generate_bash()

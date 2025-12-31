@@ -7,7 +7,12 @@ from htmlgraph.mcp_server import StdioTransport
 
 
 def test_stdio_transport_reads_content_length_message():
-    msg = {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2024-11-05"}}
+    msg = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {"protocolVersion": "2024-11-05"},
+    }
     body = json.dumps(msg).encode("utf-8")
     payload = b"Content-Length: %d\r\n\r\n" % len(body) + body
 
@@ -35,10 +40,9 @@ def test_stdio_transport_writes_content_length_when_detected():
 
 
 def test_stdio_transport_reads_newline_json_message():
-    inp = BytesIO(b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}\n")
+    inp = BytesIO(b'{"jsonrpc":"2.0","id":1,"method":"tools/list"}\n')
     out = BytesIO()
     t = StdioTransport(inp=inp, out=out, force_content_length=None, log_to_stderr=False)
     read = t.read_message()
     assert read is not None
     assert read["method"] == "tools/list"
-

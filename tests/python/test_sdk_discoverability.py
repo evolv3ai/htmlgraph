@@ -95,7 +95,14 @@ class TestSDKDir:
     def test_priority_collections_exist(self, sdk: SDK):
         """Key collection attributes should be in dir()."""
         attrs = dir(sdk)
-        priority_collections = ["features", "bugs", "spikes", "chores", "epics", "sessions"]
+        priority_collections = [
+            "features",
+            "bugs",
+            "spikes",
+            "chores",
+            "epics",
+            "sessions",
+        ]
         for collection in priority_collections:
             assert collection in attrs, f"{collection} should be in dir(sdk)"
 
@@ -135,7 +142,9 @@ class TestSDKDir:
         # Priority items should come before private methods
         assert features_idx >= 0, "features should be in dir()"
         assert help_idx >= 0, "help should be in dir()"
-        assert features_idx < first_private_idx, "features should come before private methods"
+        assert features_idx < first_private_idx, (
+            "features should come before private methods"
+        )
         assert help_idx < first_private_idx, "help should come before private methods"
 
 
@@ -221,8 +230,14 @@ class TestSDKDiscoverabilityIntegration:
     def test_all_priority_methods_are_callable(self, sdk: SDK):
         """All priority methods in __dir__ should be callable or accessible."""
         priority_items = [
-            "features", "bugs", "spikes", "chores", "epics",
-            "spawn_explorer", "spawn_coder", "help"
+            "features",
+            "bugs",
+            "spikes",
+            "chores",
+            "epics",
+            "spawn_explorer",
+            "spawn_coder",
+            "help",
         ]
 
         for item in priority_items:

@@ -66,7 +66,7 @@ class TestEdge:
         edge = Edge(
             target_id="task-001",
             relationship="blocks",
-            since=datetime(2024, 12, 16, 10, 30)
+            since=datetime(2024, 12, 16, 10, 30),
         )
         html = edge.to_html()
         assert 'data-relationship="blocks"' in html
@@ -111,7 +111,7 @@ class TestNode:
                 Step(description="S2", completed=True),
                 Step(description="S3", completed=False),
                 Step(description="S4", completed=False),
-            ]
+            ],
         )
         assert node.completion_percentage == 50
 
@@ -124,7 +124,7 @@ class TestNode:
                 Step(description="S1", completed=True),
                 Step(description="S2", completed=False),
                 Step(description="S3", completed=False),
-            ]
+            ],
         )
         assert node.next_step.description == "S2"
 
@@ -136,7 +136,7 @@ class TestNode:
             steps=[
                 Step(description="S1", completed=True),
                 Step(description="S2", completed=True),
-            ]
+            ],
         )
         assert node.next_step is None
 
@@ -154,9 +154,7 @@ class TestNode:
     def test_node_complete_step(self):
         """complete_step should mark step as done."""
         node = Node(
-            id="n1",
-            title="T1",
-            steps=[Step(description="S1"), Step(description="S2")]
+            id="n1", title="T1", steps=[Step(description="S1"), Step(description="S2")]
         )
 
         result = node.complete_step(0, agent="claude")
@@ -184,9 +182,7 @@ class TestNode:
                 Step(description="Create routes", completed=True),
                 Step(description="Add middleware", completed=False),
             ],
-            edges={
-                "blocked_by": [Edge(target_id="feature-002", title="Database")]
-            }
+            edges={"blocked_by": [Edge(target_id="feature-002", title="Database")]},
         )
 
         html = node.to_html()
@@ -222,9 +218,7 @@ class TestNode:
                 Step(description="S1", completed=True),
                 Step(description="S2", completed=False),
             ],
-            edges={
-                "blocked_by": [Edge(target_id="f-002", title="Database")]
-            }
+            edges={"blocked_by": [Edge(target_id="f-002", title="Database")]},
         )
 
         context = node.to_context()
@@ -245,10 +239,8 @@ class TestNode:
         data = {
             "id": "n1",
             "title": "Test",
-            "edges": {
-                "related": [{"target_id": "n2", "relationship": "related"}]
-            },
-            "steps": [{"description": "Step 1", "completed": False}]
+            "edges": {"related": [{"target_id": "n2", "relationship": "related"}]},
+            "steps": [{"description": "Step 1", "completed": False}],
         }
 
         node = Node.from_dict(data)
@@ -285,15 +277,11 @@ class TestGraph:
     def test_graph_all_edges(self):
         """all_edges should return all edges from all nodes."""
         graph = Graph()
-        node1 = Node(
-            id="n1",
-            title="N1",
-            edges={"related": [Edge(target_id="n2")]}
-        )
+        node1 = Node(id="n1", title="N1", edges={"related": [Edge(target_id="n2")]})
         node2 = Node(
             id="n2",
             title="N2",
-            edges={"blocks": [Edge(target_id="n1", relationship="blocks")]}
+            edges={"blocks": [Edge(target_id="n1", relationship="blocks")]},
         )
 
         graph.add(node1)

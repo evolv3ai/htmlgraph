@@ -7,7 +7,6 @@ Tests cover:
 - Routing functions: Task assignment and batch routing
 """
 
-
 from htmlgraph.models import Node
 from htmlgraph.routing import (
     AgentCapabilityRegistry,
@@ -150,10 +149,12 @@ class TestCapabilityMatcher:
         task = Node(
             id="task-1",
             title="Write Python Tests",
-            required_capabilities=["python", "testing"]
+            required_capabilities=["python", "testing"],
         )
 
-        score = CapabilityMatcher.score_agent_task_fit(agent, task, include_workload=False)
+        score = CapabilityMatcher.score_agent_task_fit(
+            agent, task, include_workload=False
+        )
         # 2 exact matches * 100 = 200
         # 1 extra capability * 10 = 10
         # Total: 210
@@ -165,10 +166,12 @@ class TestCapabilityMatcher:
         task = Node(
             id="task-1",
             title="Full Stack Dev",
-            required_capabilities=["python", "javascript", "testing"]
+            required_capabilities=["python", "javascript", "testing"],
         )
 
-        score = CapabilityMatcher.score_agent_task_fit(agent, task, include_workload=False)
+        score = CapabilityMatcher.score_agent_task_fit(
+            agent, task, include_workload=False
+        )
         # 1 exact match (python): 100
         # 2 missing (javascript, testing): -100
         # 1 extra capability (documentation): 10
@@ -181,10 +184,12 @@ class TestCapabilityMatcher:
         task = Node(
             id="task-1",
             title="Python Backend",
-            required_capabilities=["python", "databases"]
+            required_capabilities=["python", "databases"],
         )
 
-        score = CapabilityMatcher.score_agent_task_fit(agent, task, include_workload=False)
+        score = CapabilityMatcher.score_agent_task_fit(
+            agent, task, include_workload=False
+        )
         # 2 missing: -100
         # 1 extra capability (javascript): 10
         # Total: -90
@@ -195,7 +200,9 @@ class TestCapabilityMatcher:
         agent = AgentProfile("claude", ["python"])
         task = Node(id="task-1", title="Unspecified Task")
 
-        score = CapabilityMatcher.score_agent_task_fit(agent, task, include_workload=False)
+        score = CapabilityMatcher.score_agent_task_fit(
+            agent, task, include_workload=False
+        )
         # Unspecified tasks get baseline score
         assert score == 50.0
 
@@ -204,13 +211,11 @@ class TestCapabilityMatcher:
         agent = AgentProfile("claude", ["python"])
         agent.current_wip = 3
 
-        task = Node(
-            id="task-1",
-            title="Python Task",
-            required_capabilities=["python"]
-        )
+        task = Node(id="task-1", title="Python Task", required_capabilities=["python"])
 
-        score = CapabilityMatcher.score_agent_task_fit(agent, task, include_workload=True)
+        score = CapabilityMatcher.score_agent_task_fit(
+            agent, task, include_workload=True
+        )
         # 1 exact match: 100
         # WIP penalty: -15 (3 * 5)
         # Expected: 85
@@ -221,13 +226,11 @@ class TestCapabilityMatcher:
         agent = AgentProfile("claude", ["python"], wip_limit=5)
         agent.current_wip = 5  # At capacity
 
-        task = Node(
-            id="task-1",
-            title="Python Task",
-            required_capabilities=["python"]
-        )
+        task = Node(id="task-1", title="Python Task", required_capabilities=["python"])
 
-        score = CapabilityMatcher.score_agent_task_fit(agent, task, include_workload=True)
+        score = CapabilityMatcher.score_agent_task_fit(
+            agent, task, include_workload=True
+        )
         # 1 exact match: 100
         # WIP penalty: -25 (5 * 5)
         # At capacity penalty: -100
@@ -236,14 +239,14 @@ class TestCapabilityMatcher:
 
     def test_score_extra_capabilities_bonus(self):
         """Test bonus for having extra capabilities."""
-        agent = AgentProfile("claude", ["python", "testing", "documentation", "refactoring"])
-        task = Node(
-            id="task-1",
-            title="Python Task",
-            required_capabilities=["python"]
+        agent = AgentProfile(
+            "claude", ["python", "testing", "documentation", "refactoring"]
         )
+        task = Node(id="task-1", title="Python Task", required_capabilities=["python"])
 
-        score = CapabilityMatcher.score_agent_task_fit(agent, task, include_workload=False)
+        score = CapabilityMatcher.score_agent_task_fit(
+            agent, task, include_workload=False
+        )
         # 1 exact match: 100
         # 3 extra capabilities: 30 (3 * 10)
         # Expected: 130
@@ -258,7 +261,7 @@ class TestCapabilityMatcher:
         task = Node(
             id="task-1",
             title="Python Tests",
-            required_capabilities=["python", "testing"]
+            required_capabilities=["python", "testing"],
         )
 
         agents = registry.get_all_agents()
@@ -273,11 +276,7 @@ class TestCapabilityMatcher:
         registry.register_agent("claude", ["python"])
         registry.register_agent("haiku", ["javascript"])
 
-        task = Node(
-            id="task-1",
-            title="Rust Backend",
-            required_capabilities=["rust"]
-        )
+        task = Node(id="task-1", title="Rust Backend", required_capabilities=["rust"])
 
         agents = registry.get_all_agents()
         best = CapabilityMatcher.find_best_agent(agents, task, min_score=0.0)
@@ -294,11 +293,7 @@ class TestCapabilityMatcher:
         registry.set_wip("claude", 4)
         registry.set_wip("haiku", 1)
 
-        task = Node(
-            id="task-1",
-            title="Python Task",
-            required_capabilities=["python"]
-        )
+        task = Node(id="task-1", title="Python Task", required_capabilities=["python"])
 
         agents = registry.get_all_agents()
         best = CapabilityMatcher.find_best_agent(agents, task)
@@ -316,11 +311,7 @@ class TestRoutingFunctions:
         registry = AgentCapabilityRegistry()
         registry.register_agent("claude", ["python", "testing"])
 
-        task = Node(
-            id="task-1",
-            title="Python Tests",
-            required_capabilities=["python"]
-        )
+        task = Node(id="task-1", title="Python Tests", required_capabilities=["python"])
 
         agent, score = route_task_to_agent(task, registry)
         assert agent is not None
@@ -332,11 +323,7 @@ class TestRoutingFunctions:
         registry = AgentCapabilityRegistry()
         registry.register_agent("claude", ["javascript"])
 
-        task = Node(
-            id="task-1",
-            title="Python Task",
-            required_capabilities=["python"]
-        )
+        task = Node(id="task-1", title="Python Task", required_capabilities=["python"])
 
         agent, score = route_task_to_agent(task, registry, allow_unmatched=False)
         assert agent is None
@@ -347,11 +334,7 @@ class TestRoutingFunctions:
         registry = AgentCapabilityRegistry()
         registry.register_agent("claude", ["javascript"])
 
-        task = Node(
-            id="task-1",
-            title="Python Task",
-            required_capabilities=["python"]
-        )
+        task = Node(id="task-1", title="Python Task", required_capabilities=["python"])
 
         agent, score = route_task_to_agent(task, registry, allow_unmatched=True)
         assert agent is not None
@@ -369,12 +352,12 @@ class TestRoutingFunctions:
             Node(
                 id="task-1",
                 title="Python Tests",
-                required_capabilities=["python", "testing"]
+                required_capabilities=["python", "testing"],
             ),
             Node(
                 id="task-2",
                 title="Refactor Code",
-                required_capabilities=["refactoring"]
+                required_capabilities=["refactoring"],
             ),
         ]
 
@@ -405,11 +388,7 @@ class TestRoutingFunctions:
         """Test routing with empty registry."""
         registry = AgentCapabilityRegistry()
 
-        task = Node(
-            id="task-1",
-            title="Python Task",
-            required_capabilities=["python"]
-        )
+        task = Node(id="task-1", title="Python Task", required_capabilities=["python"])
 
         agent, score = route_task_to_agent(task, registry)
         assert agent is None
@@ -425,24 +404,26 @@ class TestCapabilityIntegration:
         # Register agents with different specialties
         registry.register_agent("claude-py", ["python", "testing", "documentation"])
         registry.register_agent("claude-js", ["javascript", "react"])
-        registry.register_agent("claude-generalist", ["python", "javascript", "documentation"])
+        registry.register_agent(
+            "claude-generalist", ["python", "javascript", "documentation"]
+        )
 
         # Create diverse tasks
         tasks = [
             Node(
                 id="task-py-test",
                 title="Unit Tests",
-                required_capabilities=["python", "testing"]
+                required_capabilities=["python", "testing"],
             ),
             Node(
                 id="task-react",
                 title="React Component",
-                required_capabilities=["javascript", "react"]
+                required_capabilities=["javascript", "react"],
             ),
             Node(
                 id="task-docs",
                 title="Documentation",
-                required_capabilities=["documentation"]
+                required_capabilities=["documentation"],
             ),
         ]
 
@@ -467,11 +448,7 @@ class TestCapabilityIntegration:
         registry.set_wip("agent1", 5)
         registry.set_wip("agent2", 1)
 
-        task = Node(
-            id="task-1",
-            title="Python Task",
-            required_capabilities=["python"]
-        )
+        task = Node(id="task-1", title="Python Task", required_capabilities=["python"])
 
         agent, score = route_task_to_agent(task, registry)
         # Should prefer agent2 due to lower workload
@@ -493,11 +470,7 @@ class TestCapabilityIntegration:
         for i in range(100):
             caps = ["python"] if i % 2 == 0 else ["javascript"]
             tasks.append(
-                Node(
-                    id=f"task-{i}",
-                    title=f"Task {i}",
-                    required_capabilities=caps
-                )
+                Node(id=f"task-{i}", title=f"Task {i}", required_capabilities=caps)
             )
 
         # Measure routing time

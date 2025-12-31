@@ -22,7 +22,9 @@ class TestSnapshot:
 
             # Add some test nodes
             node1 = Node(id="node-001", title="Node 1", status="todo", priority="high")
-            node2 = Node(id="node-002", title="Node 2", status="in-progress", priority="medium")
+            node2 = Node(
+                id="node-002", title="Node 2", status="in-progress", priority="medium"
+            )
             node3 = Node(id="node-003", title="Node 3", status="done", priority="low")
 
             graph.add(node1)

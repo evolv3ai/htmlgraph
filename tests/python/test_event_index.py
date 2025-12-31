@@ -74,7 +74,7 @@ def test_jsonl_event_log_dedupes_duplicate_event_id(tmp_path: Path):
         )
     )
 
-    path = (tmp_path / "events" / "s.jsonl")
+    path = tmp_path / "events" / "s.jsonl"
     lines = [ln for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
     assert len(lines) == 1
 

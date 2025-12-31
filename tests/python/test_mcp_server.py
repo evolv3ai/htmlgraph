@@ -46,7 +46,11 @@ def test_mcp_log_event_writes_activity(tmp_path: Path):
         "tools/call",
         {
             "name": "log_event",
-            "arguments": {"tool": "Bash", "summary": "Bash: echo hi", "files": ["a.txt"]},
+            "arguments": {
+                "tool": "Bash",
+                "summary": "Bash: echo hi",
+                "files": ["a.txt"],
+            },
         },
     )
     assert resp["result"]["isError"] is False

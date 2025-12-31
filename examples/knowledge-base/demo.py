@@ -21,9 +21,9 @@ def create_notes(sdk: SDK):
     print("📝 Creating knowledge base notes...")
 
     # Daily note
-    daily = sdk.features.create(f"Daily Note: {date.today()}") \
-        .set_priority("low") \
-        .save()
+    daily = (
+        sdk.features.create(f"Daily Note: {date.today()}").set_priority("low").save()
+    )
 
     # Concept notes
     htmlgraph_note = Node(
@@ -59,9 +59,9 @@ def create_notes(sdk: SDK):
             "related": [
                 Edge(target_id="note-web-standards", relationship="related"),
                 Edge(target_id="note-graph-db", relationship="related"),
-                Edge(target_id="note-ai-agents", relationship="related")
+                Edge(target_id="note-ai-agents", relationship="related"),
             ]
-        }
+        },
     )
 
     web_standards_note = Node(
@@ -89,11 +89,7 @@ def create_notes(sdk: SDK):
             <li>Static site generators</li>
         </ul>
         """,
-        edges={
-            "related": [
-                Edge(target_id="note-htmlgraph", relationship="related")
-            ]
-        }
+        edges={"related": [Edge(target_id="note-htmlgraph", relationship="related")]},
     )
 
     graph_db_note = Node(
@@ -117,11 +113,7 @@ def create_notes(sdk: SDK):
         <p>HtmlGraph proves you don't need a traditional graph database.</p>
         <p>HTML files + hyperlinks = graph database!</p>
         """,
-        edges={
-            "related": [
-                Edge(target_id="note-htmlgraph", relationship="related")
-            ]
-        }
+        edges={"related": [Edge(target_id="note-htmlgraph", relationship="related")]},
     )
 
     ai_agents_note = Node(
@@ -151,11 +143,7 @@ def create_notes(sdk: SDK):
             <li>No custom protocol needed</li>
         </ul>
         """,
-        edges={
-            "related": [
-                Edge(target_id="note-htmlgraph", relationship="related")
-            ]
-        }
+        edges={"related": [Edge(target_id="note-htmlgraph", relationship="related")]},
     )
 
     # Add all notes to graph
@@ -193,7 +181,9 @@ def demonstrate_queries(sdk: SDK):
 
     # Find connection paths
     print("\n🛤️  Connection path (Web Standards → AI Agents):")
-    path = sdk._graph.shortest_path("note-web-standards", "note-ai-agents", relationship="related")
+    path = sdk._graph.shortest_path(
+        "note-web-standards", "note-ai-agents", relationship="related"
+    )
     if path:
         for i, node_id in enumerate(path):
             node = sdk.features.get(node_id)

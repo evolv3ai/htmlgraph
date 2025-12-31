@@ -141,6 +141,7 @@ def build_package(ctx, dry_run=False):
     dist_dir = PROJECT_ROOT / "dist"
     if dist_dir.exists() and not dry_run:
         import shutil
+
         shutil.rmtree(dist_dir)
 
     log_info("Building package...")
@@ -186,6 +187,7 @@ def publish_pypi(ctx, version: str | None = None, dry_run=False):
     if not dry_run:
         log_info(f"Waiting {PYPI_WAIT_SECONDS} seconds for PyPI to process...")
         import time
+
         time.sleep(PYPI_WAIT_SECONDS)
 
     log_success("Published to PyPI")
@@ -211,9 +213,12 @@ def install_local(ctx, version: str | None = None, dry_run=False):
         # Verify installation
         try:
             import htmlgraph
+
             installed_version = htmlgraph.__version__
             if installed_version == version:
-                log_success(f"Verified: {PACKAGE_NAME} {installed_version} is installed")
+                log_success(
+                    f"Verified: {PACKAGE_NAME} {installed_version} is installed"
+                )
             else:
                 log_warning(
                     f"Installed version ({installed_version}) doesn't match "
@@ -404,7 +409,9 @@ def deploy(
             print("\nVerify deployment:")
             print(f"  - PyPI: https://pypi.org/project/{PACKAGE_NAME}/{version}/")
             print(f"  - GitHub: https://github.com/Shakes-tzd/{PACKAGE_NAME}")
-            print(f"  - Local: python -c 'import {PACKAGE_NAME}; print({PACKAGE_NAME}.__version__)'")
+            print(
+                f"  - Local: python -c 'import {PACKAGE_NAME}; print({PACKAGE_NAME}.__version__)'"
+            )
 
     except Exception as e:
         log_error(f"Deployment failed: {e}")

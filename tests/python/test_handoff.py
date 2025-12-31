@@ -500,7 +500,9 @@ class TestHandoffWorkflow:
         elapsed = time.time() - start
 
         # Should generate HTML in <50ms per feature
-        assert elapsed < 5.0, f"HTML generation too slow: {elapsed/100*1000:.2f}ms per feature"
+        assert elapsed < 5.0, (
+            f"HTML generation too slow: {elapsed / 100 * 1000:.2f}ms per feature"
+        )
 
         # Verify HTML size is reasonable
         assert len(html) < 10_000, f"HTML too large: {len(html)} bytes"

@@ -40,10 +40,7 @@ class TestSpikeModel:
 
     def test_spike_defaults(self):
         """Test Spike model with defaults."""
-        spike = Spike(
-            id="spike-123",
-            title="Investigate OAuth providers"
-        )
+        spike = Spike(id="spike-123", title="Investigate OAuth providers")
 
         assert spike.type == "spike"
         assert spike.spike_type == SpikeType.GENERAL
@@ -59,7 +56,7 @@ class TestSpikeModel:
             spike_type=SpikeType.ARCHITECTURAL,
             timebox_hours=8,
             findings="GraphQL provides better type safety than REST",
-            decision="Use GraphQL for public API"
+            decision="Use GraphQL for public API",
         )
 
         assert spike.type == "spike"
@@ -74,7 +71,7 @@ class TestSpikeModel:
         spike = Spike(
             id="spike-789",
             title="Test spike",
-            type="wrong-type"  # This should be ignored
+            type="wrong-type",  # This should be ignored
         )
 
         assert spike.type == "spike"
@@ -85,10 +82,7 @@ class TestChoreModel:
 
     def test_chore_defaults(self):
         """Test Chore model with defaults."""
-        chore = Chore(
-            id="chore-123",
-            title="Update dependencies"
-        )
+        chore = Chore(id="chore-123", title="Update dependencies")
 
         assert chore.type == "chore"
         assert chore.maintenance_type is None
@@ -100,7 +94,7 @@ class TestChoreModel:
             id="chore-456",
             title="Refactor authentication module",
             maintenance_type=MaintenanceType.PREVENTIVE,
-            technical_debt_score=7
+            technical_debt_score=7,
         )
 
         assert chore.type == "chore"
@@ -112,7 +106,7 @@ class TestChoreModel:
         chore = Chore(
             id="chore-789",
             title="Test chore",
-            type="wrong-type"  # This should be ignored
+            type="wrong-type",  # This should be ignored
         )
 
         assert chore.type == "chore"
@@ -167,10 +161,22 @@ class TestSessionWorkTypeCalculations:
 
         session_id = "test-session-001"
         events = [
-            {"event_id": "evt-001", "tool": "Bash", "work_type": "feature-implementation"},
-            {"event_id": "evt-002", "tool": "Edit", "work_type": "feature-implementation"},
+            {
+                "event_id": "evt-001",
+                "tool": "Bash",
+                "work_type": "feature-implementation",
+            },
+            {
+                "event_id": "evt-002",
+                "tool": "Edit",
+                "work_type": "feature-implementation",
+            },
             {"event_id": "evt-003", "tool": "Read", "work_type": "spike-investigation"},
-            {"event_id": "evt-004", "tool": "Bash", "work_type": "feature-implementation"},
+            {
+                "event_id": "evt-004",
+                "tool": "Bash",
+                "work_type": "feature-implementation",
+            },
             {"event_id": "evt-005", "tool": "Write", "work_type": "maintenance"},
         ]
 
@@ -188,7 +194,7 @@ class TestSessionWorkTypeCalculations:
                     "feature_id": None,
                     "drift_score": None,
                     "start_commit": None,
-                    "continued_from": None
+                    "continued_from": None,
                 }
                 f.write(json.dumps(evt_record) + "\n")
 

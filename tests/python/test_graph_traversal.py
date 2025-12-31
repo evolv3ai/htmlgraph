@@ -28,21 +28,26 @@ class TestAncestorsDescendants:
 
             # Node b and c depend on d
             node_b = Node(
-                id="b", title="Node B",
-                edges={"blocked_by": [Edge(target_id="d", relationship="blocked_by")]}
+                id="b",
+                title="Node B",
+                edges={"blocked_by": [Edge(target_id="d", relationship="blocked_by")]},
             )
             node_c = Node(
-                id="c", title="Node C",
-                edges={"blocked_by": [Edge(target_id="d", relationship="blocked_by")]}
+                id="c",
+                title="Node C",
+                edges={"blocked_by": [Edge(target_id="d", relationship="blocked_by")]},
             )
 
             # Node a depends on b and c
             node_a = Node(
-                id="a", title="Node A",
-                edges={"blocked_by": [
-                    Edge(target_id="b", relationship="blocked_by"),
-                    Edge(target_id="c", relationship="blocked_by")
-                ]}
+                id="a",
+                title="Node A",
+                edges={
+                    "blocked_by": [
+                        Edge(target_id="b", relationship="blocked_by"),
+                        Edge(target_id="c", relationship="blocked_by"),
+                    ]
+                },
             )
 
             graph.add(node_d)
@@ -108,15 +113,19 @@ class TestSubgraph:
 
             nodes = [
                 Node(
-                    id="a", title="Node A",
-                    edges={"related": [
-                        Edge(target_id="b", relationship="related"),
-                        Edge(target_id="c", relationship="related")
-                    ]}
+                    id="a",
+                    title="Node A",
+                    edges={
+                        "related": [
+                            Edge(target_id="b", relationship="related"),
+                            Edge(target_id="c", relationship="related"),
+                        ]
+                    },
                 ),
                 Node(
-                    id="b", title="Node B",
-                    edges={"related": [Edge(target_id="c", relationship="related")]}
+                    id="b",
+                    title="Node B",
+                    edges={"related": [Edge(target_id="c", relationship="related")]},
                 ),
                 Node(id="c", title="Node C"),
                 Node(id="d", title="Node D"),  # Isolated
@@ -189,31 +198,48 @@ class TestConnectedComponent:
             graph = HtmlGraph(tmpdir, auto_load=False)
 
             # Component 1
-            graph.add(Node(
-                id="a", title="A",
-                edges={"related": [Edge(target_id="b", relationship="related")]}
-            ))
-            graph.add(Node(
-                id="b", title="B",
-                edges={"related": [
-                    Edge(target_id="a", relationship="related"),
-                    Edge(target_id="c", relationship="related")
-                ]}
-            ))
-            graph.add(Node(
-                id="c", title="C",
-                edges={"related": [Edge(target_id="b", relationship="related")]}
-            ))
+            graph.add(
+                Node(
+                    id="a",
+                    title="A",
+                    edges={"related": [Edge(target_id="b", relationship="related")]},
+                )
+            )
+            graph.add(
+                Node(
+                    id="b",
+                    title="B",
+                    edges={
+                        "related": [
+                            Edge(target_id="a", relationship="related"),
+                            Edge(target_id="c", relationship="related"),
+                        ]
+                    },
+                )
+            )
+            graph.add(
+                Node(
+                    id="c",
+                    title="C",
+                    edges={"related": [Edge(target_id="b", relationship="related")]},
+                )
+            )
 
             # Component 2
-            graph.add(Node(
-                id="d", title="D",
-                edges={"related": [Edge(target_id="e", relationship="related")]}
-            ))
-            graph.add(Node(
-                id="e", title="E",
-                edges={"related": [Edge(target_id="d", relationship="related")]}
-            ))
+            graph.add(
+                Node(
+                    id="d",
+                    title="D",
+                    edges={"related": [Edge(target_id="e", relationship="related")]},
+                )
+            )
+            graph.add(
+                Node(
+                    id="e",
+                    title="E",
+                    edges={"related": [Edge(target_id="d", relationship="related")]},
+                )
+            )
 
             yield graph
 
@@ -254,21 +280,32 @@ class TestAllPaths:
         with tempfile.TemporaryDirectory() as tmpdir:
             graph = HtmlGraph(tmpdir, auto_load=False)
 
-            graph.add(Node(
-                id="a", title="A",
-                edges={"next": [
-                    Edge(target_id="b", relationship="next"),
-                    Edge(target_id="c", relationship="next")
-                ]}
-            ))
-            graph.add(Node(
-                id="b", title="B",
-                edges={"next": [Edge(target_id="d", relationship="next")]}
-            ))
-            graph.add(Node(
-                id="c", title="C",
-                edges={"next": [Edge(target_id="d", relationship="next")]}
-            ))
+            graph.add(
+                Node(
+                    id="a",
+                    title="A",
+                    edges={
+                        "next": [
+                            Edge(target_id="b", relationship="next"),
+                            Edge(target_id="c", relationship="next"),
+                        ]
+                    },
+                )
+            )
+            graph.add(
+                Node(
+                    id="b",
+                    title="B",
+                    edges={"next": [Edge(target_id="d", relationship="next")]},
+                )
+            )
+            graph.add(
+                Node(
+                    id="c",
+                    title="C",
+                    edges={"next": [Edge(target_id="d", relationship="next")]},
+                )
+            )
             graph.add(Node(id="d", title="D"))
 
             yield graph
@@ -322,12 +359,35 @@ class TestTraversalIntegration:
             graph = HtmlGraph(tmpdir, auto_load=False)
 
             # Create a dependency chain: auth -> db -> api -> frontend
-            graph.add(Node(id="frontend", title="Frontend",
-                          edges={"blocked_by": [Edge(target_id="api", relationship="blocked_by")]}))
-            graph.add(Node(id="api", title="API",
-                          edges={"blocked_by": [Edge(target_id="db", relationship="blocked_by")]}))
-            graph.add(Node(id="db", title="Database",
-                          edges={"blocked_by": [Edge(target_id="auth", relationship="blocked_by")]}))
+            graph.add(
+                Node(
+                    id="frontend",
+                    title="Frontend",
+                    edges={
+                        "blocked_by": [Edge(target_id="api", relationship="blocked_by")]
+                    },
+                )
+            )
+            graph.add(
+                Node(
+                    id="api",
+                    title="API",
+                    edges={
+                        "blocked_by": [Edge(target_id="db", relationship="blocked_by")]
+                    },
+                )
+            )
+            graph.add(
+                Node(
+                    id="db",
+                    title="Database",
+                    edges={
+                        "blocked_by": [
+                            Edge(target_id="auth", relationship="blocked_by")
+                        ]
+                    },
+                )
+            )
             graph.add(Node(id="auth", title="Auth"))
 
             yield graph

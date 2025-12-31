@@ -12,8 +12,12 @@ def test_compile_query_basic():
         graph = HtmlGraph(tmpdir, auto_load=False)
 
         # Add some test nodes
-        graph.add(Node(id="feat-001", title="Feature 1", status="todo", priority="high"))
-        graph.add(Node(id="feat-002", title="Feature 2", status="blocked", priority="high"))
+        graph.add(
+            Node(id="feat-001", title="Feature 1", status="todo", priority="high")
+        )
+        graph.add(
+            Node(id="feat-002", title="Feature 2", status="blocked", priority="high")
+        )
         graph.add(Node(id="feat-003", title="Feature 3", status="done", priority="low"))
 
         # Compile a query
@@ -30,10 +34,18 @@ def test_query_compiled_returns_correct_results():
         graph = HtmlGraph(tmpdir, auto_load=False)
 
         # Add test nodes
-        graph.add(Node(id="feat-001", title="Feature 1", status="todo", priority="high"))
-        graph.add(Node(id="feat-002", title="Feature 2", status="blocked", priority="high"))
-        graph.add(Node(id="feat-003", title="Feature 3", status="blocked", priority="low"))
-        graph.add(Node(id="feat-004", title="Feature 4", status="done", priority="high"))
+        graph.add(
+            Node(id="feat-001", title="Feature 1", status="todo", priority="high")
+        )
+        graph.add(
+            Node(id="feat-002", title="Feature 2", status="blocked", priority="high")
+        )
+        graph.add(
+            Node(id="feat-003", title="Feature 3", status="blocked", priority="low")
+        )
+        graph.add(
+            Node(id="feat-004", title="Feature 4", status="done", priority="high")
+        )
 
         # Compile query
         compiled = graph.compile_query("[data-status='blocked']")
@@ -79,7 +91,9 @@ def test_compiled_query_uses_query_cache():
         graph = HtmlGraph(tmpdir, auto_load=False)
 
         # Add test node
-        graph.add(Node(id="feat-001", title="Feature 1", status="blocked", priority="high"))
+        graph.add(
+            Node(id="feat-001", title="Feature 1", status="blocked", priority="high")
+        )
 
         # Reset metrics
         graph.reset_metrics()
@@ -113,7 +127,9 @@ def test_compiled_query_lru_eviction():
         graph._compiled_query_max_size = 3
 
         # Add test node
-        graph.add(Node(id="feat-001", title="Feature 1", status="blocked", priority="high"))
+        graph.add(
+            Node(id="feat-001", title="Feature 1", status="blocked", priority="high")
+        )
 
         # Compile 4 different queries (exceeds cache size)
         compiled1 = graph.compile_query("[data-status='blocked']")
@@ -139,7 +155,9 @@ def test_metrics_include_compilation_stats():
         graph = HtmlGraph(tmpdir, auto_load=False)
 
         # Add test node
-        graph.add(Node(id="feat-001", title="Feature 1", status="blocked", priority="high"))
+        graph.add(
+            Node(id="feat-001", title="Feature 1", status="blocked", priority="high")
+        )
 
         # Reset metrics
         graph.reset_metrics()
@@ -169,7 +187,9 @@ def test_cache_invalidation_clears_compiled_queries():
         graph = HtmlGraph(tmpdir, auto_load=False)
 
         # Add test node
-        graph.add(Node(id="feat-001", title="Feature 1", status="blocked", priority="high"))
+        graph.add(
+            Node(id="feat-001", title="Feature 1", status="blocked", priority="high")
+        )
 
         # Compile query
         compiled = graph.compile_query("[data-status='blocked']")

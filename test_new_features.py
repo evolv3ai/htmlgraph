@@ -12,9 +12,9 @@ from htmlgraph import HtmlGraph
 
 def test_find_api():
     """Test BeautifulSoup-style find() and find_all() API."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST 1: BeautifulSoup-style Find API")
-    print("="*60)
+    print("=" * 60)
 
     graph = HtmlGraph(".htmlgraph/features/")
 
@@ -46,47 +46,44 @@ def test_find_api():
 
 def test_query_builder():
     """Test QueryBuilder fluent interface."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST 2: QueryBuilder Fluent Interface")
-    print("="*60)
+    print("=" * 60)
 
     graph = HtmlGraph(".htmlgraph/features/")
 
     # Test basic where clause
     print("\n1. Testing basic where() clause:")
-    results = graph.query_builder() \
-        .where("type", "feature") \
-        .execute()
+    results = graph.query_builder().where("type", "feature").execute()
     print(f"   ✓ Found {len(results)} features using where('type', 'feature')")
 
     # Test chained AND conditions
     print("\n2. Testing chained AND conditions:")
-    results = graph.query_builder() \
-        .where("type", "feature") \
-        .and_("status", "done") \
-        .execute()
+    results = (
+        graph.query_builder().where("type", "feature").and_("status", "done").execute()
+    )
     print(f"   ✓ Found {len(results)} done features using .where().and_()")
 
     # Test OR conditions
     print("\n3. Testing OR conditions:")
-    results = graph.query_builder() \
-        .where("status", "done") \
-        .or_("status", "in-progress") \
+    results = (
+        graph.query_builder()
+        .where("status", "done")
+        .or_("status", "in-progress")
         .execute()
+    )
     print(f"   ✓ Found {len(results)} nodes with status done OR in-progress")
 
     # Test in_() operator
     print("\n4. Testing in_() operator:")
-    results = graph.query_builder() \
-        .where("priority").in_(["high", "critical"]) \
-        .execute()
+    results = (
+        graph.query_builder().where("priority").in_(["high", "critical"]).execute()
+    )
     print(f"   ✓ Found {len(results)} high/critical priority nodes")
 
     # Test contains() for text search
     print("\n5. Testing contains() for text search:")
-    results = graph.query_builder() \
-        .where("title").contains("test") \
-        .execute()
+    results = graph.query_builder().where("title").contains("test").execute()
     print(f"   ✓ Found {len(results)} nodes with 'test' in title")
 
     print("\n✅ QueryBuilder tests complete!")
@@ -95,9 +92,9 @@ def test_query_builder():
 
 def test_edge_index():
     """Test EdgeIndex O(1) lookups."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST 3: EdgeIndex O(1) Lookups")
-    print("="*60)
+    print("=" * 60)
 
     graph = HtmlGraph(".htmlgraph/features/")
     edge_index = graph.edge_index
@@ -116,14 +113,18 @@ def test_edge_index():
     incoming = graph.get_incoming_edges(test_feature.id)
     print(f"   ✓ Found {len(incoming)} incoming edges")
     for edge_ref in incoming[:3]:
-        print(f"     - {edge_ref.source_id} --[{edge_ref.relationship}]--> {test_feature.id}")
+        print(
+            f"     - {edge_ref.source_id} --[{edge_ref.relationship}]--> {test_feature.id}"
+        )
 
     # Test get_outgoing_edges via graph method
     print("\n3. Testing get_outgoing_edges():")
     outgoing = graph.get_outgoing_edges(test_feature.id)
     print(f"   ✓ Found {len(outgoing)} outgoing edges")
     for edge_ref in outgoing[:3]:
-        print(f"     - {test_feature.id} --[{edge_ref.relationship}]--> {edge_ref.target_id}")
+        print(
+            f"     - {test_feature.id} --[{edge_ref.relationship}]--> {edge_ref.target_id}"
+        )
 
     # Test direct edge_index access
     print("\n4. Testing direct EdgeIndex access:")
@@ -136,9 +137,9 @@ def test_edge_index():
 
 def test_graph_traversal():
     """Test graph traversal methods."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST 4: Graph Traversal Methods")
-    print("="*60)
+    print("=" * 60)
 
     graph = HtmlGraph(".htmlgraph/features/")
     features = list(graph.find_all(type="feature"))
@@ -195,7 +196,9 @@ def test_graph_traversal():
             if path:
                 print(f"   ✓ Found path of length {len(path)}: {' -> '.join(path)}")
             else:
-                print(f"   ✓ No path exists between {features[0].id} and {features[1].id}")
+                print(
+                    f"   ✓ No path exists between {features[0].id} and {features[1].id}"
+                )
         except Exception as e:
             print(f"   ⚠️  shortest_path() error: {e}")
 
@@ -206,7 +209,7 @@ def test_graph_traversal():
         print(f"   ✓ Found {len(cycles)} cycles in graph")
         if cycles:
             for i, cycle in enumerate(cycles[:2]):
-                print(f"     Cycle {i+1}: {' -> '.join(cycle)}")
+                print(f"     Cycle {i + 1}: {' -> '.join(cycle)}")
     except Exception as e:
         print(f"   ⚠️  find_cycles() error: {e}")
 
@@ -216,9 +219,9 @@ def test_graph_traversal():
 
 def run_all_tests():
     """Run all test suites."""
-    print("\n" + "🧪 "*30)
+    print("\n" + "🧪 " * 30)
     print("TESTING NEW HTMLGRAPH FEATURES")
-    print("🧪 "*30)
+    print("🧪 " * 30)
 
     results = []
 
@@ -229,9 +232,9 @@ def run_all_tests():
     results.append(("Graph Traversal", test_graph_traversal()))
 
     # Summary
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST SUMMARY")
-    print("="*60)
+    print("=" * 60)
     for name, passed in results:
         status = "✅ PASS" if passed else "❌ FAIL"
         print(f"{status}: {name}")
@@ -247,5 +250,6 @@ def run_all_tests():
 
 if __name__ == "__main__":
     import sys
+
     success = run_all_tests()
     sys.exit(0 if success else 1)

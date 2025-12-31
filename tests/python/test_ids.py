@@ -185,8 +185,18 @@ class TestPrefixes:
     def test_all_node_types_have_prefixes(self):
         """All common node types should have prefixes."""
         expected_types = [
-            "feature", "bug", "chore", "spike", "epic",
-            "session", "track", "phase", "agent", "spec", "plan", "event"
+            "feature",
+            "bug",
+            "chore",
+            "spike",
+            "epic",
+            "session",
+            "track",
+            "phase",
+            "agent",
+            "spec",
+            "plan",
+            "event",
         ]
         for node_type in expected_types:
             assert node_type in PREFIXES, f"Missing prefix for {node_type}"
@@ -194,7 +204,9 @@ class TestPrefixes:
     def test_prefixes_are_short(self):
         """Prefixes should be 3-4 characters."""
         for node_type, prefix in PREFIXES.items():
-            assert 3 <= len(prefix) <= 4, f"Prefix '{prefix}' for {node_type} should be 3-4 chars"
+            assert 3 <= len(prefix) <= 4, (
+                f"Prefix '{prefix}' for {node_type} should be 3-4 chars"
+            )
 
 
 class TestEdgeCases:
@@ -207,7 +219,9 @@ class TestEdgeCases:
             parsed = parse_id(id)
             hash_part = parsed["hash"]
             assert len(hash_part) == 8, f"Hash should be 8 chars, got {len(hash_part)}"
-            assert all(c in "0123456789abcdef" for c in hash_part), f"Hash should be hex: {hash_part}"
+            assert all(c in "0123456789abcdef" for c in hash_part), (
+                f"Hash should be hex: {hash_part}"
+            )
 
     def test_empty_title_works(self):
         """Empty title should still generate valid ID."""

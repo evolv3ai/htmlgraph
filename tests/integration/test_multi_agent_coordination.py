@@ -8,7 +8,6 @@ Tests realistic workflows with 3+ agents working simultaneously:
 - Handoff chains
 """
 
-
 import pytest
 from htmlgraph.models import Node
 from htmlgraph.routing import (
@@ -205,7 +204,7 @@ class TestCapabilityRoutingUnderLoad:
             task = Node(
                 id=f"task-{expected_agent}",
                 title=f"Task for {expected_agent}",
-                required_capabilities=requirements
+                required_capabilities=requirements,
             )
             agents = registry.get_all_agents()
             best = CapabilityMatcher.find_best_agent(agents, task)
@@ -223,11 +222,7 @@ class TestCapabilityRoutingUnderLoad:
         registry.set_wip("bob", 0)
 
         agents = registry.get_all_agents()
-        task = Node(
-            id="task",
-            title="Task",
-            required_capabilities=["python"]
-        )
+        task = Node(id="task", title="Task", required_capabilities=["python"])
 
         # Should get Bob (Alice at capacity)
         best = CapabilityMatcher.find_best_agent(agents, task)
@@ -318,7 +313,9 @@ class TestComplexMultiAgentScenario:
             manager.start_feature(feat_id, agent=agent)
             f = manager.features_graph.get(feat_id)
             f.steps[1].completed = True
-            manager.create_handoff(feat_id, reason="implementation_complete", agent=agent)
+            manager.create_handoff(
+                feat_id, reason="implementation_complete", agent=agent
+            )
 
         # QA tests all
         for feat_id in [f.id for f in features]:

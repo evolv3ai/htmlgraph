@@ -73,6 +73,26 @@ COMPLETE - [summary]
 IN_PROGRESS - [next steps needed]
 ```
 
+## Debugging Workflow (MANDATORY)
+
+When encountering errors during implementation:
+
+1. ⚠️ **STOP** - Don't guess or trial-and-error
+2. 📚 **Research First** - Check DEBUGGING.md, use researcher agent
+3. 🔍 **Debug Systematically** - Use debugger agent for root cause analysis
+4. ✅ **Validate Fix** - Always test with test-runner agent
+
+**See [DEBUGGING.md](../../../DEBUGGING.md) for complete guide**
+
+### When to Escalate
+
+- ❓ Unknown error → Use researcher agent (packages/claude-plugin/agents/researcher.md)
+- ❌ Multiple failed edits → Use researcher agent
+- 🔍 Error reproduced → Use debugger agent (packages/claude-plugin/agents/debugger.md)
+- ✅ Fix complete → Use test-runner agent (packages/claude-plugin/agents/test-runner.md)
+
+---
+
 ## Anti-Patterns to Avoid
 
 1. **Don't edit without reading**: Always read the current file content first

@@ -172,9 +172,7 @@ class TestOrchestratorModeManager:
     def test_enable_with_params(self, tmp_path):
         """Test enable with custom parameters."""
         manager = OrchestratorModeManager(tmp_path / ".htmlgraph")
-        mode = manager.enable(
-            session_id="sess-xyz", level="guidance", auto=True
-        )
+        mode = manager.enable(session_id="sess-xyz", level="guidance", auto=True)
 
         assert mode.enabled is True
         assert mode.session_id == "sess-xyz"

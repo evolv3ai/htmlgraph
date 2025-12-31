@@ -50,9 +50,7 @@ def test_filter_by_multiple_conditions(sdk: SDK):
     sdk.features.create("Feature 4", priority="high", status="done").save()
 
     # Filter: high priority AND todo status
-    urgent = sdk.features.filter(
-        lambda f: f.priority == "high" and f.status == "todo"
-    )
+    urgent = sdk.features.filter(lambda f: f.priority == "high" and f.status == "todo")
 
     assert len(urgent) == 1
     assert urgent[0].title == "Feature 1"
@@ -114,13 +112,9 @@ def test_filter_respects_node_type(sdk: SDK):
     sdk.features.create("Feature 1", priority="high").save()
 
     from htmlgraph.graph import HtmlGraph
+
     bugs_graph = HtmlGraph(sdk._directory / "bugs")
-    bug = Node(
-        id="bug-001",
-        title="Bug 1",
-        type="bug",
-        priority="high"
-    )
+    bug = Node(id="bug-001", title="Bug 1", type="bug", priority="high")
     bugs_graph.add(bug)
 
     # Filter features by priority
@@ -137,11 +131,14 @@ def test_filter_with_complex_logic(sdk: SDK):
     sdk.features.create("Urgent Auth Fix", priority="critical", status="todo").save()
     sdk.features.create("Normal Feature", priority="medium", status="todo").save()
     sdk.features.create("High Priority Done", priority="high", status="done").save()
-    sdk.features.create("Critical In Progress", priority="critical", status="in-progress").save()
+    sdk.features.create(
+        "Critical In Progress", priority="critical", status="in-progress"
+    ).save()
 
     # Complex filter: (critical OR high) AND (todo OR in-progress)
     important_active = sdk.features.filter(
-        lambda f: (f.priority in ["critical", "high"]) and (f.status in ["todo", "in-progress"])
+        lambda f: (f.priority in ["critical", "high"])
+        and (f.status in ["todo", "in-progress"])
     )
 
     assert len(important_active) == 2

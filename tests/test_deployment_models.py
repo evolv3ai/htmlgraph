@@ -1,6 +1,5 @@
 """Tests for Pydantic deployment models."""
 
-
 import pytest
 from htmlgraph.deployment_models import (
     BuildConfig,
@@ -162,10 +161,7 @@ class TestPluginConfig:
 
     def test_valid_plugin_config(self):
         """Test valid plugin configuration."""
-        config = PluginConfig(
-            name="claude",
-            command="claude plugin update {package}"
-        )
+        config = PluginConfig(name="claude", command="claude plugin update {package}")
         assert config.name == "claude"
         assert config.required is False
 
@@ -194,7 +190,9 @@ class TestDeploymentConfig:
 
     def test_invalid_project_name(self):
         """Test invalid project name raises error."""
-        with pytest.raises(ValidationError, match="String should have at least 1 character"):
+        with pytest.raises(
+            ValidationError, match="String should have at least 1 character"
+        ):
             DeploymentConfig(project_name="")
 
         with pytest.raises(ValidationError, match="Invalid project name"):
@@ -203,17 +201,11 @@ class TestDeploymentConfig:
     def test_invalid_version_format(self):
         """Test invalid version format raises error."""
         with pytest.raises(ValidationError, match="Invalid version format"):
-            DeploymentConfig(
-                project_name="test",
-                version="not-a-version"
-            )
+            DeploymentConfig(project_name="test", version="not-a-version")
 
     def test_valid_version_format(self):
         """Test valid version format accepted."""
-        config = DeploymentConfig(
-            project_name="test",
-            version="1.2.3"
-        )
+        config = DeploymentConfig(project_name="test", version="1.2.3")
         assert config.version == "1.2.3"
 
     def test_duplicate_steps_rejected(self):
@@ -223,25 +215,19 @@ class TestDeploymentConfig:
                 project_name="test",
                 steps=[
                     DeploymentStep.BUILD,
-                    DeploymentStep.BUILD  # Duplicate
-                ]
+                    DeploymentStep.BUILD,  # Duplicate
+                ],
             )
 
     def test_empty_steps_rejected(self):
         """Test empty steps list is rejected."""
         with pytest.raises(ValidationError, match="Must specify at least one"):
-            DeploymentConfig(
-                project_name="test",
-                steps=[]
-            )
+            DeploymentConfig(project_name="test", steps=[])
 
     def test_pypi_publish_requires_build(self):
         """Test PyPI publish step requires build step."""
         with pytest.raises(ValidationError, match="PyPI publish requires build"):
-            DeploymentConfig(
-                project_name="test",
-                steps=[DeploymentStep.PYPI_PUBLISH]
-            )
+            DeploymentConfig(project_name="test", steps=[DeploymentStep.PYPI_PUBLISH])
 
     def test_build_must_come_before_publish(self):
         """Test build step must come before publish."""
@@ -250,8 +236,8 @@ class TestDeploymentConfig:
                 project_name="test",
                 steps=[
                     DeploymentStep.PYPI_PUBLISH,
-                    DeploymentStep.BUILD  # Wrong order
-                ]
+                    DeploymentStep.BUILD,  # Wrong order
+                ],
             )
 
     def test_valid_step_order(self):
@@ -261,23 +247,21 @@ class TestDeploymentConfig:
             steps=[
                 DeploymentStep.BUILD,
                 DeploymentStep.PYPI_PUBLISH,
-                DeploymentStep.LOCAL_INSTALL
-            ]
+                DeploymentStep.LOCAL_INSTALL,
+            ],
         )
         assert config.steps[0] == DeploymentStep.BUILD
 
     def test_to_toml_dict(self):
         """Test exporting config to TOML dict."""
         config = DeploymentConfig(
-            project_name="test-project",
-            version="1.0.0",
-            steps=[DeploymentStep.BUILD]
+            project_name="test-project", version="1.0.0", steps=[DeploymentStep.BUILD]
         )
 
         toml_dict = config.to_toml_dict()
-        assert toml_dict['project']['name'] == "test-project"
-        assert toml_dict['project']['version'] == "1.0.0"
-        assert 'build' in toml_dict['deployment']['steps'][0]
+        assert toml_dict["project"]["name"] == "test-project"
+        assert toml_dict["project"]["version"] == "1.0.0"
+        assert "build" in toml_dict["deployment"]["steps"][0]
 
 
 class TestDeploymentResult:
@@ -290,7 +274,7 @@ class TestDeploymentResult:
             version="1.0.0",
             steps_completed=[DeploymentStep.BUILD, DeploymentStep.PYPI_PUBLISH],
             steps_failed=[],
-            duration_seconds=45.5
+            duration_seconds=45.5,
         )
 
         assert result.success
@@ -304,7 +288,7 @@ class TestDeploymentResult:
             version="1.0.0",
             steps_completed=[DeploymentStep.BUILD],
             steps_failed=[DeploymentStep.PYPI_PUBLISH],
-            errors=["PyPI publish failed"]
+            errors=["PyPI publish failed"],
         )
 
         assert result.success
@@ -318,7 +302,7 @@ class TestDeploymentResult:
             version="1.0.0",
             steps_completed=[],
             steps_failed=[DeploymentStep.BUILD],
-            errors=["Build command failed"]
+            errors=["Build command failed"],
         )
 
         assert not result.success

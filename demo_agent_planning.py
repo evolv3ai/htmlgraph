@@ -38,7 +38,7 @@ def main():
             print(f"   Status: {bn['status']} | Priority: {bn['priority']}")
             print(f"   Blocking: {bn['blocks_count']} tasks")
             print(f"   Impact score: {bn['impact_score']:.1f}")
-            if bn['blocked_tasks']:
+            if bn["blocked_tasks"]:
                 print(f"   Blocks: {', '.join(bn['blocked_tasks'][:3])}")
     else:
         print("  ✓ No bottlenecks found!")
@@ -51,13 +51,15 @@ def main():
 
     parallel = sdk.get_parallel_work(max_agents=5)
 
-    print(f"\nMax parallelism: {parallel['max_parallelism']} tasks can be worked on at once")
+    print(
+        f"\nMax parallelism: {parallel['max_parallelism']} tasks can be worked on at once"
+    )
     print(f"Total ready now: {parallel['total_ready']} tasks")
     print(f"Dependency levels: {parallel['level_count']}")
 
-    if parallel['ready_now']:
+    if parallel["ready_now"]:
         print(f"\nReady to start immediately ({len(parallel['ready_now'])} tasks):")
-        for task_id in parallel['ready_now']:
+        for task_id in parallel["ready_now"]:
             feature = sdk.features.get(task_id)
             if feature:
                 print(f"  - {feature.title} ({feature.priority} priority)")
@@ -75,11 +77,11 @@ def main():
         for i, rec in enumerate(recs, 1):
             print(f"\n{i}. {rec['title']}")
             print(f"   Priority: {rec['priority']} | Score: {rec['score']:.2f}")
-            if rec['estimated_hours'] > 0:
+            if rec["estimated_hours"] > 0:
                 print(f"   Estimated: {rec['estimated_hours']:.1f} hours")
             print(f"   Unlocks: {rec['unlocks_count']} tasks")
             print("   Reasons:")
-            for reason in rec['reasons'][:3]:
+            for reason in rec["reasons"][:3]:
                 print(f"     - {reason}")
     else:
         print("  ✓ No pending tasks to recommend!")
@@ -92,30 +94,30 @@ def main():
 
     risks = sdk.assess_risks()
 
-    if risks['high_risk_count'] > 0:
+    if risks["high_risk_count"] > 0:
         print(f"\n⚠️  {risks['high_risk_count']} high-risk tasks found:")
-        for task in risks['high_risk_tasks'][:3]:
+        for task in risks["high_risk_tasks"][:3]:
             print(f"\n  {task['title']} (risk: {task['risk_score']:.2f})")
-            for factor in task['risk_factors']:
+            for factor in task["risk_factors"]:
                 print(f"    - {factor}")
     else:
         print("  ✓ No high-risk tasks!")
 
-    if risks['circular_dependencies']:
+    if risks["circular_dependencies"]:
         print(f"\n⚠️  {len(risks['circular_dependencies'])} circular dependencies:")
-        for cycle in risks['circular_dependencies'][:3]:
+        for cycle in risks["circular_dependencies"][:3]:
             print(f"    - {' → '.join(cycle)}")
     else:
         print("  ✓ No circular dependencies")
 
-    if risks['orphaned_count'] > 0:
+    if risks["orphaned_count"] > 0:
         print(f"\n⚠️  {risks['orphaned_count']} orphaned tasks (no dependents)")
     else:
         print("  ✓ No orphaned tasks")
 
-    if risks['recommendations']:
+    if risks["recommendations"]:
         print("\nRecommendations:")
-        for rec in risks['recommendations'][:3]:
+        for rec in risks["recommendations"][:3]:
             print(f"  • {rec}")
 
     # =========================================================================
@@ -132,8 +134,10 @@ def main():
         print(f"\nAnalyzing: {task.title}")
         print(f"  Direct dependents: {impact['direct_dependents']}")
         print(f"  Total downstream impact: {impact['total_impact']} tasks")
-        print(f"  Completion unlocks: {impact['completion_impact']:.1f}% of remaining work")
-        if impact['affected_tasks']:
+        print(
+            f"  Completion unlocks: {impact['completion_impact']:.1f}% of remaining work"
+        )
+        if impact["affected_tasks"]:
             print(f"  Unlocks: {', '.join(impact['affected_tasks'][:5])}")
     else:
         print("  No in-progress tasks to analyze")
@@ -155,7 +159,9 @@ def main():
     if recs:
         top_rec = recs[0]
         print(f"\n💡 SUGGESTED ACTION: Work on '{top_rec['title']}'")
-        print(f"   Why: Score {top_rec['score']:.1f} - {', '.join(top_rec['reasons'][:2])}")
+        print(
+            f"   Why: Score {top_rec['score']:.1f} - {', '.join(top_rec['reasons'][:2])}"
+        )
 
     print("\n" + "=" * 70)
     print("✅ Strategic planning features ready for AI agents!")

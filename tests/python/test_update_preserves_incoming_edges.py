@@ -26,13 +26,13 @@ def test_update_preserves_incoming_edges(tmp_path):
         id="node-b",
         title="Node B",
         type="feature",
-        edges={"depends_on": [Edge(target_id="node-c", relationship="depends_on")]}
+        edges={"depends_on": [Edge(target_id="node-c", relationship="depends_on")]},
     )
     node_a = Node(
         id="node-a",
         title="Node A",
         type="feature",
-        edges={"depends_on": [Edge(target_id="node-b", relationship="depends_on")]}
+        edges={"depends_on": [Edge(target_id="node-b", relationship="depends_on")]},
     )
 
     graph.add(node_c)
@@ -72,7 +72,7 @@ def test_update_preserves_incoming_edges_for_dependents(tmp_path):
         id="node-a",
         title="Node A",
         type="feature",
-        edges={"depends_on": [Edge(target_id="node-b", relationship="depends_on")]}
+        edges={"depends_on": [Edge(target_id="node-b", relationship="depends_on")]},
     )
 
     graph.add(node_b)
@@ -109,7 +109,7 @@ def test_update_correctly_modifies_outgoing_edges(tmp_path):
         id="node-x",
         title="Node X",
         type="feature",
-        edges={"depends_on": [Edge(target_id="node-a", relationship="depends_on")]}
+        edges={"depends_on": [Edge(target_id="node-a", relationship="depends_on")]},
     )
 
     graph.add(node_a)
@@ -161,8 +161,8 @@ def test_update_handles_multiple_edge_types(tmp_path):
         type="feature",
         edges={
             "depends_on": [Edge(target_id="node-b", relationship="depends_on")],
-            "blocks": [Edge(target_id="node-b", relationship="blocks")]
-        }
+            "blocks": [Edge(target_id="node-b", relationship="blocks")],
+        },
     )
 
     graph.add(node_b)

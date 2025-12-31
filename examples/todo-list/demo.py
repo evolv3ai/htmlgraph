@@ -95,7 +95,7 @@ def main():
         ],
         edges={
             "blocked_by": [Edge(target_id="task-002", title="Implement core models")]
-        }
+        },
     )
 
     # Save to HTML file (use overwrite=True to allow re-running the demo)

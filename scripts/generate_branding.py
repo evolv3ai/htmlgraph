@@ -66,9 +66,10 @@ def generate_image(client, model, prompt, file_base_name):
         ):
             continue
 
-        if (chunk.candidates[0].content.parts[0].inline_data and
-            chunk.candidates[0].content.parts[0].inline_data.data):
-
+        if (
+            chunk.candidates[0].content.parts[0].inline_data
+            and chunk.candidates[0].content.parts[0].inline_data.data
+        ):
             inline_data = chunk.candidates[0].content.parts[0].inline_data
             data_buffer = inline_data.data
             file_extension = mimetypes.guess_extension(inline_data.mime_type)
@@ -122,7 +123,7 @@ The logo should convey:
 - Developer tool (technical, clean)
 - "HTML is All You Need" philosophy
 
-Make it iconic and memorable with strong geometric shapes."""
+Make it iconic and memorable with strong geometric shapes.""",
         },
         {
             "name": "favicon",
@@ -136,7 +137,7 @@ Design requirements:
 - Style: Minimal, high contrast, instantly recognizable at small sizes
 - Format: Clean edges, no gradients, flat design
 
-The icon should be simple enough to recognize at favicon size (16x16 to 32x32 pixels) while still being distinctive."""
+The icon should be simple enough to recognize at favicon size (16x16 to 32x32 pixels) while still being distinctive.""",
         },
         {
             "name": "graph_illustration",
@@ -156,7 +157,7 @@ Show a beautiful graph structure with:
 - Flowing lime connections (edges)
 - HTML elements (< >, code snippets) subtly integrated
 - Sense of data flow and interconnection
-- Clean, modern, developer-focused aesthetic"""
+- Clean, modern, developer-focused aesthetic""",
         },
         {
             "name": "touch_icon",
@@ -171,8 +172,8 @@ Design requirements:
 - Style: Clean, modern, high contrast
 - Padding: Small margin around edges for iOS rounded corners
 
-The icon should look great on both light and dark backgrounds when rounded by iOS."""
-        }
+The icon should look great on both light and dark backgrounds when rounded by iOS.""",
+        },
     ]
 
     # Generate each asset
@@ -182,7 +183,7 @@ The icon should look great on both light and dark backgrounds when rounded by iO
                 client=client,
                 model=model,
                 prompt=asset["prompt"],
-                file_base_name=asset["file"]
+                file_base_name=asset["file"],
             )
         except Exception as e:
             print(f"❌ Error generating {asset['name']}: {e}")

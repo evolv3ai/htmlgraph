@@ -47,14 +47,14 @@ def test_cleanup_removes_missing_references(temp_graph_dir):
         last_activity=datetime.now(),
         event_count=10,
         worked_on=[
-            "feat-001",       # Valid - exists
-            "feat-002",       # Valid - exists
-            "feat-999",       # Invalid - missing
-            "bug-001",        # Valid - exists
-            "bug-888",        # Invalid - missing
-            "spk-001",        # Valid - exists
-            "spk-777",        # Invalid - missing
-        ]
+            "feat-001",  # Valid - exists
+            "feat-002",  # Valid - exists
+            "feat-999",  # Invalid - missing
+            "bug-001",  # Valid - exists
+            "bug-888",  # Invalid - missing
+            "spk-001",  # Valid - exists
+            "spk-777",  # Invalid - missing
+        ],
     )
 
     # Run cleanup
@@ -82,7 +82,7 @@ def test_cleanup_keeps_all_valid_references(temp_graph_dir):
         created_at=datetime.now(),
         last_activity=datetime.now(),
         event_count=5,
-        worked_on=["feat-001", "bug-001", "spk-001"]
+        worked_on=["feat-001", "bug-001", "spk-001"],
     )
 
     # Run cleanup
@@ -105,11 +105,11 @@ def test_automatic_cleanup_on_load(temp_graph_dir):
         last_activity=datetime.now(),
         event_count=10,
         worked_on=[
-            "feat-001",   # Valid
-            "feat-999",   # Invalid - missing
-            "bug-001",    # Valid
-            "bug-888",    # Invalid - missing
-        ]
+            "feat-001",  # Valid
+            "feat-999",  # Invalid - missing
+            "bug-001",  # Valid
+            "bug-888",  # Invalid - missing
+        ],
     )
 
     # Save session
@@ -138,7 +138,7 @@ def test_cleanup_with_empty_worked_on(temp_graph_dir):
         created_at=datetime.now(),
         last_activity=datetime.now(),
         event_count=1,
-        worked_on=[]
+        worked_on=[],
     )
 
     # Run cleanup
@@ -160,9 +160,9 @@ def test_cleanup_with_unknown_prefix(temp_graph_dir):
         last_activity=datetime.now(),
         event_count=5,
         worked_on=[
-            "feat-001",          # Valid - exists
+            "feat-001",  # Valid - exists
             "unknown-type-123",  # Unknown prefix - kept
-        ]
+        ],
     )
 
     # Run cleanup

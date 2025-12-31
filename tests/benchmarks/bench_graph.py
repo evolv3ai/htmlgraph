@@ -188,9 +188,11 @@ class TestQueryPerformance:
         cached_time = time.perf_counter() - start
 
         print("\nQuery caching:")
-        print(f"  first (miss): {first_time*1000:.2f}ms")
-        print(f"  cached (hit): {cached_time*1000:.2f}ms")
-        print(f"  speedup: {first_time/cached_time if cached_time > 0 else float('inf'):.1f}x")
+        print(f"  first (miss): {first_time * 1000:.2f}ms")
+        print(f"  cached (hit): {cached_time * 1000:.2f}ms")
+        print(
+            f"  speedup: {first_time / cached_time if cached_time > 0 else float('inf'):.1f}x"
+        )
 
         assert nodes1 == nodes2
         # Cached should be faster (or at least not slower)
@@ -285,8 +287,7 @@ class TestTraversalPerformance:
 
         # Find a node with dependencies
         nodes_with_deps = [
-            n for n in large_graph.nodes.values()
-            if n.edges.get("blocked_by")
+            n for n in large_graph.nodes.values() if n.edges.get("blocked_by")
         ]
         if not nodes_with_deps:
             pytest.skip("No nodes with dependencies")
@@ -339,8 +340,7 @@ class TestTraversalPerformance:
 
         # Find connected nodes
         nodes_with_edges = [
-            n for n in large_graph.nodes.values()
-            if any(n.edges.values())
+            n for n in large_graph.nodes.values() if any(n.edges.values())
         ]
         if len(nodes_with_edges) < 2:
             pytest.skip("Not enough connected nodes")
@@ -358,7 +358,9 @@ class TestTraversalPerformance:
             result.record(elapsed)
 
         print(f"\n{result.report()}")
-        assert result.avg_ms() < 1000, f"Shortest path too slow: {result.avg_ms():.2f}ms"
+        assert result.avg_ms() < 1000, (
+            f"Shortest path too slow: {result.avg_ms():.2f}ms"
+        )
 
 
 class TestMetricsCollection:
@@ -387,7 +389,9 @@ class TestMetricsCollection:
         print(f"  Query count: {small_graph._metrics['query_count']}")
         print(f"  Cache hits: {small_graph._metrics['cache_hits']}")
         print(f"  Cache misses: {small_graph._metrics['cache_misses']}")
-        print(f"  Hit rate: {small_graph._metrics['cache_hits'] / small_graph._metrics['query_count'] * 100:.1f}%")
+        print(
+            f"  Hit rate: {small_graph._metrics['cache_hits'] / small_graph._metrics['query_count'] * 100:.1f}%"
+        )
 
 
 class TestBaselineComparison:
@@ -414,8 +418,8 @@ class TestBaselineComparison:
             json.dump(baseline, f, indent=2)
 
         print(f"\nBaseline saved to {baseline_file}")
-        print(f"  query_small: {baseline['query_small']*1000:.2f}ms")
-        print(f"  query_medium: {baseline['query_medium']*1000:.2f}ms")
+        print(f"  query_small: {baseline['query_small'] * 1000:.2f}ms")
+        print(f"  query_medium: {baseline['query_medium'] * 1000:.2f}ms")
 
     def test_compare_to_baseline(self, small_graph, benchmark_baseline):
         """Compare current performance to baseline."""
@@ -434,10 +438,12 @@ class TestBaselineComparison:
         if baseline_time > 0:
             pct_change = ((current - baseline_time) / baseline_time) * 100
             print("\nPerformance vs baseline:")
-            print(f"  baseline: {baseline_time*1000:.2f}ms")
-            print(f"  current: {current*1000:.2f}ms")
+            print(f"  baseline: {baseline_time * 1000:.2f}ms")
+            print(f"  current: {current * 1000:.2f}ms")
             print(f"  change: {pct_change:+.1f}%")
 
             # Warn if significantly slower (>50% regression)
             if pct_change > 50:
-                pytest.fail(f"Performance regression: {pct_change:+.1f}% slower than baseline")
+                pytest.fail(
+                    f"Performance regression: {pct_change:+.1f}% slower than baseline"
+                )

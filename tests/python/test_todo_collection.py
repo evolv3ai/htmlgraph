@@ -2,7 +2,6 @@
 Tests for TodoCollection - persistent todo tracking.
 """
 
-
 import pytest
 from htmlgraph import SDK
 from htmlgraph.models import Todo
@@ -220,7 +219,11 @@ class TestTodoCollection:
         """Test syncing from TodoWrite format."""
         todowrite_list = [
             {"content": "Task 1", "status": "pending", "activeForm": "Doing task 1"},
-            {"content": "Task 2", "status": "in_progress", "activeForm": "Doing task 2"},
+            {
+                "content": "Task 2",
+                "status": "in_progress",
+                "activeForm": "Doing task 2",
+            },
             {"content": "Task 3", "status": "completed", "activeForm": "Doing task 3"},
         ]
 

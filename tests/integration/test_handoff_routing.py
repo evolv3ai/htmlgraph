@@ -8,7 +8,6 @@ This test verifies that:
 4. Capability matching correctly routes the task
 """
 
-
 from htmlgraph.models import Node
 from htmlgraph.routing import (
     AgentCapabilityRegistry,
@@ -60,7 +59,7 @@ class TestHandoffWithCapabilityMatching:
         test_task = Node(
             id="test-task",
             title="Testing Task",
-            required_capabilities=["testing", "quality-assurance"]
+            required_capabilities=["testing", "quality-assurance"],
         )
         agents = registry.get_all_agents()
         best_agent = CapabilityMatcher.find_best_agent(agents, test_task)
@@ -124,9 +123,7 @@ class TestHandoffWithCapabilityMatching:
 
         # Task requiring testing
         test_task = Node(
-            id="test-task",
-            title="Testing Task",
-            required_capabilities=["testing"]
+            id="test-task", title="Testing Task", required_capabilities=["testing"]
         )
 
         agents = registry.get_all_agents()
@@ -151,9 +148,7 @@ class TestCapabilityRoutingBasics:
 
         # Python task
         py_task = Node(
-            id="py-task",
-            title="Python Task",
-            required_capabilities=["python"]
+            id="py-task", title="Python Task", required_capabilities=["python"]
         )
         best = CapabilityMatcher.find_best_agent(agents, py_task)
         assert best.agent_id == "alice"
@@ -169,11 +164,7 @@ class TestCapabilityRoutingBasics:
         registry.set_wip("bob", 0)
 
         agents = registry.get_all_agents()
-        task = Node(
-            id="task",
-            title="Task",
-            required_capabilities=["python"]
-        )
+        task = Node(id="task", title="Task", required_capabilities=["python"])
 
         # Should prefer Bob (less loaded)
         best = CapabilityMatcher.find_best_agent(agents, task)

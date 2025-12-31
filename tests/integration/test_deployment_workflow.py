@@ -37,7 +37,7 @@ class TestDeploymentSetup:
         assert pyproject.exists()
 
         content = pyproject.read_text()
-        assert 'version' in content or '[project]' in content
+        assert "version" in content or "[project]" in content
 
 
 class TestDryRunDeployment:
@@ -155,6 +155,7 @@ class TestPackageBuildIntegration:
         """Verify htmlgraph package can be imported."""
         try:
             import htmlgraph
+
             assert hasattr(htmlgraph, "__version__")
         except ImportError:
             pytest.skip("htmlgraph not installed in test environment")

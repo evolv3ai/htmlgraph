@@ -32,7 +32,9 @@ class TestAgentDetection:
         monkeypatch.delenv("CLAUDE_CODE_VERSION", raising=False)
         monkeypatch.delenv("CLAUDE_API_KEY", raising=False)
         monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-        monkeypatch.setenv("HOME", str(tmp_path))  # Fake home to avoid .claude detection
+        monkeypatch.setenv(
+            "HOME", str(tmp_path)
+        )  # Fake home to avoid .claude detection
         assert detect_agent_name() == "gemini"
 
     def test_detect_agent_defaults_to_cli(self, monkeypatch):

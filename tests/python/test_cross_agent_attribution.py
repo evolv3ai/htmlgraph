@@ -29,7 +29,7 @@ def test_cross_agent_attribution(tmp_path):
         session_id=session_claude.id,
         tool="Edit",
         summary="Edited generic_helper.py",
-        file_paths=["src/utils/generic_helper.py"]
+        file_paths=["src/utils/generic_helper.py"],
     )
 
     # Expectation: It should NOT be attributed to Gemini's feature,
@@ -39,8 +39,9 @@ def test_cross_agent_attribution(tmp_path):
 
     print(f"Attributed to: {entry.feature_id}")
 
-    assert entry.feature_id != feat_a.id, \
+    assert entry.feature_id != feat_a.id, (
         f"Activity incorrectly attributed to Gemini's feature {feat_a.id} despite being performed by Claude"
+    )
 
     # Even better, if we simulate relevance to Claude's feature, it should go there.
     # Let's say Claude's feature involves 'claude_stuff.py'
@@ -51,8 +52,9 @@ def test_cross_agent_attribution(tmp_path):
         session_id=session_claude.id,
         tool="Edit",
         summary="Edited claude_stuff.py",
-        file_paths=["src/claude_stuff.py"]
+        file_paths=["src/claude_stuff.py"],
     )
 
-    assert entry2.feature_id == feat_b.id, \
+    assert entry2.feature_id == feat_b.id, (
         f"Activity should be attributed to Claude's feature {feat_b.id}, got {entry2.feature_id}"
+    )

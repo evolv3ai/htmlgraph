@@ -42,6 +42,7 @@ def main():
 
     if demo_path.exists():
         import shutil
+
         shutil.rmtree(demo_path)
 
     track_path.rename(demo_path)

@@ -17,9 +17,22 @@ def test_drift_queue_cleanup_after_age():
     import importlib.util
 
     # Load the track-event module
-    track_event_path = Path(__file__).parent.parent.parent / ".claude" / "hooks" / "scripts" / "track-event.py"
+    track_event_path = (
+        Path(__file__).parent.parent.parent
+        / ".claude"
+        / "hooks"
+        / "scripts"
+        / "track-event.py"
+    )
     if not track_event_path.exists():
-        track_event_path = Path(__file__).parent.parent.parent / "packages" / "claude-plugin" / "hooks" / "scripts" / "track-event.py"
+        track_event_path = (
+            Path(__file__).parent.parent.parent
+            / "packages"
+            / "claude-plugin"
+            / "hooks"
+            / "scripts"
+            / "track-event.py"
+        )
 
     spec = importlib.util.spec_from_file_location("track_event", track_event_path)
     track_event = importlib.util.module_from_spec(spec)
@@ -39,16 +52,16 @@ def test_drift_queue_cleanup_after_age():
                     "timestamp": old_timestamp,
                     "tool": "Write",
                     "summary": "Old activity (should be removed)",
-                    "drift_score": 0.9
+                    "drift_score": 0.9,
                 },
                 {
                     "timestamp": recent_timestamp,
                     "tool": "Write",
                     "summary": "New activity (should be kept)",
-                    "drift_score": 0.75
-                }
+                    "drift_score": 0.75,
+                },
             ],
-            "last_classification": None
+            "last_classification": None,
         }
 
         # Save the queue
@@ -61,7 +74,9 @@ def test_drift_queue_cleanup_after_age():
 
         # Verify old entries were removed
         assert len(loaded_queue["activities"]) == 1
-        assert loaded_queue["activities"][0]["summary"] == "New activity (should be kept)"
+        assert (
+            loaded_queue["activities"][0]["summary"] == "New activity (should be kept)"
+        )
 
         # Verify the file was updated
         with open(queue_path) as f:
@@ -74,9 +89,22 @@ def test_clear_drift_queue_activities():
     import importlib.util
 
     # Load the track-event module
-    track_event_path = Path(__file__).parent.parent.parent / ".claude" / "hooks" / "scripts" / "track-event.py"
+    track_event_path = (
+        Path(__file__).parent.parent.parent
+        / ".claude"
+        / "hooks"
+        / "scripts"
+        / "track-event.py"
+    )
     if not track_event_path.exists():
-        track_event_path = Path(__file__).parent.parent.parent / "packages" / "claude-plugin" / "hooks" / "scripts" / "track-event.py"
+        track_event_path = (
+            Path(__file__).parent.parent.parent
+            / "packages"
+            / "claude-plugin"
+            / "hooks"
+            / "scripts"
+            / "track-event.py"
+        )
 
     spec = importlib.util.spec_from_file_location("track_event", track_event_path)
     track_event = importlib.util.module_from_spec(spec)
@@ -93,16 +121,16 @@ def test_clear_drift_queue_activities():
                     "timestamp": datetime.now().isoformat(),
                     "tool": "Write",
                     "summary": "Activity 1",
-                    "drift_score": 0.9
+                    "drift_score": 0.9,
                 },
                 {
                     "timestamp": datetime.now().isoformat(),
                     "tool": "Edit",
                     "summary": "Activity 2",
-                    "drift_score": 0.85
-                }
+                    "drift_score": 0.85,
+                },
             ],
-            "last_classification": None
+            "last_classification": None,
         }
 
         # Save the queue
@@ -118,7 +146,9 @@ def test_clear_drift_queue_activities():
             cleared_queue = json.load(f)
 
         assert len(cleared_queue["activities"]) == 0
-        assert cleared_queue["last_classification"] is not None  # Should have a timestamp
+        assert (
+            cleared_queue["last_classification"] is not None
+        )  # Should have a timestamp
 
 
 def test_clear_drift_queue_preserves_last_classification():
@@ -126,9 +156,22 @@ def test_clear_drift_queue_preserves_last_classification():
     import importlib.util
 
     # Load the track-event module
-    track_event_path = Path(__file__).parent.parent.parent / ".claude" / "hooks" / "scripts" / "track-event.py"
+    track_event_path = (
+        Path(__file__).parent.parent.parent
+        / ".claude"
+        / "hooks"
+        / "scripts"
+        / "track-event.py"
+    )
     if not track_event_path.exists():
-        track_event_path = Path(__file__).parent.parent.parent / "packages" / "claude-plugin" / "hooks" / "scripts" / "track-event.py"
+        track_event_path = (
+            Path(__file__).parent.parent.parent
+            / "packages"
+            / "claude-plugin"
+            / "hooks"
+            / "scripts"
+            / "track-event.py"
+        )
 
     spec = importlib.util.spec_from_file_location("track_event", track_event_path)
     track_event = importlib.util.module_from_spec(spec)
@@ -146,10 +189,10 @@ def test_clear_drift_queue_preserves_last_classification():
                     "timestamp": datetime.now().isoformat(),
                     "tool": "Write",
                     "summary": "Activity 1",
-                    "drift_score": 0.9
+                    "drift_score": 0.9,
                 }
             ],
-            "last_classification": original_timestamp
+            "last_classification": original_timestamp,
         }
 
         # Save the queue
@@ -180,9 +223,22 @@ def test_drift_queue_cleanup_integration():
     import importlib.util
 
     # Load the track-event module
-    track_event_path = Path(__file__).parent.parent.parent / ".claude" / "hooks" / "scripts" / "track-event.py"
+    track_event_path = (
+        Path(__file__).parent.parent.parent
+        / ".claude"
+        / "hooks"
+        / "scripts"
+        / "track-event.py"
+    )
     if not track_event_path.exists():
-        track_event_path = Path(__file__).parent.parent.parent / "packages" / "claude-plugin" / "hooks" / "scripts" / "track-event.py"
+        track_event_path = (
+            Path(__file__).parent.parent.parent
+            / "packages"
+            / "claude-plugin"
+            / "hooks"
+            / "scripts"
+            / "track-event.py"
+        )
 
     spec = importlib.util.spec_from_file_location("track_event", track_event_path)
     track_event = importlib.util.module_from_spec(spec)
@@ -192,12 +248,7 @@ def test_drift_queue_cleanup_integration():
         graph_dir = Path(tmpdir)
 
         # Configuration
-        config = {
-            "queue": {
-                "max_pending_classifications": 5,
-                "max_age_hours": 48
-            }
-        }
+        config = {"queue": {"max_pending_classifications": 5, "max_age_hours": 48}}
 
         # Add multiple high-drift activities
         for i in range(3):
@@ -206,7 +257,7 @@ def test_drift_queue_cleanup_integration():
                 "summary": f"Activity {i}",
                 "file_paths": [f"file{i}.py"],
                 "drift_score": 0.9,
-                "feature_id": "feat-test"
+                "feature_id": "feat-test",
             }
             queue = track_event.add_to_drift_queue(graph_dir, activity, config)
 

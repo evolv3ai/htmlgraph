@@ -31,17 +31,31 @@ def create_features():
         priority="critical",
         content="<p>Build the core Python library with HTML parsing, Pydantic models, and graph algorithms.</p>",
         steps=[
-            Step(description="Python package structure", completed=True, agent="claude"),
-            Step(description="HTML parser using justhtml", completed=True, agent="claude"),
-            Step(description="Pydantic models for Node/Edge", completed=True, agent="claude"),
-            Step(description="Basic graph operations (add, query, traverse)", completed=True, agent="claude"),
-            Step(description="HTML ↔ Pydantic converters", completed=True, agent="claude"),
+            Step(
+                description="Python package structure", completed=True, agent="claude"
+            ),
+            Step(
+                description="HTML parser using justhtml", completed=True, agent="claude"
+            ),
+            Step(
+                description="Pydantic models for Node/Edge",
+                completed=True,
+                agent="claude",
+            ),
+            Step(
+                description="Basic graph operations (add, query, traverse)",
+                completed=True,
+                agent="claude",
+            ),
+            Step(
+                description="HTML ↔ Pydantic converters", completed=True, agent="claude"
+            ),
             Step(description="Unit tests", completed=True, agent="claude"),
         ],
         properties={
             "completion": 100,
             "test_count": 23,
-        }
+        },
     )
 
     # Phase 2: JavaScript Library (TODO)
@@ -60,8 +74,14 @@ def create_features():
             Step(description="Unit tests"),
         ],
         edges={
-            "blocked_by": [Edge(target_id="phase1-core-library", relationship="blocked_by", title="Core Python Library")],
-        }
+            "blocked_by": [
+                Edge(
+                    target_id="phase1-core-library",
+                    relationship="blocked_by",
+                    title="Core Python Library",
+                )
+            ],
+        },
     )
 
     # Phase 3: Examples (TODO)
@@ -79,11 +99,17 @@ def create_features():
             Step(description="Documentation site example"),
         ],
         edges={
-            "blocked_by": [Edge(target_id="phase1-core-library", relationship="blocked_by", title="Core Python Library")],
+            "blocked_by": [
+                Edge(
+                    target_id="phase1-core-library",
+                    relationship="blocked_by",
+                    title="Core Python Library",
+                )
+            ],
         },
         properties={
             "completion": 25,
-        }
+        },
     )
 
     # Phase 4: Documentation (TODO)
@@ -103,8 +129,14 @@ def create_features():
             Step(description="Cookbook with recipes"),
         ],
         edges={
-            "blocked_by": [Edge(target_id="phase3-examples", relationship="blocked_by", title="Examples")],
-        }
+            "blocked_by": [
+                Edge(
+                    target_id="phase3-examples",
+                    relationship="blocked_by",
+                    title="Examples",
+                )
+            ],
+        },
     )
 
     # Phase 5: Polish (TODO)
@@ -124,10 +156,18 @@ def create_features():
         ],
         edges={
             "blocked_by": [
-                Edge(target_id="phase2-js-library", relationship="blocked_by", title="JS Library"),
-                Edge(target_id="phase4-documentation", relationship="blocked_by", title="Documentation"),
+                Edge(
+                    target_id="phase2-js-library",
+                    relationship="blocked_by",
+                    title="JS Library",
+                ),
+                Edge(
+                    target_id="phase4-documentation",
+                    relationship="blocked_by",
+                    title="Documentation",
+                ),
             ],
-        }
+        },
     )
 
     # Phase 6: Launch (TODO)
@@ -147,8 +187,12 @@ def create_features():
             Step(description="Documentation site"),
         ],
         edges={
-            "blocked_by": [Edge(target_id="phase5-polish", relationship="blocked_by", title="Polish")],
-        }
+            "blocked_by": [
+                Edge(
+                    target_id="phase5-polish", relationship="blocked_by", title="Polish"
+                )
+            ],
+        },
     )
 
     # Feature: Self-tracking (THIS!)
@@ -160,15 +204,27 @@ def create_features():
         priority="high",
         content="<p>Dogfood the library by using it to track its own development.</p>",
         steps=[
-            Step(description="Create features/ directory", completed=True, agent="claude"),
-            Step(description="Create feature nodes from roadmap", completed=True, agent="claude"),
+            Step(
+                description="Create features/ directory", completed=True, agent="claude"
+            ),
+            Step(
+                description="Create feature nodes from roadmap",
+                completed=True,
+                agent="claude",
+            ),
             Step(description="Add dashboard for viewing progress"),
             Step(description="Test query and traversal operations"),
         ],
         edges={
-            "related": [Edge(target_id="phase3-examples", relationship="related", title="Examples Phase")],
+            "related": [
+                Edge(
+                    target_id="phase3-examples",
+                    relationship="related",
+                    title="Examples Phase",
+                )
+            ],
         },
-        agent_assigned="claude"
+        agent_assigned="claude",
     )
 
     # Feature: JS Dashboard
@@ -187,9 +243,21 @@ def create_features():
             Step(description="Add progress statistics"),
         ],
         edges={
-            "blocked_by": [Edge(target_id="phase2-js-library", relationship="blocked_by", title="JS Library")],
-            "related": [Edge(target_id="feature-self-tracking", relationship="related", title="Self-Tracking Feature")],
-        }
+            "blocked_by": [
+                Edge(
+                    target_id="phase2-js-library",
+                    relationship="blocked_by",
+                    title="JS Library",
+                )
+            ],
+            "related": [
+                Edge(
+                    target_id="feature-self-tracking",
+                    relationship="related",
+                    title="Self-Tracking Feature",
+                )
+            ],
+        },
     )
 
     # Add all nodes
@@ -220,11 +288,11 @@ def create_features():
     print(f"\nTotal nodes: {stats['total']}")
     print(f"Completion: {stats['completion_rate']}%")
     print("\nBy Status:")
-    for status, count in stats['by_status'].items():
+    for status, count in stats["by_status"].items():
         print(f"  {status}: {count}")
 
     print("\nBy Type:")
-    for node_type, count in stats['by_type'].items():
+    for node_type, count in stats["by_type"].items():
         print(f"  {node_type}: {count}")
 
     # Show dependency order

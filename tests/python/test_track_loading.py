@@ -3,6 +3,7 @@ Test track loading including directory-based tracks.
 
 Tests for bug-20251221-042515: Directory-based tracks not loading in graph loader
 """
+
 import shutil
 import tempfile
 from pathlib import Path
@@ -34,7 +35,7 @@ def test_load_directory_based_track(temp_graph_dir):
     track_dir = temp_graph_dir / "tracks" / "track-test-001"
     track_dir.mkdir()
 
-    track_html = '''<!DOCTYPE html>
+    track_html = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -56,7 +57,7 @@ def test_load_directory_based_track(temp_graph_dir):
         </section>
     </article>
 </body>
-</html>'''
+</html>"""
 
     (track_dir / "index.html").write_text(track_html)
 
@@ -77,7 +78,7 @@ def test_load_directory_based_track(temp_graph_dir):
 def test_load_file_based_track(temp_graph_dir):
     """Test that single-file tracks (track-xxx.html) still work."""
     # Create a file-based track (using valid Node status values)
-    track_html = '''<!DOCTYPE html>
+    track_html = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -99,7 +100,7 @@ def test_load_file_based_track(temp_graph_dir):
         </section>
     </article>
 </body>
-</html>'''
+</html>"""
 
     (temp_graph_dir / "tracks" / "track-file-001.html").write_text(track_html)
 
@@ -123,7 +124,7 @@ def test_load_mixed_tracks(temp_graph_dir):
     track_dir = temp_graph_dir / "tracks" / "track-dir-001"
     track_dir.mkdir()
 
-    dir_track_html = '''<!DOCTYPE html>
+    dir_track_html = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -140,12 +141,12 @@ def test_load_mixed_tracks(temp_graph_dir):
         </section>
     </article>
 </body>
-</html>'''
+</html>"""
 
     (track_dir / "index.html").write_text(dir_track_html)
 
     # Create file-based track (using valid Node status values)
-    file_track_html = '''<!DOCTYPE html>
+    file_track_html = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -162,7 +163,7 @@ def test_load_mixed_tracks(temp_graph_dir):
         </section>
     </article>
 </body>
-</html>'''
+</html>"""
 
     (temp_graph_dir / "tracks" / "track-file-002.html").write_text(file_track_html)
 
@@ -184,7 +185,7 @@ def test_track_where_query(temp_graph_dir):
     track_dir1 = temp_graph_dir / "tracks" / "track-001"
     track_dir1.mkdir()
 
-    track1_html = '''<!DOCTYPE html>
+    track1_html = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -197,14 +198,14 @@ def test_track_where_query(temp_graph_dir):
         <section data-description><p>High priority active track</p></section>
     </article>
 </body>
-</html>'''
+</html>"""
 
     (track_dir1 / "index.html").write_text(track1_html)
 
     track_dir2 = temp_graph_dir / "tracks" / "track-002"
     track_dir2.mkdir()
 
-    track2_html = '''<!DOCTYPE html>
+    track2_html = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -217,7 +218,7 @@ def test_track_where_query(temp_graph_dir):
         <section data-description><p>Low priority todo track</p></section>
     </article>
 </body>
-</html>'''
+</html>"""
 
     (track_dir2 / "index.html").write_text(track2_html)
 
@@ -244,7 +245,7 @@ def test_track_get_by_id(temp_graph_dir):
     track_dir = temp_graph_dir / "tracks" / "track-get-test"
     track_dir.mkdir()
 
-    track_html = '''<!DOCTYPE html>
+    track_html = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -257,7 +258,7 @@ def test_track_get_by_id(temp_graph_dir):
         <section data-description><p>Test get method</p></section>
     </article>
 </body>
-</html>'''
+</html>"""
 
     (track_dir / "index.html").write_text(track_html)
 
@@ -278,7 +279,7 @@ def test_track_edit_context_manager(temp_graph_dir):
     track_dir = temp_graph_dir / "tracks" / "track-edit-test"
     track_dir.mkdir()
 
-    track_html = '''<!DOCTYPE html>
+    track_html = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -291,7 +292,7 @@ def test_track_edit_context_manager(temp_graph_dir):
         <section data-description><p>Test edit method</p></section>
     </article>
 </body>
-</html>'''
+</html>"""
 
     (track_dir / "index.html").write_text(track_html)
 
@@ -336,7 +337,7 @@ def test_track_edit_nonexistent_track(temp_graph_dir):
 def test_track_edit_file_based(temp_graph_dir):
     """Test that edit() works with file-based tracks."""
     # Create file-based track
-    track_html = '''<!DOCTYPE html>
+    track_html = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -349,7 +350,7 @@ def test_track_edit_file_based(temp_graph_dir):
         <section data-description><p>File-based track</p></section>
     </article>
 </body>
-</html>'''
+</html>"""
 
     (temp_graph_dir / "tracks" / "track-file-edit.html").write_text(track_html)
 

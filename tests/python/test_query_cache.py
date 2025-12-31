@@ -291,7 +291,11 @@ class TestCacheWithComplexQueries:
     def test_cache_complex_selector(self, temp_graph):
         """Complex selectors should be cached correctly."""
         node1 = Node(
-            id="test-001", title="Test 1", type="feature", status="todo", priority="high"
+            id="test-001",
+            title="Test 1",
+            type="feature",
+            status="todo",
+            priority="high",
         )
         node2 = Node(
             id="test-002",
@@ -319,7 +323,11 @@ class TestCacheWithComplexQueries:
     def test_multiple_complex_queries_cached(self, temp_graph):
         """Multiple different complex queries should each be cached."""
         node1 = Node(
-            id="test-001", title="Test 1", type="feature", status="todo", priority="high"
+            id="test-001",
+            title="Test 1",
+            type="feature",
+            status="todo",
+            priority="high",
         )
         node2 = Node(
             id="test-002",

@@ -5,7 +5,6 @@ Tests the get_work_queue() and work_next() SDK methods that power
 the `htmlgraph work queue` and `htmlgraph work next` CLI commands.
 """
 
-
 import pytest
 from htmlgraph.models import Node
 from htmlgraph.sdk import SDK
@@ -18,7 +17,16 @@ def temp_sdk(tmp_path):
     graph_dir.mkdir()
 
     # Create subdirectories
-    for collection in ["features", "bugs", "spikes", "chores", "epics", "sessions", "tracks", "agents"]:
+    for collection in [
+        "features",
+        "bugs",
+        "spikes",
+        "chores",
+        "epics",
+        "sessions",
+        "tracks",
+        "agents",
+    ]:
         (graph_dir / collection).mkdir()
 
     sdk = SDK(directory=graph_dir, agent="test-agent")
@@ -34,13 +42,14 @@ def temp_sdk(tmp_path):
     # Create a blocked feature directly
     from htmlgraph.ids import generate_id
     from htmlgraph.models import Node
+
     blocked_feat_id = generate_id("feature", "Blocked feature")
     blocked_feat = Node(
         id=blocked_feat_id,
         title="Blocked feature",
         type="feature",
         status="blocked",
-        priority="high"
+        priority="high",
     )
     sdk.features._ensure_graph().add(blocked_feat)
 
@@ -52,7 +61,7 @@ def temp_sdk(tmp_path):
         type="feature",
         status="in-progress",
         priority="medium",
-        agent_assigned="other-agent"
+        agent_assigned="other-agent",
     )
     sdk.features._ensure_graph().add(in_progress)
 
@@ -92,9 +101,7 @@ def test_get_work_queue_min_score(temp_sdk):
 
     # Get items with high score threshold
     high_score_queue = temp_sdk.get_work_queue(
-        agent_id="test-agent",
-        limit=100,
-        min_score=60.0
+        agent_id="test-agent", limit=100, min_score=60.0
     )
 
     # High score queue should be smaller or equal
@@ -221,7 +228,9 @@ def test_work_queue_priority_ordering(temp_sdk):
     if high_priority and low_priority:
         # High priority should generally score higher than low priority
         # (though routing can override based on other factors)
-        avg_high_score = sum(item["score"] for item in high_priority) / len(high_priority)
+        avg_high_score = sum(item["score"] for item in high_priority) / len(
+            high_priority
+        )
         avg_low_score = sum(item["score"] for item in low_priority) / len(low_priority)
 
         # This is a soft check - routing logic may vary
@@ -241,7 +250,7 @@ def test_work_queue_with_dependencies(temp_sdk):
         title="Blocker feature",
         type="feature",
         status="todo",
-        priority="high"
+        priority="high",
     )
     temp_sdk.features._ensure_graph().add(blocker)
 
@@ -253,7 +262,7 @@ def test_work_queue_with_dependencies(temp_sdk):
         type="feature",
         status="todo",
         priority="high",
-        edges={"blocked_by": [Edge(target_id=blocker.id, relationship="blocked_by")]}
+        edges={"blocked_by": [Edge(target_id=blocker.id, relationship="blocked_by")]},
     )
     temp_sdk.features._ensure_graph().add(blocked)
 

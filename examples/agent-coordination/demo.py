@@ -23,64 +23,84 @@ def setup_project(sdk: SDK):
     print("🏗️  Setting up multi-agent project...")
 
     # Feature 1: Database Schema (no dependencies)
-    db_feature = sdk.features.create("Database Schema Design") \
-        .set_priority("critical") \
-        .add_steps([
-            "Design user table schema",
-            "Design product table schema",
-            "Create migration scripts",
-            "Add indexes and constraints"
-        ]) \
+    db_feature = (
+        sdk.features.create("Database Schema Design")
+        .set_priority("critical")
+        .add_steps(
+            [
+                "Design user table schema",
+                "Design product table schema",
+                "Create migration scripts",
+                "Add indexes and constraints",
+            ]
+        )
         .save()
+    )
 
     # Feature 2: Authentication API (depends on database)
-    auth_feature = sdk.features.create("Authentication API") \
-        .set_priority("high") \
-        .blocked_by(db_feature.id) \
-        .add_steps([
-            "Implement JWT token generation",
-            "Create login endpoint",
-            "Create logout endpoint",
-            "Add password hashing"
-        ]) \
+    auth_feature = (
+        sdk.features.create("Authentication API")
+        .set_priority("high")
+        .blocked_by(db_feature.id)
+        .add_steps(
+            [
+                "Implement JWT token generation",
+                "Create login endpoint",
+                "Create logout endpoint",
+                "Add password hashing",
+            ]
+        )
         .save()
+    )
 
     # Feature 3: User Management (depends on auth)
-    user_mgmt_feature = sdk.features.create("User Management API") \
-        .set_priority("high") \
-        .blocked_by(auth_feature.id) \
-        .add_steps([
-            "Create user CRUD endpoints",
-            "Add role-based permissions",
-            "Implement user search",
-            "Add user profile endpoints"
-        ]) \
+    user_mgmt_feature = (
+        sdk.features.create("User Management API")
+        .set_priority("high")
+        .blocked_by(auth_feature.id)
+        .add_steps(
+            [
+                "Create user CRUD endpoints",
+                "Add role-based permissions",
+                "Implement user search",
+                "Add user profile endpoints",
+            ]
+        )
         .save()
+    )
 
     # Feature 4: Product Catalog (depends on database)
-    product_feature = sdk.features.create("Product Catalog API") \
-        .set_priority("medium") \
-        .blocked_by(db_feature.id) \
-        .add_steps([
-            "Create product CRUD endpoints",
-            "Implement category filtering",
-            "Add product search",
-            "Create inventory tracking"
-        ]) \
+    product_feature = (
+        sdk.features.create("Product Catalog API")
+        .set_priority("medium")
+        .blocked_by(db_feature.id)
+        .add_steps(
+            [
+                "Create product CRUD endpoints",
+                "Implement category filtering",
+                "Add product search",
+                "Create inventory tracking",
+            ]
+        )
         .save()
+    )
 
     # Feature 5: Frontend Dashboard (depends on user mgmt and products)
-    dashboard_feature = sdk.features.create("Admin Dashboard") \
-        .set_priority("medium") \
-        .blocked_by(user_mgmt_feature.id) \
-        .blocked_by(product_feature.id) \
-        .add_steps([
-            "Create dashboard layout",
-            "Add user management UI",
-            "Add product management UI",
-            "Implement analytics charts"
-        ]) \
+    dashboard_feature = (
+        sdk.features.create("Admin Dashboard")
+        .set_priority("medium")
+        .blocked_by(user_mgmt_feature.id)
+        .blocked_by(product_feature.id)
+        .add_steps(
+            [
+                "Create dashboard layout",
+                "Add user management UI",
+                "Add product management UI",
+                "Implement analytics charts",
+            ]
+        )
         .save()
+    )
 
     print("✅ Created 5 interdependent features")
     return {
@@ -88,7 +108,7 @@ def setup_project(sdk: SDK):
         "auth": auth_feature,
         "user_mgmt": user_mgmt_feature,
         "product": product_feature,
-        "dashboard": dashboard_feature
+        "dashboard": dashboard_feature,
     }
 
 
@@ -155,7 +175,7 @@ def simulate_agent_work(sdk: SDK):
         print(f"   Reasons: {', '.join(rec['reasons'][:2])}")
 
         # Check if it's already claimed
-        feature = sdk.features.get(rec['id'])
+        feature = sdk.features.get(rec["id"])
         if feature and feature.agent_assigned:
             print(f"   ❌ Already claimed by {feature.agent_assigned}")
             print("   Looking for alternative...")
@@ -184,7 +204,9 @@ def show_project_status(sdk: SDK):
     done_count = len(by_status.get("done", []))
     in_progress_count = len(by_status.get("in-progress", []))
 
-    print(f"\n📈 Progress: {done_count}/{total} features complete ({done_count/total*100:.0f}%)")
+    print(
+        f"\n📈 Progress: {done_count}/{total} features complete ({done_count / total * 100:.0f}%)"
+    )
     print(f"   In Progress: {in_progress_count}")
     print(f"   Todo: {len(by_status.get('todo', []))}")
     print(f"   Blocked: {len(by_status.get('blocked', []))}")
@@ -220,7 +242,9 @@ def show_coordination_insights(sdk: SDK):
     # Get parallel work capacity
     parallel = sdk.get_parallel_work(max_agents=5)
     print("\n⚡ Parallelization:")
-    print(f"   Maximum agents that can work simultaneously: {parallel['max_parallelism']}")
+    print(
+        f"   Maximum agents that can work simultaneously: {parallel['max_parallelism']}"
+    )
     print(f"   Tasks ready to start now: {parallel['ready_now']}")
 
     # Get recommendations
@@ -230,15 +254,15 @@ def show_coordination_insights(sdk: SDK):
         print(f"\n   {i}. {rec['title']} (score: {rec['score']:.1f})")
         print(f"      Priority: {rec['priority']}")
         print(f"      Why: {', '.join(rec['reasons'][:2])}")
-        if rec.get('unlocks_count', 0) > 0:
+        if rec.get("unlocks_count", 0) > 0:
             print(f"      Impact: Unlocks {rec['unlocks_count']} downstream tasks")
 
     # Risk assessment
     risks = sdk.assess_risks()
-    if risks['high_risk_count'] > 0:
+    if risks["high_risk_count"] > 0:
         print("\n⚠️  Risks Detected:")
         print(f"   {risks['high_risk_count']} high-risk tasks")
-        for task in risks['high_risk_tasks'][:3]:
+        for task in risks["high_risk_tasks"][:3]:
             print(f"   - {task['title']}: {', '.join(task['risk_factors'][:2])}")
 
 

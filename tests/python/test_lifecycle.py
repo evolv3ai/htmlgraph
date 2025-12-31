@@ -9,7 +9,6 @@ Tests the complete workflow:
 5. Session end → all spikes finalized
 """
 
-
 import pytest
 from htmlgraph import SDK
 from htmlgraph.converter import NodeConverter, SessionConverter
@@ -27,7 +26,9 @@ class TestFullLifecycle:
         manager = SessionManager(graph_dir)
 
         # 1. Start session → creates session-init spike
-        session = manager.start_session(agent="test-agent", title="Single Feature Session")
+        session = manager.start_session(
+            agent="test-agent", title="Single Feature Session"
+        )
 
         spike_converter = NodeConverter(graph_dir / "spikes")
         spikes = spike_converter.load_all()
@@ -70,7 +71,9 @@ class TestFullLifecycle:
         manager = SessionManager(graph_dir)
 
         # Start session
-        session = manager.start_session(agent="test-agent", title="Multi Feature Session")
+        session = manager.start_session(
+            agent="test-agent", title="Multi Feature Session"
+        )
 
         # Work on Feature 1
         feature1 = manager.create_feature("Feature 1", agent="test-agent")
@@ -79,7 +82,7 @@ class TestFullLifecycle:
             session_id=session.id,
             tool="Edit",
             summary="Working on feature 1",
-            feature_id=feature1.id
+            feature_id=feature1.id,
         )
         manager.complete_feature(feature1.id, agent="test-agent")
 
@@ -90,7 +93,7 @@ class TestFullLifecycle:
             session_id=session.id,
             tool="Edit",
             summary="Working on feature 2",
-            feature_id=feature2.id
+            feature_id=feature2.id,
         )
         manager.complete_feature(feature2.id, agent="test-agent")
 
@@ -101,7 +104,7 @@ class TestFullLifecycle:
             session_id=session.id,
             tool="Edit",
             summary="Working on feature 3",
-            feature_id=feature3.id
+            feature_id=feature3.id,
         )
         manager.complete_feature(feature3.id, agent="test-agent")
 
@@ -122,9 +125,7 @@ class TestFullLifecycle:
 
         # The last transition spike should be in-progress (nothing after it yet)
         last_transition = sorted(
-            transition_spikes,
-            key=lambda s: s.created,
-            reverse=True
+            transition_spikes, key=lambda s: s.created, reverse=True
         )[0]
         assert last_transition.status == "in-progress"
         assert last_transition.from_feature_id == feature3.id
@@ -146,7 +147,9 @@ class TestFullLifecycle:
 
         manager = SessionManager(graph_dir, wip_limit=3)
 
-        session = manager.start_session(agent="test-agent", title="Parallel Work Session")
+        session = manager.start_session(
+            agent="test-agent", title="Parallel Work Session"
+        )
 
         # Start multiple features in parallel
         feature1 = manager.create_feature("Parallel Feature 1", agent="test-agent")
@@ -227,9 +230,7 @@ class TestFullLifecycle:
 
         # Second session (continued from first)
         session2 = manager.start_session(
-            agent="test-agent",
-            title="Session 2",
-            continued_from=session1.id
+            agent="test-agent", title="Session 2", continued_from=session1.id
         )
 
         # Should have its own session-init spike
@@ -259,7 +260,7 @@ class TestFullLifecycle:
             session_id=session.id,
             transcript_id="test-uuid-1234",
             transcript_path="/path/to/transcript.jsonl",
-            git_branch="main"
+            git_branch="main",
         )
 
         # Do some work
@@ -292,9 +293,7 @@ class TestEdgeCases:
         # Start and end session without starting any features
         session = manager.start_session(agent="test-agent", title="No Features Session")
         manager.track_activity(
-            session_id=session.id,
-            tool="Read",
-            summary="Just reading code"
+            session_id=session.id, tool="Read", summary="Just reading code"
         )
         manager.end_session(session.id)
 
@@ -316,7 +315,9 @@ class TestEdgeCases:
 
         # Start feature WITHOUT explicitly starting session
         # (SessionManager should auto-create session)
-        feature = manager.create_feature("No Explicit Session Feature", agent="test-agent")
+        feature = manager.create_feature(
+            "No Explicit Session Feature", agent="test-agent"
+        )
         manager.start_feature(feature.id, agent="test-agent")
 
         # Should have auto-created session and spikes

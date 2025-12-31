@@ -34,7 +34,7 @@ def migrate_events(events_dir: Path, dry_run: bool = False) -> dict:
         "updated_events": 0,
         "already_typed": 0,
         "inferred_types": {},
-        "sessions_processed": 0
+        "sessions_processed": 0,
     }
 
     # Process all JSONL files in events directory
@@ -65,7 +65,9 @@ def migrate_events(events_dir: Path, dry_run: bool = False) -> dict:
                         if work_type:
                             event["work_type"] = work_type
                             stats["updated_events"] += 1
-                            stats["inferred_types"][work_type] = stats["inferred_types"].get(work_type, 0) + 1
+                            stats["inferred_types"][work_type] = (
+                                stats["inferred_types"].get(work_type, 0) + 1
+                            )
 
                     events.append(event)
 
@@ -102,11 +104,7 @@ def migrate_sessions(dry_run: bool = False) -> dict:
     sdk = SDK()
     sessions_dir = Path(".htmlgraph/sessions")
 
-    stats = {
-        "total_sessions": 0,
-        "updated_sessions": 0,
-        "sessions_with_breakdown": {}
-    }
+    stats = {"total_sessions": 0, "updated_sessions": 0, "sessions_with_breakdown": {}}
 
     if not sessions_dir.exists():
         return stats
@@ -135,7 +133,7 @@ def migrate_sessions(dry_run: bool = False) -> dict:
                 stats["updated_sessions"] += 1
                 stats["sessions_with_breakdown"][session.id] = {
                     "primary": primary,
-                    "breakdown": breakdown
+                    "breakdown": breakdown,
                 }
 
                 # Write back to file if not dry run
@@ -152,9 +150,17 @@ def migrate_sessions(dry_run: bool = False) -> dict:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Migrate existing data to Phase 1 work type classification")
-    parser.add_argument("--dry-run", action="store_true", help="Show what would be migrated without making changes")
-    parser.add_argument("--events-dir", default=".htmlgraph/events", help="Path to events directory")
+    parser = argparse.ArgumentParser(
+        description="Migrate existing data to Phase 1 work type classification"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be migrated without making changes",
+    )
+    parser.add_argument(
+        "--events-dir", default=".htmlgraph/events", help="Path to events directory"
+    )
     args = parser.parse_args()
 
     events_dir = Path(args.events_dir)
@@ -179,10 +185,10 @@ def main():
     print(f"  Already typed: {event_stats['already_typed']}")
     print(f"  Sessions processed: {event_stats['sessions_processed']}")
 
-    if event_stats['inferred_types']:
+    if event_stats["inferred_types"]:
         print()
         print("  Inferred work types:")
-        for work_type, count in event_stats['inferred_types'].items():
+        for work_type, count in event_stats["inferred_types"].items():
             print(f"    {work_type}: {count}")
 
     # Migrate sessions
@@ -195,16 +201,18 @@ def main():
     print(f"  Total sessions: {session_stats['total_sessions']}")
     print(f"  Sessions updated: {session_stats['updated_sessions']}")
 
-    if session_stats['sessions_with_breakdown']:
+    if session_stats["sessions_with_breakdown"]:
         print()
         print("  Session work breakdowns:")
-        for session_id, data in list(session_stats['sessions_with_breakdown'].items())[:5]:
+        for session_id, data in list(session_stats["sessions_with_breakdown"].items())[
+            :5
+        ]:
             print(f"    {session_id}:")
             print(f"      Primary: {data['primary']}")
             print(f"      Breakdown: {data['breakdown']}")
 
-        if len(session_stats['sessions_with_breakdown']) > 5:
-            remaining = len(session_stats['sessions_with_breakdown']) - 5
+        if len(session_stats["sessions_with_breakdown"]) > 5:
+            remaining = len(session_stats["sessions_with_breakdown"]) - 5
             print(f"    ... and {remaining} more sessions")
 
     print()

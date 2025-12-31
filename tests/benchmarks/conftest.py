@@ -23,7 +23,11 @@ def small_graph():
                 id=f"node-{i:03d}",
                 title=f"Node {i}",
                 type="feature",
-                status="todo" if i % 3 == 0 else "in-progress" if i % 3 == 1 else "done",
+                status="todo"
+                if i % 3 == 0
+                else "in-progress"
+                if i % 3 == 1
+                else "done",
                 priority="high" if i % 2 == 0 else "medium",
             )
             graph.add(node)
@@ -43,18 +47,22 @@ def medium_graph():
             # Create some dependencies
             if i > 0 and i % 5 == 0:
                 edges["blocked_by"] = [
-                    Edge(target_id=f"node-{i-1:03d}", relationship="blocked_by")
+                    Edge(target_id=f"node-{i - 1:03d}", relationship="blocked_by")
                 ]
             if i > 1 and i % 7 == 0:
                 edges["related"] = [
-                    Edge(target_id=f"node-{i-2:03d}", relationship="related")
+                    Edge(target_id=f"node-{i - 2:03d}", relationship="related")
                 ]
 
             node = Node(
                 id=f"node-{i:03d}",
                 title=f"Node {i}",
                 type="feature",
-                status="todo" if i % 3 == 0 else "in-progress" if i % 3 == 1 else "done",
+                status="todo"
+                if i % 3 == 0
+                else "in-progress"
+                if i % 3 == 1
+                else "done",
                 priority="high" if i % 2 == 0 else "medium",
                 edges=edges,
             )
@@ -76,15 +84,19 @@ def large_graph():
             # Create dependency chains
             if i > 0 and i % 10 == 0:
                 edges["blocked_by"] = [
-                    Edge(target_id=f"node-{i-1:03d}", relationship="blocked_by")
+                    Edge(target_id=f"node-{i - 1:03d}", relationship="blocked_by")
                 ]
 
             # Create related links
             related = []
             if i > 5 and i % 7 == 0:
-                related.append(Edge(target_id=f"node-{i-5:03d}", relationship="related"))
+                related.append(
+                    Edge(target_id=f"node-{i - 5:03d}", relationship="related")
+                )
             if i > 10 and i % 11 == 0:
-                related.append(Edge(target_id=f"node-{i-10:03d}", relationship="related"))
+                related.append(
+                    Edge(target_id=f"node-{i - 10:03d}", relationship="related")
+                )
             if related:
                 edges["related"] = related
 
@@ -92,7 +104,13 @@ def large_graph():
                 id=f"node-{i:03d}",
                 title=f"Node {i}",
                 type="feature" if i % 3 != 0 else "task",
-                status="todo" if i % 4 == 0 else "in-progress" if i % 4 == 1 else "done" if i % 4 == 2 else "blocked",
+                status="todo"
+                if i % 4 == 0
+                else "in-progress"
+                if i % 4 == 1
+                else "done"
+                if i % 4 == 2
+                else "blocked",
                 priority="high" if i % 3 == 0 else "medium" if i % 3 == 1 else "low",
                 edges=edges,
                 properties={
@@ -111,6 +129,7 @@ def benchmark_baseline(tmp_path):
     baseline_file = Path("tests/benchmarks/baseline.json")
     if baseline_file.exists():
         import json
+
         with open(baseline_file) as f:
             return json.load(f)
     return None

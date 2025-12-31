@@ -26,7 +26,7 @@ def remove_white_background(image_path, output_path, threshold=240):
     data = np.array(img)
 
     # Get RGB channels
-    r, g, b, a = data[:,:,0], data[:,:,1], data[:,:,2], data[:,:,3]
+    r, g, b, a = data[:, :, 0], data[:, :, 1], data[:, :, 2], data[:, :, 3]
 
     # Find white/light pixels (all RGB values above threshold)
     white_areas = (r > threshold) & (g > threshold) & (b > threshold)
@@ -60,7 +60,7 @@ def crop_to_content(image_path, output_path, padding=20):
             max(0, bbox[0] - padding),
             max(0, bbox[1] - padding),
             min(img.width, bbox[2] + padding),
-            min(img.height, bbox[3] + padding)
+            min(img.height, bbox[3] + padding),
         )
 
         # Crop to bbox

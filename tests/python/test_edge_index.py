@@ -181,17 +181,15 @@ class TestEdgeIndexRebuild:
                 title="Node A",
                 edges={
                     "blocks": [Edge(target_id="b", relationship="blocks")],
-                    "related": [Edge(target_id="c", relationship="related")]
-                }
+                    "related": [Edge(target_id="c", relationship="related")],
+                },
             ),
             "b": Node(
                 id="b",
                 title="Node B",
-                edges={
-                    "blocked_by": [Edge(target_id="a", relationship="blocked_by")]
-                }
+                edges={"blocked_by": [Edge(target_id="a", relationship="blocked_by")]},
             ),
-            "c": Node(id="c", title="Node C")
+            "c": Node(id="c", title="Node C"),
         }
 
         index = EdgeIndex()
@@ -215,9 +213,9 @@ class TestEdgeIndexRebuild:
             "a": Node(
                 id="a",
                 title="Node A",
-                edges={"blocks": [Edge(target_id="b", relationship="blocks")]}
+                edges={"blocks": [Edge(target_id="b", relationship="blocks")]},
             ),
-            "b": Node(id="b", title="Node B")
+            "b": Node(id="b", title="Node B"),
         }
 
         index.rebuild(nodes)
@@ -273,16 +271,18 @@ class TestHtmlGraphEdgeIndex:
                 edges={
                     "blocks": [
                         Edge(target_id="feature-b", relationship="blocks"),
-                        Edge(target_id="feature-c", relationship="blocks")
+                        Edge(target_id="feature-c", relationship="blocks"),
                     ]
-                }
+                },
             )
             node_b = Node(
                 id="feature-b",
                 title="Feature B",
                 edges={
-                    "blocked_by": [Edge(target_id="feature-a", relationship="blocked_by")]
-                }
+                    "blocked_by": [
+                        Edge(target_id="feature-a", relationship="blocked_by")
+                    ]
+                },
             )
             node_c = Node(id="feature-c", title="Feature C")
 
@@ -313,9 +313,7 @@ class TestHtmlGraphEdgeIndex:
         node_a.edges["blocks"].append(
             Edge(target_id="feature-c", relationship="blocks")
         )
-        node_a.edges["related"] = [
-            Edge(target_id="feature-d", relationship="related")
-        ]
+        node_a.edges["related"] = [Edge(target_id="feature-d", relationship="related")]
 
         graph.update(node_a)
 
@@ -359,7 +357,7 @@ class TestHtmlGraphEdgeIndex:
             node_a = Node(
                 id="node-a",
                 title="Node A",
-                edges={"blocks": [Edge(target_id="node-b", relationship="blocks")]}
+                edges={"blocks": [Edge(target_id="node-b", relationship="blocks")]},
             )
             graph.add(node_a)
             graph.add(Node(id="node-b", title="Node B"))
@@ -398,4 +396,6 @@ class TestEdgeIndexPerformance:
         indexed_time = time.perf_counter() - start
 
         # Should complete in under 100ms for 1000 lookups
-        assert indexed_time < 0.1, f"Indexed lookup took {indexed_time:.3f}s, expected < 0.1s"
+        assert indexed_time < 0.1, (
+            f"Indexed lookup took {indexed_time:.3f}s, expected < 0.1s"
+        )

@@ -2,7 +2,6 @@
 Tests for agent capabilities and smart routing.
 """
 
-
 import pytest
 from htmlgraph.agent_registry import AgentProfile, AgentRegistry
 from htmlgraph.agents import AgentInterface
@@ -17,7 +16,7 @@ def test_agent_profile_capability_matching():
         name="Test Agent",
         capabilities=["python", "javascript", "testing"],
         max_parallel_tasks=3,
-        preferred_complexity=["low", "medium", "high"]
+        preferred_complexity=["low", "medium", "high"],
     )
 
     # Should match
@@ -36,7 +35,7 @@ def test_agent_profile_complexity_matching():
         id="test-agent",
         name="Test Agent",
         capabilities=["python"],
-        preferred_complexity=["low", "medium"]
+        preferred_complexity=["low", "medium"],
     )
 
     # Should match
@@ -75,19 +74,23 @@ def test_agent_registry_find_capable_agents(tmp_path):
     registry = AgentRegistry(htmlgraph_dir)
 
     # Register test agents
-    registry.register(AgentProfile(
-        id="python-expert",
-        name="Python Expert",
-        capabilities=["python", "testing", "debugging"],
-        preferred_complexity=["high", "very-high"]
-    ))
+    registry.register(
+        AgentProfile(
+            id="python-expert",
+            name="Python Expert",
+            capabilities=["python", "testing", "debugging"],
+            preferred_complexity=["high", "very-high"],
+        )
+    )
 
-    registry.register(AgentProfile(
-        id="js-expert",
-        name="JS Expert",
-        capabilities=["javascript", "typescript", "testing"],
-        preferred_complexity=["medium", "high"]
-    ))
+    registry.register(
+        AgentProfile(
+            id="js-expert",
+            name="JS Expert",
+            capabilities=["javascript", "typescript", "testing"],
+            preferred_complexity=["medium", "high"],
+        )
+    )
 
     # Find python agents
     python_agents = registry.find_capable_agents(["python"])
@@ -117,7 +120,7 @@ def test_task_scoring(tmp_path):
         priority="high",
         required_capabilities=["python", "testing"],
         complexity="medium",
-        estimated_effort=4.0
+        estimated_effort=4.0,
     )
 
     # Save task
@@ -132,7 +135,7 @@ def test_task_scoring(tmp_path):
         id="test-agent",
         name="Test Agent",
         capabilities=["python", "testing", "debugging"],
-        preferred_complexity=["low", "medium", "high"]
+        preferred_complexity=["low", "medium", "high"],
     )
 
     # Calculate score
@@ -150,12 +153,14 @@ def test_work_queue_generation(tmp_path):
 
     # Register test agent
     registry = AgentRegistry(htmlgraph_dir)
-    registry.register(AgentProfile(
-        id="test-agent",
-        name="Test Agent",
-        capabilities=["python", "testing"],
-        preferred_complexity=["low", "medium"]
-    ))
+    registry.register(
+        AgentProfile(
+            id="test-agent",
+            name="Test Agent",
+            capabilities=["python", "testing"],
+            preferred_complexity=["low", "medium"],
+        )
+    )
 
     # Create test tasks
     tasks = [
@@ -166,7 +171,7 @@ def test_work_queue_generation(tmp_path):
             status="todo",
             priority="high",
             required_capabilities=["python"],
-            complexity="medium"
+            complexity="medium",
         ),
         Node(
             id="task-2",
@@ -175,7 +180,7 @@ def test_work_queue_generation(tmp_path):
             status="todo",
             priority="medium",
             required_capabilities=["javascript"],  # Agent can't do this
-            complexity="low"
+            complexity="low",
         ),
         Node(
             id="task-3",
@@ -184,7 +189,7 @@ def test_work_queue_generation(tmp_path):
             status="todo",
             priority="critical",
             required_capabilities=["testing"],
-            complexity="low"
+            complexity="low",
         ),
     ]
 
@@ -196,7 +201,9 @@ def test_work_queue_generation(tmp_path):
     agent_interface = AgentInterface(features_dir, agent_id="test-agent")
 
     # Get work queue
-    queue = agent_interface.get_work_queue(agent_id="test-agent", limit=10, min_score=0.0)
+    queue = agent_interface.get_work_queue(
+        agent_id="test-agent", limit=10, min_score=0.0
+    )
 
     # Should have python and testing tasks, not JS
     assert len(queue) >= 2
@@ -226,18 +233,22 @@ def test_find_best_match(tmp_path):
         if agent:
             registry.deactivate(agent_id)
 
-    registry.register(AgentProfile(
-        id="python-specialist",
-        name="Python Specialist",
-        capabilities=["python", "testing"],
-        preferred_complexity=["high", "very-high"]
-    ))
-    registry.register(AgentProfile(
-        id="generalist",
-        name="Generalist",
-        capabilities=["python", "javascript", "testing", "documentation"],
-        preferred_complexity=["low", "medium"]
-    ))
+    registry.register(
+        AgentProfile(
+            id="python-specialist",
+            name="Python Specialist",
+            capabilities=["python", "testing"],
+            preferred_complexity=["high", "very-high"],
+        )
+    )
+    registry.register(
+        AgentProfile(
+            id="generalist",
+            name="Generalist",
+            capabilities=["python", "javascript", "testing", "documentation"],
+            preferred_complexity=["low", "medium"],
+        )
+    )
 
     # Create a high-complexity Python task
     task = Node(
@@ -246,7 +257,7 @@ def test_find_best_match(tmp_path):
         type="feature",
         priority="high",
         required_capabilities=["python"],
-        complexity="high"
+        complexity="high",
     )
 
     graph = HtmlGraph(features_dir)

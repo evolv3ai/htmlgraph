@@ -56,7 +56,7 @@ class TestWorkTypeDistribution:
             {"work_type": WorkType.FEATURE.value},  # 3 feature events
             {"work_type": WorkType.FEATURE.value},
             {"work_type": WorkType.FEATURE.value},
-            {"work_type": WorkType.SPIKE.value},    # 2 spike events
+            {"work_type": WorkType.SPIKE.value},  # 2 spike events
             {"work_type": WorkType.SPIKE.value},
             {"work_type": WorkType.MAINTENANCE.value},  # 1 maintenance event
         ]
@@ -77,12 +77,13 @@ class TestWorkTypeDistribution:
                     "drift_score": None,
                     "start_commit": None,
                     "continued_from": None,
-                    **evt
+                    **evt,
                 }
                 f.write(json.dumps(evt_record) + "\n")
 
         # Create session HTML file
         from htmlgraph.converter import session_to_html
+
         session = Session(id=session_id, agent="test", event_count=len(events))
         session_to_html(session, graph_dir / "sessions" / f"{session_id}.html")
 
@@ -143,12 +144,13 @@ class TestWorkTypeDistribution:
                     "tool": "Bash",
                     "summary": f"Event {i}",
                     "success": True,
-                    **evt
+                    **evt,
                 }
                 f.write(json.dumps(evt_record) + "\n")
 
         # Create session HTML
         from htmlgraph.converter import session_to_html
+
         session = Session(id=session_id, agent="test", event_count=len(events))
         session_to_html(session, graph_dir / "sessions" / f"{session_id}.html")
 
@@ -195,12 +197,13 @@ class TestSpikeToFeatureRatio:
                     "tool": "Bash",
                     "summary": f"Event {i}",
                     "success": True,
-                    **evt
+                    **evt,
                 }
                 f.write(json.dumps(evt_record) + "\n")
 
         # Create session HTML
         from htmlgraph.converter import session_to_html
+
         session = Session(id=session_id, agent="test", event_count=len(events))
         session_to_html(session, graph_dir / "sessions" / f"{session_id}.html")
 
@@ -243,12 +246,13 @@ class TestSpikeToFeatureRatio:
                     "tool": "Bash",
                     "summary": f"Event {i}",
                     "success": True,
-                    **evt
+                    **evt,
                 }
                 f.write(json.dumps(evt_record) + "\n")
 
         # Create session HTML
         from htmlgraph.converter import session_to_html
+
         session = Session(id=session_id, agent="test", event_count=len(events))
         session_to_html(session, graph_dir / "sessions" / f"{session_id}.html")
 
@@ -290,9 +294,9 @@ class TestMaintenanceBurden:
             {"work_type": WorkType.FEATURE.value},
             {"work_type": WorkType.FEATURE.value},
             {"work_type": WorkType.FEATURE.value},
-            {"work_type": WorkType.BUG_FIX.value},     # Maintenance
-            {"work_type": WorkType.MAINTENANCE.value}, # Maintenance
-            {"work_type": WorkType.SPIKE.value},       # Not maintenance
+            {"work_type": WorkType.BUG_FIX.value},  # Maintenance
+            {"work_type": WorkType.MAINTENANCE.value},  # Maintenance
+            {"work_type": WorkType.SPIKE.value},  # Not maintenance
         ]
 
         # Write events
@@ -307,12 +311,13 @@ class TestMaintenanceBurden:
                     "tool": "Bash",
                     "summary": f"Event {i}",
                     "success": True,
-                    **evt
+                    **evt,
                 }
                 f.write(json.dumps(evt_record) + "\n")
 
         # Create session HTML
         from htmlgraph.converter import session_to_html
+
         session = Session(id=session_id, agent="test", event_count=len(events))
         session_to_html(session, graph_dir / "sessions" / f"{session_id}.html")
 
@@ -355,12 +360,13 @@ class TestMaintenanceBurden:
                     "tool": "Bash",
                     "summary": f"Event {i}",
                     "success": True,
-                    **evt
+                    **evt,
                 }
                 f.write(json.dumps(evt_record) + "\n")
 
         # Create session HTML
         from htmlgraph.converter import session_to_html
+
         session = Session(id=session_id, agent="test", event_count=len(events))
         session_to_html(session, graph_dir / "sessions" / f"{session_id}.html")
 
@@ -400,10 +406,26 @@ class TestSessionFiltering:
         from htmlgraph.converter import session_to_html
 
         sessions = [
-            Session(id="session-spike-001", agent="test", primary_work_type=WorkType.SPIKE.value),
-            Session(id="session-feature-001", agent="test", primary_work_type=WorkType.FEATURE.value),
-            Session(id="session-spike-002", agent="test", primary_work_type=WorkType.SPIKE.value),
-            Session(id="session-maintenance-001", agent="test", primary_work_type=WorkType.MAINTENANCE.value),
+            Session(
+                id="session-spike-001",
+                agent="test",
+                primary_work_type=WorkType.SPIKE.value,
+            ),
+            Session(
+                id="session-feature-001",
+                agent="test",
+                primary_work_type=WorkType.FEATURE.value,
+            ),
+            Session(
+                id="session-spike-002",
+                agent="test",
+                primary_work_type=WorkType.SPIKE.value,
+            ),
+            Session(
+                id="session-maintenance-001",
+                agent="test",
+                primary_work_type=WorkType.MAINTENANCE.value,
+            ),
         ]
 
         for session in sessions:
@@ -426,7 +448,9 @@ class TestSessionFiltering:
         """Test filtering sessions by feature work type."""
         sdk = sdk_with_sessions
 
-        feature_sessions = sdk.analytics.get_sessions_by_work_type(WorkType.FEATURE.value)
+        feature_sessions = sdk.analytics.get_sessions_by_work_type(
+            WorkType.FEATURE.value
+        )
 
         assert len(feature_sessions) == 1
         assert "session-feature-001" in feature_sessions
@@ -435,7 +459,9 @@ class TestSessionFiltering:
         """Test filtering returns empty list when no matches."""
         sdk = sdk_with_sessions
 
-        doc_sessions = sdk.analytics.get_sessions_by_work_type(WorkType.DOCUMENTATION.value)
+        doc_sessions = sdk.analytics.get_sessions_by_work_type(
+            WorkType.DOCUMENTATION.value
+        )
 
         assert len(doc_sessions) == 0
 
@@ -472,12 +498,13 @@ class TestSessionWorkBreakdownMethods:
                     "tool": "Bash",
                     "summary": f"Event {i}",
                     "success": True,
-                    **evt
+                    **evt,
                 }
                 f.write(json.dumps(evt_record) + "\n")
 
         # Create session HTML
         from htmlgraph.converter import session_to_html
+
         session = Session(id=session_id, agent="test", event_count=len(events))
         session_to_html(session, graph_dir / "sessions" / f"{session_id}.html")
 

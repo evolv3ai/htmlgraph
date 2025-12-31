@@ -25,12 +25,9 @@ SAMPLE_JSONL_LINES = [
         "version": "1.0.58",
         "gitBranch": "main",
         "type": "user",
-        "message": {
-            "role": "user",
-            "content": "Add a login function"
-        },
+        "message": {"role": "user", "content": "Add a login function"},
         "uuid": "msg-001",
-        "timestamp": "2025-12-25T10:00:00.000Z"
+        "timestamp": "2025-12-25T10:00:00.000Z",
     },
     {
         "parentUuid": "msg-001",
@@ -44,11 +41,11 @@ SAMPLE_JSONL_LINES = [
             "role": "assistant",
             "content": [
                 {"type": "text", "text": "I'll add a login function."},
-                {"type": "thinking", "thinking": "Need to create auth module first."}
-            ]
+                {"type": "thinking", "thinking": "Need to create auth module first."},
+            ],
         },
         "uuid": "msg-002",
-        "timestamp": "2025-12-25T10:00:05.000Z"
+        "timestamp": "2025-12-25T10:00:05.000Z",
     },
     {
         "parentUuid": "msg-002",
@@ -64,12 +61,15 @@ SAMPLE_JSONL_LINES = [
                 {
                     "type": "tool_use",
                     "name": "Write",
-                    "input": {"file_path": "/home/user/projects/myapp/auth.py", "content": "def login(): pass"}
+                    "input": {
+                        "file_path": "/home/user/projects/myapp/auth.py",
+                        "content": "def login(): pass",
+                    },
                 }
-            ]
+            ],
         },
         "uuid": "msg-003",
-        "timestamp": "2025-12-25T10:00:10.000Z"
+        "timestamp": "2025-12-25T10:00:10.000Z",
     },
     {
         "parentUuid": "msg-003",
@@ -79,12 +79,9 @@ SAMPLE_JSONL_LINES = [
         "version": "1.0.58",
         "gitBranch": "main",
         "type": "tool_result",
-        "message": {
-            "role": "user",
-            "content": "File written successfully"
-        },
+        "message": {"role": "user", "content": "File written successfully"},
         "uuid": "msg-004",
-        "timestamp": "2025-12-25T10:00:11.000Z"
+        "timestamp": "2025-12-25T10:00:11.000Z",
     },
 ]
 
@@ -338,14 +335,18 @@ class TestSessionManagerTranscriptIntegration:
 
         # Find by transcript ID (reload from disk)
         found = manager.find_session_by_transcript("abc-123-def-456")
-        assert found is not None, f"Session {session.id} with transcript abc-123-def-456 not found"
+        assert found is not None, (
+            f"Session {session.id} with transcript abc-123-def-456 not found"
+        )
         assert found.id == session.id
 
         # Not found for different transcript
         not_found = manager.find_session_by_transcript("different-id")
         assert not_found is None
 
-    def test_import_transcript_events(self, temp_claude_dir, sample_transcript_file, temp_htmlgraph_dir):
+    def test_import_transcript_events(
+        self, temp_claude_dir, sample_transcript_file, temp_htmlgraph_dir
+    ):
         """Import events from a transcript."""
         reader = TranscriptReader(temp_claude_dir)
         manager = SessionManager(temp_htmlgraph_dir)

@@ -47,13 +47,15 @@ def test_skill_invocations_no_drift(manager):
         session_id=session.id,
         tool="Skill",
         summary="Skill: {'skill': 'htmlgraph-tracker'}",
-        file_paths=[]
+        file_paths=[],
     )
 
     # Verify the skill invocation has NO drift score (system overhead)
     assert skill_activity.drift_score is None
     assert skill_activity.feature_id == feature.id  # Still attributed to feature
-    assert "system_overhead" in str(skill_activity.payload.get("attribution_reason", ""))
+    assert "system_overhead" in str(
+        skill_activity.payload.get("attribution_reason", "")
+    )
 
 
 def test_htmlgraph_metadata_reads_no_drift(manager):
@@ -77,7 +79,7 @@ def test_htmlgraph_metadata_reads_no_drift(manager):
         session_id=session.id,
         tool="Read",
         summary="Read: /path/to/.htmlgraph/bugs/bug-001.html",
-        file_paths=["/path/to/.htmlgraph/bugs/bug-001.html"]
+        file_paths=["/path/to/.htmlgraph/bugs/bug-001.html"],
     )
 
     # Verify the read has NO drift score (system overhead)
@@ -106,7 +108,7 @@ def test_htmlgraph_metadata_writes_no_drift(manager):
         session_id=session.id,
         tool="Write",
         summary="Write: .htmlgraph/features/feat-001.html",
-        file_paths=[".htmlgraph/features/feat-001.html"]
+        file_paths=[".htmlgraph/features/feat-001.html"],
     )
 
     # Verify the write has NO drift score (system overhead)
@@ -139,7 +141,7 @@ def test_non_system_activities_still_have_drift(manager):
         session_id=session.id,
         tool="Read",
         summary="Read: /tmp/unrelated.txt",
-        file_paths=["/tmp/unrelated.txt"]
+        file_paths=["/tmp/unrelated.txt"],
     )
 
     # Verify this activity HAS a drift score (not system overhead)
@@ -170,7 +172,7 @@ def test_multiple_skill_invocations_no_drift(manager):
             session_id=session.id,
             tool="Skill",
             summary="Skill: {'skill': 'htmlgraph:htmlgraph-tracker'}",
-            file_paths=[]
+            file_paths=[],
         )
         activities.append(activity)
 
@@ -205,7 +207,7 @@ def test_mixed_activities_correct_drift(manager):
         session_id=session.id,
         tool="Skill",
         summary="Skill: {'skill': 'htmlgraph-tracker'}",
-        file_paths=[]
+        file_paths=[],
     )
 
     # 2. System overhead - .htmlgraph read
@@ -213,7 +215,7 @@ def test_mixed_activities_correct_drift(manager):
         session_id=session.id,
         tool="Read",
         summary="Read: .htmlgraph/features/feat-001.html",
-        file_paths=[".htmlgraph/features/feat-001.html"]
+        file_paths=[".htmlgraph/features/feat-001.html"],
     )
 
     # 3. Real work - matching file pattern
@@ -221,7 +223,7 @@ def test_mixed_activities_correct_drift(manager):
         session_id=session.id,
         tool="Edit",
         summary="Edit: src/main.py",
-        file_paths=["src/main.py"]
+        file_paths=["src/main.py"],
     )
 
     # 4. Real work - unrelated file (drift)
@@ -229,7 +231,7 @@ def test_mixed_activities_correct_drift(manager):
         session_id=session.id,
         tool="Read",
         summary="Read: /tmp/unrelated.txt",
-        file_paths=["/tmp/unrelated.txt"]
+        file_paths=["/tmp/unrelated.txt"],
     )
 
     # Verify drift scores
@@ -273,10 +275,12 @@ def test_config_files_no_drift(manager):
             session_id=session.id,
             tool="Edit",
             summary=f"Edit: {file_path}",
-            file_paths=[file_path]
+            file_paths=[file_path],
         )
         # Verify NO drift score (system overhead)
-        assert activity.drift_score is None, f"Config file {file_path} should have no drift"
+        assert activity.drift_score is None, (
+            f"Config file {file_path} should have no drift"
+        )
         assert activity.feature_id == feature.id
 
 
@@ -311,10 +315,12 @@ def test_documentation_files_no_drift(manager):
             session_id=session.id,
             tool="Write",
             summary=f"Write: {file_path}",
-            file_paths=[file_path]
+            file_paths=[file_path],
         )
         # Verify NO drift score (system overhead)
-        assert activity.drift_score is None, f"Doc file {file_path} should have no drift"
+        assert activity.drift_score is None, (
+            f"Doc file {file_path} should have no drift"
+        )
 
 
 def test_build_artifacts_no_drift(manager):
@@ -346,10 +352,12 @@ def test_build_artifacts_no_drift(manager):
             session_id=session.id,
             tool="Read",
             summary=f"Read: {file_path}",
-            file_paths=[file_path]
+            file_paths=[file_path],
         )
         # Verify NO drift score (system overhead)
-        assert activity.drift_score is None, f"Build artifact {file_path} should have no drift"
+        assert activity.drift_score is None, (
+            f"Build artifact {file_path} should have no drift"
+        )
 
 
 def test_ide_files_no_drift(manager):
@@ -382,10 +390,12 @@ def test_ide_files_no_drift(manager):
             session_id=session.id,
             tool="Edit",
             summary=f"Edit: {file_path}",
-            file_paths=[file_path]
+            file_paths=[file_path],
         )
         # Verify NO drift score (system overhead)
-        assert activity.drift_score is None, f"IDE file {file_path} should have no drift"
+        assert activity.drift_score is None, (
+            f"IDE file {file_path} should have no drift"
+        )
 
 
 def test_testing_artifacts_no_drift(manager):
@@ -417,10 +427,12 @@ def test_testing_artifacts_no_drift(manager):
             session_id=session.id,
             tool="Read",
             summary=f"Read: {file_path}",
-            file_paths=[file_path]
+            file_paths=[file_path],
         )
         # Verify NO drift score (system overhead)
-        assert activity.drift_score is None, f"Test artifact {file_path} should have no drift"
+        assert activity.drift_score is None, (
+            f"Test artifact {file_path} should have no drift"
+        )
 
 
 def test_source_code_files_have_drift(manager):
@@ -448,7 +460,7 @@ def test_source_code_files_have_drift(manager):
         session_id=session.id,
         tool="Edit",
         summary="Edit: src/frontend/app.js",
-        file_paths=["src/frontend/app.js"]
+        file_paths=["src/frontend/app.js"],
     )
 
     # Verify this activity HAS a drift score (not infrastructure)
@@ -485,11 +497,13 @@ def test_mixed_infrastructure_and_code_files(manager):
             "src/main.py",  # Real work - matches pattern
             "pyproject.toml",  # Infrastructure
             "README.md",  # Infrastructure
-        ]
+        ],
     )
 
     # If ANY file is infrastructure, the whole activity is treated as system overhead
-    assert activity.drift_score is None, "Activity with infrastructure files should have no drift"
+    assert activity.drift_score is None, (
+        "Activity with infrastructure files should have no drift"
+    )
 
 
 def test_github_ci_files_no_drift(manager):
@@ -521,7 +535,7 @@ def test_github_ci_files_no_drift(manager):
             session_id=session.id,
             tool="Edit",
             summary=f"Edit: {file_path}",
-            file_paths=[file_path]
+            file_paths=[file_path],
         )
         # Verify NO drift score (system overhead)
         assert activity.drift_score is None, f"CI file {file_path} should have no drift"

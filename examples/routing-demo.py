@@ -24,9 +24,9 @@ from htmlgraph.routing import (
 
 def print_header(title: str) -> None:
     """Print a formatted section header."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  {title}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
 
 def main():
@@ -139,7 +139,9 @@ def main():
         required_capabilities=["python"],
     )
 
-    agent, score = route_tasks_to_agents([overloaded_task], registry)[overloaded_task.id]
+    agent, score = route_tasks_to_agents([overloaded_task], registry)[
+        overloaded_task.id
+    ]
 
     print(f"\n  Task: {overloaded_task.title}")
     print(f"  Requirements: {', '.join(overloaded_task.required_capabilities)}")
@@ -188,7 +190,9 @@ def main():
 
     successful = sum(1 for _, (agent, _) in routing.items() if agent)
     print(f"Tasks routed:     {successful}/{len(tasks)}")
-    print(f"Agents used:      {len(set(agent.agent_id for _, (agent, _) in routing.items() if agent))}")
+    print(
+        f"Agents used:      {len(set(agent.agent_id for _, (agent, _) in routing.items() if agent))}"
+    )
     print("\nCapability-based routing successfully demonstrated!")
     print("The system intelligently assigned tasks based on:")
     print("  • Agent capabilities (exact and partial matches)")

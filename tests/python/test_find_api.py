@@ -26,7 +26,7 @@ class TestFindAPIBasic:
                     type="feature",
                     status="in-progress",
                     priority="high",
-                    properties={"effort": 8, "completion": 45}
+                    properties={"effort": 8, "completion": 45},
                 ),
                 Node(
                     id="feat-2",
@@ -34,7 +34,7 @@ class TestFindAPIBasic:
                     type="feature",
                     status="blocked",
                     priority="critical",
-                    properties={"effort": 12, "completion": 20}
+                    properties={"effort": 12, "completion": 20},
                 ),
                 Node(
                     id="feat-3",
@@ -42,7 +42,7 @@ class TestFindAPIBasic:
                     type="feature",
                     status="done",
                     priority="high",
-                    properties={"effort": 4, "completion": 100}
+                    properties={"effort": 4, "completion": 100},
                 ),
                 Node(
                     id="bug-1",
@@ -50,7 +50,7 @@ class TestFindAPIBasic:
                     type="bug",
                     status="todo",
                     priority="medium",
-                    properties={"severity": "medium"}
+                    properties={"severity": "medium"},
                 ),
                 Node(
                     id="feat-4",
@@ -58,7 +58,7 @@ class TestFindAPIBasic:
                     type="feature",
                     status="todo",
                     priority="low",
-                    properties={"effort": 16, "completion": 0}
+                    properties={"effort": 16, "completion": 0},
                 ),
             ]
 
@@ -122,7 +122,7 @@ class TestFindAPILookups:
                     type="feature",
                     status="in-progress",
                     priority="high",
-                    properties={"effort": 8, "completion": 45}
+                    properties={"effort": 8, "completion": 45},
                 ),
                 Node(
                     id="feat-2",
@@ -130,7 +130,7 @@ class TestFindAPILookups:
                     type="feature",
                     status="blocked",
                     priority="critical",
-                    properties={"effort": 12, "completion": 20}
+                    properties={"effort": 12, "completion": 20},
                 ),
                 Node(
                     id="feat-3",
@@ -138,7 +138,7 @@ class TestFindAPILookups:
                     type="feature",
                     status="done",
                     priority="high",
-                    properties={"effort": 4, "completion": 100}
+                    properties={"effort": 4, "completion": 100},
                 ),
             ]
 
@@ -225,16 +225,16 @@ class TestFindAPINestedAttributes:
                     title="Node 1",
                     properties={
                         "metadata": {"version": 1, "author": "alice"},
-                        "effort": 8
-                    }
+                        "effort": 8,
+                    },
                 ),
                 Node(
                     id="n2",
                     title="Node 2",
                     properties={
                         "metadata": {"version": 2, "author": "bob"},
-                        "effort": 12
-                    }
+                        "effort": 12,
+                    },
                 ),
             ]
 
@@ -279,9 +279,9 @@ class TestFindAPIRelated:
                 edges={
                     "blocks": [
                         Edge(target_id="feat-b", relationship="blocks"),
-                        Edge(target_id="feat-c", relationship="blocks")
+                        Edge(target_id="feat-c", relationship="blocks"),
                     ]
-                }
+                },
             )
             node_b = Node(
                 id="feat-b",
@@ -289,7 +289,7 @@ class TestFindAPIRelated:
                 type="feature",
                 edges={
                     "blocked_by": [Edge(target_id="feat-a", relationship="blocked_by")]
-                }
+                },
             )
             node_c = Node(
                 id="feat-c",
@@ -297,8 +297,8 @@ class TestFindAPIRelated:
                 type="feature",
                 edges={
                     "blocked_by": [Edge(target_id="feat-a", relationship="blocked_by")],
-                    "related": [Edge(target_id="feat-b", relationship="related")]
-                }
+                    "related": [Edge(target_id="feat-b", relationship="related")],
+                },
             )
 
             graph.add(node_a)
@@ -316,9 +316,7 @@ class TestFindAPIRelated:
     def test_find_related_with_type(self, graph_with_relations):
         """Test find_related filtered by relationship type."""
         related = graph_with_relations.find_related(
-            "feat-c",
-            relationship="related",
-            direction="outgoing"
+            "feat-c", relationship="related", direction="outgoing"
         )
         assert len(related) == 1
         assert related[0].id == "feat-b"
@@ -400,20 +398,24 @@ class TestGraphFindMethods:
     def graph(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             graph = HtmlGraph(tmpdir, auto_load=False)
-            graph.add(Node(
-                id="feat-1",
-                title="User Auth",
-                type="feature",
-                status="blocked",
-                priority="high"
-            ))
-            graph.add(Node(
-                id="feat-2",
-                title="Payment",
-                type="feature",
-                status="todo",
-                priority="medium"
-            ))
+            graph.add(
+                Node(
+                    id="feat-1",
+                    title="User Auth",
+                    type="feature",
+                    status="blocked",
+                    priority="high",
+                )
+            )
+            graph.add(
+                Node(
+                    id="feat-2",
+                    title="Payment",
+                    type="feature",
+                    status="todo",
+                    priority="medium",
+                )
+            )
             yield graph
 
     def test_graph_find(self, graph):

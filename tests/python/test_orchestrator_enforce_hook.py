@@ -23,7 +23,14 @@ def temp_graph_dir(tmp_path):
 @pytest.fixture
 def hook_script():
     """Path to orchestrator-enforce.py hook script."""
-    return Path(__file__).parent.parent.parent / "packages" / "claude-plugin" / "hooks" / "scripts" / "orchestrator-enforce.py"
+    return (
+        Path(__file__).parent.parent.parent
+        / "packages"
+        / "claude-plugin"
+        / "hooks"
+        / "scripts"
+        / "orchestrator-enforce.py"
+    )
 
 
 @pytest.fixture
@@ -37,7 +44,9 @@ def clean_tool_history():
         history_file.unlink()
 
 
-def run_hook(hook_script: Path, tool_name: str, tool_input: dict, cwd: Path = None) -> dict:
+def run_hook(
+    hook_script: Path, tool_name: str, tool_input: dict, cwd: Path = None
+) -> dict:
     """
     Run the orchestrator enforcement hook.
 
@@ -58,6 +67,7 @@ def run_hook(hook_script: Path, tool_name: str, tool_input: dict, cwd: Path = No
     # Use python directly instead of 'uv run' to avoid PEP 723 isolated environment
     # that might have cached/old versions of htmlgraph
     import sys
+
     result = subprocess.run(
         [sys.executable, str(hook_script)],
         input=json.dumps(hook_input),
@@ -75,21 +85,28 @@ def run_hook(hook_script: Path, tool_name: str, tool_input: dict, cwd: Path = No
 class TestOrchestratorModeDisabled:
     """Test behavior when orchestrator mode is disabled."""
 
-    def test_allows_all_operations_when_disabled(self, hook_script, temp_graph_dir, clean_tool_history):
+    def test_allows_all_operations_when_disabled(
+        self, hook_script, temp_graph_dir, clean_tool_history
+    ):
         """When mode is disabled, all operations should be allowed."""
         # Don't create orchestrator-mode.json (mode disabled by default)
 
         # Test various tools
         tools = [
             ("Read", {"file_path": "/tmp/test.py"}),
-            ("Edit", {"file_path": "/tmp/test.py", "old_string": "a", "new_string": "b"}),
+            (
+                "Edit",
+                {"file_path": "/tmp/test.py", "old_string": "a", "new_string": "b"},
+            ),
             ("Write", {"file_path": "/tmp/test.py", "content": "test"}),
             ("Bash", {"command": "pytest"}),
             ("Task", {"prompt": "test"}),
         ]
 
         for tool_name, tool_input in tools:
-            response = run_hook(hook_script, tool_name, tool_input, cwd=temp_graph_dir.parent)
+            response = run_hook(
+                hook_script, tool_name, tool_input, cwd=temp_graph_dir.parent
+            )
             assert response["continue"] is True
             assert "hookSpecificOutput" not in response  # No warnings/blocks
 
@@ -103,16 +120,15 @@ class TestAlwaysAllowedOperations:
         manager.enable(level="strict")
 
         response = run_hook(
-            hook_script,
-            "Task",
-            {"prompt": "Test task"},
-            cwd=temp_graph_dir.parent
+            hook_script, "Task", {"prompt": "Test task"}, cwd=temp_graph_dir.parent
         )
 
         assert response["continue"] is True
         assert "error" not in response.get("hookSpecificOutput", {})
 
-    def test_ask_user_question_always_allowed(self, hook_script, temp_graph_dir, clean_tool_history):
+    def test_ask_user_question_always_allowed(
+        self, hook_script, temp_graph_dir, clean_tool_history
+    ):
         """AskUserQuestion is always allowed."""
         manager = OrchestratorModeManager(temp_graph_dir)
         manager.enable(level="strict")
@@ -121,22 +137,21 @@ class TestAlwaysAllowedOperations:
             hook_script,
             "AskUserQuestion",
             {"question": "Test?"},
-            cwd=temp_graph_dir.parent
+            cwd=temp_graph_dir.parent,
         )
 
         assert response["continue"] is True
         assert "error" not in response.get("hookSpecificOutput", {})
 
-    def test_todo_write_always_allowed(self, hook_script, temp_graph_dir, clean_tool_history):
+    def test_todo_write_always_allowed(
+        self, hook_script, temp_graph_dir, clean_tool_history
+    ):
         """TodoWrite is always allowed."""
         manager = OrchestratorModeManager(temp_graph_dir)
         manager.enable(level="strict")
 
         response = run_hook(
-            hook_script,
-            "TodoWrite",
-            {"todos": []},
-            cwd=temp_graph_dir.parent
+            hook_script, "TodoWrite", {"todos": []}, cwd=temp_graph_dir.parent
         )
 
         assert response["continue"] is True
@@ -146,7 +161,9 @@ class TestAlwaysAllowedOperations:
 class TestSDKOperations:
     """Test SDK operations that are always allowed."""
 
-    def test_htmlgraph_sdk_command_allowed(self, hook_script, temp_graph_dir, clean_tool_history):
+    def test_htmlgraph_sdk_command_allowed(
+        self, hook_script, temp_graph_dir, clean_tool_history
+    ):
         """uv run htmlgraph commands are always allowed."""
         manager = OrchestratorModeManager(temp_graph_dir)
         manager.enable(level="strict")
@@ -155,7 +172,7 @@ class TestSDKOperations:
             hook_script,
             "Bash",
             {"command": "uv run htmlgraph feature list"},
-            cwd=temp_graph_dir.parent
+            cwd=temp_graph_dir.parent,
         )
 
         assert response["continue"] is True
@@ -167,10 +184,7 @@ class TestSDKOperations:
         manager.enable(level="strict")
 
         response = run_hook(
-            hook_script,
-            "Bash",
-            {"command": "git status"},
-            cwd=temp_graph_dir.parent
+            hook_script, "Bash", {"command": "git status"}, cwd=temp_graph_dir.parent
         )
 
         assert response["continue"] is True
@@ -182,10 +196,7 @@ class TestSDKOperations:
         manager.enable(level="strict")
 
         response = run_hook(
-            hook_script,
-            "Bash",
-            {"command": "git diff"},
-            cwd=temp_graph_dir.parent
+            hook_script, "Bash", {"command": "git diff"}, cwd=temp_graph_dir.parent
         )
 
         assert response["continue"] is True
@@ -200,7 +211,7 @@ class TestSDKOperations:
             hook_script,
             "Bash",
             {"command": "uv run python -c 'from htmlgraph import SDK; print(SDK)'"},
-            cwd=temp_graph_dir.parent
+            cwd=temp_graph_dir.parent,
         )
 
         assert response["continue"] is True
@@ -219,7 +230,7 @@ class TestSingleLookupAllowed:
             hook_script,
             "Read",
             {"file_path": "/tmp/test.py"},
-            cwd=temp_graph_dir.parent
+            cwd=temp_graph_dir.parent,
         )
 
         assert response["continue"] is True
@@ -232,10 +243,7 @@ class TestSingleLookupAllowed:
         manager.enable(level="strict")
 
         response = run_hook(
-            hook_script,
-            "Grep",
-            {"pattern": "test"},
-            cwd=temp_graph_dir.parent
+            hook_script, "Grep", {"pattern": "test"}, cwd=temp_graph_dir.parent
         )
 
         assert response["continue"] is True
@@ -247,10 +255,7 @@ class TestSingleLookupAllowed:
         manager.enable(level="strict")
 
         response = run_hook(
-            hook_script,
-            "Glob",
-            {"pattern": "*.py"},
-            cwd=temp_graph_dir.parent
+            hook_script, "Glob", {"pattern": "*.py"}, cwd=temp_graph_dir.parent
         )
 
         assert response["continue"] is True
@@ -260,7 +265,9 @@ class TestSingleLookupAllowed:
 class TestMultipleLookupBlocked:
     """Test that multiple Read/Grep/Glob operations are blocked in strict mode."""
 
-    def test_multiple_reads_blocked(self, hook_script, temp_graph_dir, clean_tool_history):
+    def test_multiple_reads_blocked(
+        self, hook_script, temp_graph_dir, clean_tool_history
+    ):
         """Multiple Read operations should be blocked."""
         manager = OrchestratorModeManager(temp_graph_dir)
         manager.enable(level="strict")
@@ -270,7 +277,7 @@ class TestMultipleLookupBlocked:
             hook_script,
             "Read",
             {"file_path": "/tmp/test1.py"},
-            cwd=temp_graph_dir.parent
+            cwd=temp_graph_dir.parent,
         )
         assert response1["continue"] is True
 
@@ -279,35 +286,39 @@ class TestMultipleLookupBlocked:
             hook_script,
             "Read",
             {"file_path": "/tmp/test2.py"},
-            cwd=temp_graph_dir.parent
+            cwd=temp_graph_dir.parent,
         )
         assert response2["continue"] is True  # Advisory-only: warnings but no blocking
-        assert "Multiple Read calls detected" in response2["hookSpecificOutput"]["additionalContext"]
-        assert "Explorer subagent" in response2["hookSpecificOutput"]["additionalContext"]
+        assert (
+            "Multiple Read calls detected"
+            in response2["hookSpecificOutput"]["additionalContext"]
+        )
+        assert (
+            "Explorer subagent" in response2["hookSpecificOutput"]["additionalContext"]
+        )
 
-    def test_multiple_greps_blocked(self, hook_script, temp_graph_dir, clean_tool_history):
+    def test_multiple_greps_blocked(
+        self, hook_script, temp_graph_dir, clean_tool_history
+    ):
         """Multiple Grep operations should be blocked."""
         manager = OrchestratorModeManager(temp_graph_dir)
         manager.enable(level="strict")
 
         # First grep - allowed
         response1 = run_hook(
-            hook_script,
-            "Grep",
-            {"pattern": "test1"},
-            cwd=temp_graph_dir.parent
+            hook_script, "Grep", {"pattern": "test1"}, cwd=temp_graph_dir.parent
         )
         assert response1["continue"] is True
 
         # Second grep - blocked (advisory-only: warns but allows)
         response2 = run_hook(
-            hook_script,
-            "Grep",
-            {"pattern": "test2"},
-            cwd=temp_graph_dir.parent
+            hook_script, "Grep", {"pattern": "test2"}, cwd=temp_graph_dir.parent
         )
         assert response2["continue"] is True  # Advisory-only: warnings but no blocking
-        assert "Multiple Grep calls detected" in response2["hookSpecificOutput"]["additionalContext"]
+        assert (
+            "Multiple Grep calls detected"
+            in response2["hookSpecificOutput"]["additionalContext"]
+        )
 
 
 class TestImplementationBlocked:
@@ -322,11 +333,14 @@ class TestImplementationBlocked:
             hook_script,
             "Edit",
             {"file_path": "/tmp/test.py", "old_string": "a", "new_string": "b"},
-            cwd=temp_graph_dir.parent
+            cwd=temp_graph_dir.parent,
         )
 
         assert response["continue"] is True  # Advisory-only: warnings but no blocking
-        assert "Edit is implementation work" in response["hookSpecificOutput"]["additionalContext"]
+        assert (
+            "Edit is implementation work"
+            in response["hookSpecificOutput"]["additionalContext"]
+        )
         assert "Task(" in response["hookSpecificOutput"]["additionalContext"]
         assert "Coder subagent" in response["hookSpecificOutput"]["additionalContext"]
 
@@ -339,14 +353,19 @@ class TestImplementationBlocked:
             hook_script,
             "Write",
             {"file_path": "/tmp/test.py", "content": "test"},
-            cwd=temp_graph_dir.parent
+            cwd=temp_graph_dir.parent,
         )
 
         assert response["continue"] is True  # Advisory-only: warnings but no blocking
-        assert "Write is implementation work" in response["hookSpecificOutput"]["additionalContext"]
+        assert (
+            "Write is implementation work"
+            in response["hookSpecificOutput"]["additionalContext"]
+        )
         assert "Task(" in response["hookSpecificOutput"]["additionalContext"]
 
-    def test_notebook_edit_blocked(self, hook_script, temp_graph_dir, clean_tool_history):
+    def test_notebook_edit_blocked(
+        self, hook_script, temp_graph_dir, clean_tool_history
+    ):
         """NotebookEdit should be blocked in strict mode."""
         manager = OrchestratorModeManager(temp_graph_dir)
         manager.enable(level="strict")
@@ -355,11 +374,14 @@ class TestImplementationBlocked:
             hook_script,
             "NotebookEdit",
             {"notebook_path": "/tmp/test.ipynb", "new_source": "test"},
-            cwd=temp_graph_dir.parent
+            cwd=temp_graph_dir.parent,
         )
 
         assert response["continue"] is True  # Advisory-only: warnings but no blocking
-        assert "NotebookEdit is implementation work" in response["hookSpecificOutput"]["additionalContext"]
+        assert (
+            "NotebookEdit is implementation work"
+            in response["hookSpecificOutput"]["additionalContext"]
+        )
 
     def test_delete_blocked(self, hook_script, temp_graph_dir, clean_tool_history):
         """Delete should be blocked in strict mode."""
@@ -367,14 +389,14 @@ class TestImplementationBlocked:
         manager.enable(level="strict")
 
         response = run_hook(
-            hook_script,
-            "Delete",
-            {"path": "/tmp/test.py"},
-            cwd=temp_graph_dir.parent
+            hook_script, "Delete", {"path": "/tmp/test.py"}, cwd=temp_graph_dir.parent
         )
 
         assert response["continue"] is True  # Advisory-only: warnings but no blocking
-        assert "Delete is a destructive" in response["hookSpecificOutput"]["additionalContext"]
+        assert (
+            "Delete is a destructive"
+            in response["hookSpecificOutput"]["additionalContext"]
+        )
 
 
 class TestTestBuildBlocked:
@@ -386,10 +408,7 @@ class TestTestBuildBlocked:
         manager.enable(level="strict")
 
         response = run_hook(
-            hook_script,
-            "Bash",
-            {"command": "pytest tests/"},
-            cwd=temp_graph_dir.parent
+            hook_script, "Bash", {"command": "pytest tests/"}, cwd=temp_graph_dir.parent
         )
 
         assert response["continue"] is True  # Advisory-only: warnings but no blocking
@@ -402,10 +421,7 @@ class TestTestBuildBlocked:
         manager.enable(level="strict")
 
         response = run_hook(
-            hook_script,
-            "Bash",
-            {"command": "npm test"},
-            cwd=temp_graph_dir.parent
+            hook_script, "Bash", {"command": "npm test"}, cwd=temp_graph_dir.parent
         )
 
         assert response["continue"] is True  # Advisory-only: warnings but no blocking
@@ -417,10 +433,7 @@ class TestTestBuildBlocked:
         manager.enable(level="strict")
 
         response = run_hook(
-            hook_script,
-            "Bash",
-            {"command": "npm run build"},
-            cwd=temp_graph_dir.parent
+            hook_script, "Bash", {"command": "npm run build"}, cwd=temp_graph_dir.parent
         )
 
         assert response["continue"] is True  # Advisory-only: warnings but no blocking
@@ -430,7 +443,9 @@ class TestTestBuildBlocked:
 class TestGuidanceMode:
     """Test guidance mode behavior (warns but allows)."""
 
-    def test_edit_allowed_with_warning(self, hook_script, temp_graph_dir, clean_tool_history):
+    def test_edit_allowed_with_warning(
+        self, hook_script, temp_graph_dir, clean_tool_history
+    ):
         """In guidance mode, Edit is allowed but warned."""
         manager = OrchestratorModeManager(temp_graph_dir)
         manager.enable(level="guidance")
@@ -439,14 +454,16 @@ class TestGuidanceMode:
             hook_script,
             "Edit",
             {"file_path": "/tmp/test.py", "old_string": "a", "new_string": "b"},
-            cwd=temp_graph_dir.parent
+            cwd=temp_graph_dir.parent,
         )
 
         assert response["continue"] is True
         assert "⚠️ ORCHESTRATOR" in response["hookSpecificOutput"]["additionalContext"]
         assert "Task(" in response["hookSpecificOutput"]["additionalContext"]
 
-    def test_multiple_reads_warned(self, hook_script, temp_graph_dir, clean_tool_history):
+    def test_multiple_reads_warned(
+        self, hook_script, temp_graph_dir, clean_tool_history
+    ):
         """In guidance mode, multiple reads are allowed but warned."""
         manager = OrchestratorModeManager(temp_graph_dir)
         manager.enable(level="guidance")
@@ -456,7 +473,7 @@ class TestGuidanceMode:
             hook_script,
             "Read",
             {"file_path": "/tmp/test1.py"},
-            cwd=temp_graph_dir.parent
+            cwd=temp_graph_dir.parent,
         )
 
         # Second read - allowed with warning
@@ -464,7 +481,7 @@ class TestGuidanceMode:
             hook_script,
             "Read",
             {"file_path": "/tmp/test2.py"},
-            cwd=temp_graph_dir.parent
+            cwd=temp_graph_dir.parent,
         )
 
         assert response["continue"] is True
@@ -474,7 +491,9 @@ class TestGuidanceMode:
 class TestTaskSuggestions:
     """Test that appropriate Task suggestions are provided."""
 
-    def test_edit_suggests_coder_subagent(self, hook_script, temp_graph_dir, clean_tool_history):
+    def test_edit_suggests_coder_subagent(
+        self, hook_script, temp_graph_dir, clean_tool_history
+    ):
         """Edit block should suggest Coder subagent."""
         manager = OrchestratorModeManager(temp_graph_dir)
         manager.enable(level="strict")
@@ -483,7 +502,7 @@ class TestTaskSuggestions:
             hook_script,
             "Edit",
             {"file_path": "/tmp/test.py", "old_string": "a", "new_string": "b"},
-            cwd=temp_graph_dir.parent
+            cwd=temp_graph_dir.parent,
         )
 
         context = response["hookSpecificOutput"]["additionalContext"]
@@ -491,7 +510,9 @@ class TestTaskSuggestions:
         assert "general-purpose" in context
         assert "/tmp/test.py" in context
 
-    def test_grep_suggests_explorer_subagent(self, hook_script, temp_graph_dir, clean_tool_history):
+    def test_grep_suggests_explorer_subagent(
+        self, hook_script, temp_graph_dir, clean_tool_history
+    ):
         """Multiple Grep should suggest Explorer subagent."""
         manager = OrchestratorModeManager(temp_graph_dir)
         manager.enable(level="strict")
@@ -501,26 +522,22 @@ class TestTaskSuggestions:
 
         # Second grep - blocked with Explorer suggestion
         response = run_hook(
-            hook_script,
-            "Grep",
-            {"pattern": "test2"},
-            cwd=temp_graph_dir.parent
+            hook_script, "Grep", {"pattern": "test2"}, cwd=temp_graph_dir.parent
         )
 
         context = response["hookSpecificOutput"]["additionalContext"]
         assert "Task(" in context
         assert "Explore" in context
 
-    def test_pytest_suggests_test_subagent(self, hook_script, temp_graph_dir, clean_tool_history):
+    def test_pytest_suggests_test_subagent(
+        self, hook_script, temp_graph_dir, clean_tool_history
+    ):
         """pytest should suggest testing subagent."""
         manager = OrchestratorModeManager(temp_graph_dir)
         manager.enable(level="strict")
 
         response = run_hook(
-            hook_script,
-            "Bash",
-            {"command": "pytest tests/"},
-            cwd=temp_graph_dir.parent
+            hook_script, "Bash", {"command": "pytest tests/"}, cwd=temp_graph_dir.parent
         )
 
         context = response["hookSpecificOutput"]["additionalContext"]
@@ -531,18 +548,25 @@ class TestTaskSuggestions:
 class TestEnvironmentOverrides:
     """Test environment variable overrides."""
 
-    def test_htmlgraph_disabled_env_allows_all(self, hook_script, temp_graph_dir, clean_tool_history):
+    def test_htmlgraph_disabled_env_allows_all(
+        self, hook_script, temp_graph_dir, clean_tool_history
+    ):
         """HTMLGRAPH_DISABLE_TRACKING=1 should allow all operations."""
         manager = OrchestratorModeManager(temp_graph_dir)
         manager.enable(level="strict")
 
         # Create custom environment with override
         import sys
+
         env = {**subprocess.os.environ, "HTMLGRAPH_DISABLE_TRACKING": "1"}
 
         hook_input = {
             "tool_name": "Edit",
-            "tool_input": {"file_path": "/tmp/test.py", "old_string": "a", "new_string": "b"},
+            "tool_input": {
+                "file_path": "/tmp/test.py",
+                "old_string": "a",
+                "new_string": "b",
+            },
         }
 
         result = subprocess.run(
@@ -558,18 +582,25 @@ class TestEnvironmentOverrides:
         assert response["continue"] is True
         assert "hookSpecificOutput" not in response
 
-    def test_orchestrator_disabled_env_allows_all(self, hook_script, temp_graph_dir, clean_tool_history):
+    def test_orchestrator_disabled_env_allows_all(
+        self, hook_script, temp_graph_dir, clean_tool_history
+    ):
         """HTMLGRAPH_ORCHESTRATOR_DISABLED=1 should allow all operations."""
         manager = OrchestratorModeManager(temp_graph_dir)
         manager.enable(level="strict")
 
         # Create custom environment with override
         import sys
+
         env = {**subprocess.os.environ, "HTMLGRAPH_ORCHESTRATOR_DISABLED": "1"}
 
         hook_input = {
             "tool_name": "Edit",
-            "tool_input": {"file_path": "/tmp/test.py", "old_string": "a", "new_string": "b"},
+            "tool_input": {
+                "file_path": "/tmp/test.py",
+                "old_string": "a",
+                "new_string": "b",
+            },
         }
 
         result = subprocess.run(
@@ -589,22 +620,35 @@ class TestEnvironmentOverrides:
 class TestToolHistorySequenceDetection:
     """Test that tool history correctly detects sequences."""
 
-    def test_different_tools_dont_block_each_other(self, hook_script, temp_graph_dir, clean_tool_history):
+    def test_different_tools_dont_block_each_other(
+        self, hook_script, temp_graph_dir, clean_tool_history
+    ):
         """Read, Grep, and Glob shouldn't block each other."""
         manager = OrchestratorModeManager(temp_graph_dir)
         manager.enable(level="strict")
 
         # Read, then Grep, then Glob - all should be allowed
-        response1 = run_hook(hook_script, "Read", {"file_path": "/tmp/test.py"}, cwd=temp_graph_dir.parent)
+        response1 = run_hook(
+            hook_script,
+            "Read",
+            {"file_path": "/tmp/test.py"},
+            cwd=temp_graph_dir.parent,
+        )
         assert response1["continue"] is True
 
-        response2 = run_hook(hook_script, "Grep", {"pattern": "test"}, cwd=temp_graph_dir.parent)
+        response2 = run_hook(
+            hook_script, "Grep", {"pattern": "test"}, cwd=temp_graph_dir.parent
+        )
         assert response2["continue"] is True
 
-        response3 = run_hook(hook_script, "Glob", {"pattern": "*.py"}, cwd=temp_graph_dir.parent)
+        response3 = run_hook(
+            hook_script, "Glob", {"pattern": "*.py"}, cwd=temp_graph_dir.parent
+        )
         assert response3["continue"] is True
 
-    def test_history_window_is_limited(self, hook_script, temp_graph_dir, clean_tool_history):
+    def test_history_window_is_limited(
+        self, hook_script, temp_graph_dir, clean_tool_history
+    ):
         """Only recent history (last 3 calls) should matter."""
         manager = OrchestratorModeManager(temp_graph_dir)
         manager.enable(level="strict")
@@ -615,5 +659,10 @@ class TestToolHistorySequenceDetection:
         run_hook(hook_script, "Task", {"prompt": "test3"}, cwd=temp_graph_dir.parent)
 
         # Now Read should be allowed again (history window reset)
-        response = run_hook(hook_script, "Read", {"file_path": "/tmp/test.py"}, cwd=temp_graph_dir.parent)
+        response = run_hook(
+            hook_script,
+            "Read",
+            {"file_path": "/tmp/test.py"},
+            cwd=temp_graph_dir.parent,
+        )
         assert response["continue"] is True

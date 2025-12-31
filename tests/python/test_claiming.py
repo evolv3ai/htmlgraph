@@ -1,4 +1,3 @@
-
 import pytest
 from htmlgraph.session_manager import SessionManager
 
@@ -39,6 +38,7 @@ def test_feature_claiming(tmp_path):
     feature = manager.features_graph.get(feature_id)
     assert feature.agent_assigned == "agent2"
 
+
 def test_auto_release_on_session_end(tmp_path):
     manager = SessionManager(tmp_path)
 
@@ -62,6 +62,7 @@ def test_auto_release_on_session_end(tmp_path):
     assert feature.agent_assigned is None
     assert feature.claimed_by_session is None
 
+
 def test_start_feature_enforcement(tmp_path):
     manager = SessionManager(tmp_path)
 
@@ -78,6 +79,7 @@ def test_start_feature_enforcement(tmp_path):
     manager.start_feature(feature.id, agent="agent1")
     feature = manager.features_graph.get(feature.id)
     assert feature.status == "in-progress"
+
 
 def test_auto_claim_on_start(tmp_path):
     manager = SessionManager(tmp_path)

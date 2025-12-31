@@ -14,7 +14,14 @@ from unittest.mock import patch
 import pytest
 
 # Load validate-work.py module
-script_path = Path(__file__).parent.parent.parent / "packages" / "claude-plugin" / "hooks" / "scripts" / "validate-work.py"
+script_path = (
+    Path(__file__).parent.parent.parent
+    / "packages"
+    / "claude-plugin"
+    / "hooks"
+    / "scripts"
+    / "validate-work.py"
+)
 spec = importlib.util.spec_from_file_location("validate_work", script_path)
 validate_work = importlib.util.module_from_spec(spec)
 sys.modules["validate_work"] = validate_work
@@ -38,31 +45,37 @@ def config():
 @pytest.fixture
 def mock_no_active_work():
     """Mock SDK to return no active work item."""
-    with patch('validate_work.get_active_work_item', return_value=None):
+    with patch("validate_work.get_active_work_item", return_value=None):
         yield
 
 
 @pytest.fixture
 def mock_spike_active():
     """Mock SDK to return active spike."""
-    with patch('validate_work.get_active_work_item', return_value={
-        "id": "spike-test-123",
-        "type": "spike",
-        "title": "Test Spike",
-        "status": "in-progress"
-    }):
+    with patch(
+        "validate_work.get_active_work_item",
+        return_value={
+            "id": "spike-test-123",
+            "type": "spike",
+            "title": "Test Spike",
+            "status": "in-progress",
+        },
+    ):
         yield
 
 
 @pytest.fixture
 def mock_feature_active():
     """Mock SDK to return active feature."""
-    with patch('validate_work.get_active_work_item', return_value={
-        "id": "feat-test-456",
-        "type": "feature",
-        "title": "Test Feature",
-        "status": "in-progress"
-    }):
+    with patch(
+        "validate_work.get_active_work_item",
+        return_value={
+            "id": "feat-test-456",
+            "type": "feature",
+            "title": "Test Feature",
+            "status": "in-progress",
+        },
+    ):
         yield
 
 
@@ -92,10 +105,12 @@ class TestAlwaysAllowed:
             "git diff",
             "ls -la",
             "cat file.txt",
-            "uv run htmlgraph status"
+            "uv run htmlgraph status",
         ]
         for cmd in readonly_commands:
-            assert is_always_allowed("Bash", {"command": cmd}, config), f"Failed for: {cmd}"
+            assert is_always_allowed("Bash", {"command": cmd}, config), (
+                f"Failed for: {cmd}"
+            )
 
     def test_write_tool_not_always_allowed(self, config):
         """Write tool should NOT be in always-allowed list."""
@@ -107,38 +122,38 @@ class TestDirectHtmlGraphWrites:
 
     def test_write_to_htmlgraph_detected(self):
         """Direct Write to .htmlgraph/ should be detected."""
-        is_denied, path = is_direct_htmlgraph_write("Write", {
-            "file_path": ".htmlgraph/features/feat-123.html"
-        })
+        is_denied, path = is_direct_htmlgraph_write(
+            "Write", {"file_path": ".htmlgraph/features/feat-123.html"}
+        )
         assert is_denied
         assert ".htmlgraph/" in path
 
     def test_edit_to_htmlgraph_detected(self):
         """Direct Edit to .htmlgraph/ should be detected."""
-        is_denied, _ = is_direct_htmlgraph_write("Edit", {
-            "file_path": ".htmlgraph/sessions/sess-abc.html"
-        })
+        is_denied, _ = is_direct_htmlgraph_write(
+            "Edit", {"file_path": ".htmlgraph/sessions/sess-abc.html"}
+        )
         assert is_denied
 
     def test_delete_to_htmlgraph_detected(self):
         """Direct Delete to .htmlgraph/ should be detected."""
-        is_denied, _ = is_direct_htmlgraph_write("Delete", {
-            "file_path": ".htmlgraph/bugs/bug-001.html"
-        })
+        is_denied, _ = is_direct_htmlgraph_write(
+            "Delete", {"file_path": ".htmlgraph/bugs/bug-001.html"}
+        )
         assert is_denied
 
     def test_write_to_src_not_htmlgraph(self):
         """Write to src/ should NOT be detected as .htmlgraph/ write."""
-        is_denied, _ = is_direct_htmlgraph_write("Write", {
-            "file_path": "src/python/htmlgraph/models.py"
-        })
+        is_denied, _ = is_direct_htmlgraph_write(
+            "Write", {"file_path": "src/python/htmlgraph/models.py"}
+        )
         assert not is_denied
 
     def test_read_htmlgraph_allowed(self):
         """Read from .htmlgraph/ should NOT be flagged."""
-        is_denied, _ = is_direct_htmlgraph_write("Read", {
-            "file_path": ".htmlgraph/features/feat-123.html"
-        })
+        is_denied, _ = is_direct_htmlgraph_write(
+            "Read", {"file_path": ".htmlgraph/features/feat-123.html"}
+        )
         assert not is_denied
 
 
@@ -147,27 +162,21 @@ class TestSDKCommands:
 
     def test_uv_run_htmlgraph_detected(self, config):
         """uv run htmlgraph commands should be detected as SDK."""
-        assert is_sdk_command("Bash", {
-            "command": "uv run htmlgraph feature create 'Test'"
-        }, config)
+        assert is_sdk_command(
+            "Bash", {"command": "uv run htmlgraph feature create 'Test'"}, config
+        )
 
     def test_htmlgraph_direct_detected(self, config):
         """Direct htmlgraph commands should be detected as SDK."""
-        assert is_sdk_command("Bash", {
-            "command": "htmlgraph status"
-        }, config)
+        assert is_sdk_command("Bash", {"command": "htmlgraph status"}, config)
 
     def test_non_sdk_bash_not_detected(self, config):
         """Non-SDK Bash commands should NOT be detected as SDK."""
-        assert not is_sdk_command("Bash", {
-            "command": "npm install"
-        }, config)
+        assert not is_sdk_command("Bash", {"command": "npm install"}, config)
 
     def test_write_tool_not_sdk(self, config):
         """Write tool should NOT be detected as SDK command."""
-        assert not is_sdk_command("Write", {
-            "file_path": "test.py"
-        }, config)
+        assert not is_sdk_command("Write", {"file_path": "test.py"}, config)
 
 
 class TestCodeOperations:
@@ -210,9 +219,9 @@ class TestValidationLogicNoActiveWork:
 
     def test_sdk_command_allowed_no_work(self, config, mock_no_active_work):
         """SDK commands should be allowed with no active work (creating work items)."""
-        decision = validate_tool_call("Bash", {
-            "command": "uv run htmlgraph feature create 'Test'"
-        }, config, [])
+        decision = validate_tool_call(
+            "Bash", {"command": "uv run htmlgraph feature create 'Test'"}, config, []
+        )
         assert decision["decision"] == "allow"
 
     def test_write_guidance_no_work(self, config, mock_no_active_work):
@@ -223,7 +232,9 @@ class TestValidationLogicNoActiveWork:
 
     def test_code_bash_guidance_no_work(self, config, mock_no_active_work):
         """Code-modifying Bash should be allowed with guidance when no active work."""
-        decision = validate_tool_call("Bash", {"command": "git commit -m 'test'"}, config, [])
+        decision = validate_tool_call(
+            "Bash", {"command": "git commit -m 'test'"}, config, []
+        )
         assert decision["decision"] == "allow"
 
 
@@ -237,9 +248,12 @@ class TestValidationLogicSpikeActive:
 
     def test_sdk_command_allowed_with_spike(self, config, mock_spike_active):
         """SDK commands should be allowed with spike (creating work items)."""
-        decision = validate_tool_call("Bash", {
-            "command": "uv run htmlgraph feature create 'Implementation'"
-        }, config, [])
+        decision = validate_tool_call(
+            "Bash",
+            {"command": "uv run htmlgraph feature create 'Implementation'"},
+            config,
+            [],
+        )
         assert decision["decision"] == "allow"
         assert "spike" in decision.get("guidance", "").lower()
 
@@ -252,13 +266,17 @@ class TestValidationLogicSpikeActive:
 
     def test_edit_guidance_with_spike(self, config, mock_spike_active):
         """Edit should be allowed with guidance when spike active."""
-        decision = validate_tool_call("Edit", {"file_path": "packages/test.py"}, config, [])
+        decision = validate_tool_call(
+            "Edit", {"file_path": "packages/test.py"}, config, []
+        )
         assert decision["decision"] == "allow"
         assert "guidance" in decision or "suggestion" in decision
 
     def test_code_bash_guidance_with_spike(self, config, mock_spike_active):
         """Code-modifying Bash should be allowed with guidance when spike active."""
-        decision = validate_tool_call("Bash", {"command": "npm install react"}, config, [])
+        decision = validate_tool_call(
+            "Bash", {"command": "npm install react"}, config, []
+        )
         assert decision["decision"] == "allow"
         # May have guidance about spike
         if "guidance" in decision:
@@ -275,13 +293,17 @@ class TestValidationLogicFeatureActive:
 
     def test_write_allowed_with_feature(self, config, mock_feature_active):
         """Write should be allowed with feature active."""
-        decision = validate_tool_call("Write", {"file_path": "src/new_file.py"}, config, [])
+        decision = validate_tool_call(
+            "Write", {"file_path": "src/new_file.py"}, config, []
+        )
         assert decision["decision"] == "allow"
         assert "feat-test-456" in decision.get("guidance", "")
 
     def test_edit_allowed_with_feature(self, config, mock_feature_active):
         """Edit should be allowed with feature active."""
-        decision = validate_tool_call("Edit", {"file_path": "packages/test.py"}, config, [])
+        decision = validate_tool_call(
+            "Edit", {"file_path": "packages/test.py"}, config, []
+        )
         assert decision["decision"] == "allow"
 
     def test_code_bash_allowed_with_feature(self, config, mock_feature_active):
@@ -291,9 +313,9 @@ class TestValidationLogicFeatureActive:
 
     def test_sdk_command_allowed_with_feature(self, config, mock_feature_active):
         """SDK commands should be allowed with feature active."""
-        decision = validate_tool_call("Bash", {
-            "command": "uv run htmlgraph status"
-        }, config, [])
+        decision = validate_tool_call(
+            "Bash", {"command": "uv run htmlgraph status"}, config, []
+        )
         assert decision["decision"] == "allow"
 
 
@@ -302,24 +324,27 @@ class TestAlwaysBlockHtmlGraphWrites:
 
     def test_write_htmlgraph_blocked_with_feature(self, config, mock_feature_active):
         """Direct Write to .htmlgraph/ should be blocked even with feature active."""
-        decision = validate_tool_call("Write", {
-            "file_path": ".htmlgraph/features/feat-999.html"
-        }, config, [])
+        decision = validate_tool_call(
+            "Write", {"file_path": ".htmlgraph/features/feat-999.html"}, config, []
+        )
         assert decision["decision"] == "block"
-        assert "sdk" in decision["reason"].lower() or "direct" in decision["reason"].lower()
+        assert (
+            "sdk" in decision["reason"].lower()
+            or "direct" in decision["reason"].lower()
+        )
 
     def test_edit_htmlgraph_blocked_with_spike(self, config, mock_spike_active):
         """Direct Edit to .htmlgraph/ should be blocked even with spike active."""
-        decision = validate_tool_call("Edit", {
-            "file_path": ".htmlgraph/sessions/sess-xyz.html"
-        }, config, [])
+        decision = validate_tool_call(
+            "Edit", {"file_path": ".htmlgraph/sessions/sess-xyz.html"}, config, []
+        )
         assert decision["decision"] == "block"
 
     def test_delete_htmlgraph_blocked_no_work(self, config, mock_no_active_work):
         """Direct Delete to .htmlgraph/ should be blocked with no work."""
-        decision = validate_tool_call("Delete", {
-            "file_path": ".htmlgraph/bugs/bug-001.html"
-        }, config, [])
+        decision = validate_tool_call(
+            "Delete", {"file_path": ".htmlgraph/bugs/bug-001.html"}, config, []
+        )
         assert decision["decision"] == "block"
 
 

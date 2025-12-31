@@ -22,8 +22,12 @@ def main():
 
         # Add sample nodes
         print("\n📝 Adding sample nodes...")
-        graph.add(Node(id="feat-001", title="Auth System", status="blocked", priority="high"))
-        graph.add(Node(id="feat-002", title="Database", status="blocked", priority="critical"))
+        graph.add(
+            Node(id="feat-001", title="Auth System", status="blocked", priority="high")
+        )
+        graph.add(
+            Node(id="feat-002", title="Database", status="blocked", priority="critical")
+        )
         graph.add(Node(id="feat-003", title="API", status="todo", priority="high"))
         graph.add(Node(id="feat-004", title="UI", status="done", priority="medium"))
         graph.add(Node(id="feat-005", title="Tests", status="blocked", priority="low"))

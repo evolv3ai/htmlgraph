@@ -42,10 +42,10 @@ class TestStrategicRecommendations:
         # Verify recommendation structure
         if len(recs) > 0:
             rec = recs[0]
-            assert 'id' in rec
-            assert 'title' in rec
-            assert 'score' in rec
-            assert 'reasons' in rec
+            assert "id" in rec
+            assert "title" in rec
+            assert "score" in rec
+            assert "reasons" in rec
 
     def test_get_bottlenecks(self, tmp_path):
         """Test bottleneck detection."""
@@ -66,10 +66,10 @@ class TestStrategicRecommendations:
         assert isinstance(bottlenecks, list)
         if len(bottlenecks) > 0:
             bn = bottlenecks[0]
-            assert 'id' in bn
-            assert 'title' in bn
-            assert 'blocks_count' in bn
-            assert 'impact_score' in bn
+            assert "id" in bn
+            assert "title" in bn
+            assert "blocks_count" in bn
+            assert "impact_score" in bn
 
     def test_get_parallel_work(self, tmp_path):
         """Test parallel work capacity calculation."""
@@ -88,9 +88,9 @@ class TestStrategicRecommendations:
 
         # Verify parallel work structure
         assert isinstance(parallel, dict)
-        assert 'max_parallelism' in parallel
-        assert 'ready_now' in parallel
-        assert 'total_ready' in parallel
+        assert "max_parallelism" in parallel
+        assert "ready_now" in parallel
+        assert "total_ready" in parallel
 
 
 class TestMultiAgentAwareness:
@@ -115,11 +115,13 @@ class TestMultiAgentAwareness:
         active_agents = []
         for session in all_sessions:
             if session.status == "active":
-                active_agents.append({
-                    "agent": session.agent,
-                    "session_id": session.id,
-                    "event_count": session.event_count
-                })
+                active_agents.append(
+                    {
+                        "agent": session.agent,
+                        "session_id": session.id,
+                        "event_count": session.event_count,
+                    }
+                )
 
         # Verify we found multiple active agents
         assert len(active_agents) >= 2
@@ -151,17 +153,18 @@ class TestMultiAgentAwareness:
             session_id=session1.id,
             tool="Edit",
             summary="Working on shared feature",
-            feature_id=feature.id
+            feature_id=feature.id,
         )
         manager.track_activity(
             session_id=session2.id,
             tool="Edit",
             summary="Also working on shared feature",
-            feature_id=feature.id
+            feature_id=feature.id,
         )
 
         # Reload sessions to get worked_on
         from htmlgraph.converter import SessionConverter
+
         converter = SessionConverter(graph_dir / "sessions")
         all_sessions = converter.load_all()
 
@@ -178,10 +181,7 @@ class TestMultiAgentAwareness:
         conflicts = []
         for fid, agents in feature_agents.items():
             if len(set(agents)) > 1:  # More than one unique agent
-                conflicts.append({
-                    "feature_id": fid,
-                    "agents": list(set(agents))
-                })
+                conflicts.append({"feature_id": fid, "agents": list(set(agents))})
 
         # Verify conflict detected
         assert len(conflicts) > 0
@@ -203,9 +203,7 @@ class TestEnhancedSessionSummary:
 
         # Add some activity
         manager.track_activity(
-            session_id=session.id,
-            tool="Edit",
-            summary="Made some changes"
+            session_id=session.id, tool="Edit", summary="Made some changes"
         )
 
         # Set handoff context
@@ -213,7 +211,7 @@ class TestEnhancedSessionSummary:
             session_id=session.id,
             handoff_notes="Completed feature X, started feature Y",
             recommended_next="Continue with feature Y tests",
-            blockers=["Waiting for API key"]
+            blockers=["Waiting for API key"],
         )
 
         # End the session
@@ -244,18 +242,18 @@ class TestGitIntegration:
         # We'll test with the current repo
         try:
             result = subprocess.run(
-                ['git', 'log', '--oneline', '-5'],
+                ["git", "log", "--oneline", "-5"],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
             )
 
             if result.returncode == 0:
-                commits = result.stdout.strip().split('\n')
+                commits = result.stdout.strip().split("\n")
                 assert len(commits) > 0
                 # Verify commit format (hash + message)
                 for commit in commits:
-                    parts = commit.split(' ', 1)
+                    parts = commit.split(" ", 1)
                     assert len(parts) == 2  # hash and message
                     assert len(parts[0]) >= 7  # Short hash is at least 7 chars
         except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -284,7 +282,7 @@ class TestSessionStartHookIntegration:
 
         parallel = sdk.get_parallel_work(max_agents=3)
         assert isinstance(parallel, dict)
-        assert 'max_parallelism' in parallel
+        assert "max_parallelism" in parallel
 
     def test_hook_handles_no_features(self, tmp_path):
         """Test hook gracefully handles empty project."""

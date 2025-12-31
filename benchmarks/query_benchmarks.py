@@ -34,8 +34,10 @@ class BenchmarkResult:
     ops_per_sec: float
 
     def __str__(self):
-        return (f"{self.name}: {self.avg_time*1000:.3f}ms avg "
-                f"({self.ops_per_sec:.0f} ops/sec, {self.iterations} iterations)")
+        return (
+            f"{self.name}: {self.avg_time * 1000:.3f}ms avg "
+            f"({self.ops_per_sec:.0f} ops/sec, {self.iterations} iterations)"
+        )
 
 
 @contextmanager
@@ -58,18 +60,20 @@ def benchmark(name: str, func: Callable, iterations: int = 100) -> BenchmarkResu
 
     total = sum(times)
     avg = total / iterations
-    ops_per_sec = iterations / total if total > 0 else float('inf')
+    ops_per_sec = iterations / total if total > 0 else float("inf")
 
     return BenchmarkResult(
         name=name,
         iterations=iterations,
         total_time=total,
         avg_time=avg,
-        ops_per_sec=ops_per_sec
+        ops_per_sec=ops_per_sec,
     )
 
 
-def create_test_graph(num_nodes: int, edge_density: float = 0.1) -> tuple[HtmlGraph, Path]:
+def create_test_graph(
+    num_nodes: int, edge_density: float = 0.1
+) -> tuple[HtmlGraph, Path]:
     """Create a test graph with specified number of nodes and edge density."""
     temp_dir = Path(tempfile.mkdtemp())
     graph_dir = temp_dir / ".htmlgraph"
@@ -93,7 +97,10 @@ def create_test_graph(num_nodes: int, edge_density: float = 0.1) -> tuple[HtmlGr
             type="feature",
             status=random.choice(statuses),
             priority=random.choice(priorities),
-            properties={"effort": random.randint(1, 20), "completion": random.randint(0, 100)}
+            properties={
+                "effort": random.randint(1, 20),
+                "completion": random.randint(0, 100),
+            },
         )
         graph.add(node)
 
@@ -137,7 +144,7 @@ def run_benchmarks():
 
     # Test with different graph sizes
     for num_nodes in [100, 500, 1000]:
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print(f"Graph Size: {num_nodes} nodes")
         print("=" * 70)
 
@@ -153,14 +160,14 @@ def run_benchmarks():
             result = benchmark(
                 "EdgeIndex reverse lookup (O(1))",
                 lambda: graph.get_incoming_edges(target_id, "blocked_by"),
-                iterations=1000
+                iterations=1000,
             )
             print(result)
 
             result = benchmark(
                 "Linear scan reverse lookup (O(V*E))",
                 lambda: linear_scan_reverse_lookup(graph, target_id),
-                iterations=100
+                iterations=100,
             )
             print(result)
 
@@ -170,35 +177,47 @@ def run_benchmarks():
             result = benchmark(
                 "QueryBuilder simple equality",
                 lambda: graph.query_builder().where("status", "blocked").execute(),
-                iterations=100
+                iterations=100,
             )
             print(result)
 
             result = benchmark(
                 "QueryBuilder with AND",
-                lambda: graph.query_builder().where("status", "blocked").and_("priority", "high").execute(),
-                iterations=100
+                lambda: graph.query_builder()
+                .where("status", "blocked")
+                .and_("priority", "high")
+                .execute(),
+                iterations=100,
             )
             print(result)
 
             result = benchmark(
                 "QueryBuilder with OR",
-                lambda: graph.query_builder().where("priority", "high").or_("priority", "critical").execute(),
-                iterations=100
+                lambda: graph.query_builder()
+                .where("priority", "high")
+                .or_("priority", "critical")
+                .execute(),
+                iterations=100,
             )
             print(result)
 
             result = benchmark(
                 "QueryBuilder numeric comparison",
-                lambda: graph.query_builder().where("properties.effort").gt(10).execute(),
-                iterations=100
+                lambda: graph.query_builder()
+                .where("properties.effort")
+                .gt(10)
+                .execute(),
+                iterations=100,
             )
             print(result)
 
             result = benchmark(
                 "QueryBuilder text contains",
-                lambda: graph.query_builder().where("title").contains("Feature").execute(),
-                iterations=100
+                lambda: graph.query_builder()
+                .where("title")
+                .contains("Feature")
+                .execute(),
+                iterations=100,
             )
             print(result)
 
@@ -208,21 +227,21 @@ def run_benchmarks():
             result = benchmark(
                 "find() single result",
                 lambda: graph.find(status="blocked"),
-                iterations=100
+                iterations=100,
             )
             print(result)
 
             result = benchmark(
                 "find_all() multiple criteria",
                 lambda: graph.find_all(status="blocked", priority="high"),
-                iterations=100
+                iterations=100,
             )
             print(result)
 
             result = benchmark(
                 "find_all() with lookup suffix",
                 lambda: graph.find_all(properties__effort__gt=10),
-                iterations=100
+                iterations=100,
             )
             print(result)
 
@@ -232,7 +251,7 @@ def run_benchmarks():
             result = benchmark(
                 "CSS selector query",
                 lambda: graph.query('[data-status="blocked"]'),
-                iterations=100
+                iterations=100,
             )
             print(result)
 
@@ -242,28 +261,28 @@ def run_benchmarks():
             result = benchmark(
                 "ancestors() unlimited depth",
                 lambda: graph.ancestors(target_id),
-                iterations=100
+                iterations=100,
             )
             print(result)
 
             result = benchmark(
                 "ancestors() max_depth=2",
                 lambda: graph.ancestors(target_id, max_depth=2),
-                iterations=100
+                iterations=100,
             )
             print(result)
 
             result = benchmark(
                 "descendants() unlimited depth",
                 lambda: graph.descendants(target_id),
-                iterations=100
+                iterations=100,
             )
             print(result)
 
             result = benchmark(
                 "connected_component()",
                 lambda: graph.connected_component(target_id),
-                iterations=100
+                iterations=100,
             )
             print(result)
 
@@ -289,8 +308,14 @@ def run_acceptance_benchmark():
 
         benchmarks = [
             ("EdgeIndex lookup", lambda: graph.get_incoming_edges(target_id)),
-            ("QueryBuilder query", lambda: graph.query_builder().where("status", "blocked").execute()),
-            ("find_all() query", lambda: graph.find_all(status="blocked", priority="high")),
+            (
+                "QueryBuilder query",
+                lambda: graph.query_builder().where("status", "blocked").execute(),
+            ),
+            (
+                "find_all() query",
+                lambda: graph.find_all(status="blocked", priority="high"),
+            ),
             ("CSS selector query", lambda: graph.query('[data-status="blocked"]')),
             ("ancestors()", lambda: graph.ancestors(target_id, max_depth=3)),
             ("descendants()", lambda: graph.descendants(target_id, max_depth=3)),

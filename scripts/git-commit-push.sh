@@ -2,6 +2,9 @@
 #
 # Git Commit and Push Script
 #
+# ORCHESTRATOR NOTE: This script should be called via Task delegation,
+# not executed directly. See CLAUDE.md "Git Delegation" section.
+#
 # Systematizes the common workflow of staging, committing, and pushing changes.
 # Reduces 3 bash calls to 1.
 #

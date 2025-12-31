@@ -39,7 +39,9 @@ def test_queries():
 
     # Test 4: Shortest path
     print("\n4. Shortest path: feature-self-tracking -> phase6-launch")
-    path = graph.shortest_path("feature-self-tracking", "phase6-launch", relationship="related")
+    path = graph.shortest_path(
+        "feature-self-tracking", "phase6-launch", relationship="related"
+    )
     if path:
         print(f"   Path: {' -> '.join(path)}")
     else:

@@ -8,6 +8,7 @@ Tests the enhanced session-start-info command that displays:
 
 Run with: uv run pytest tests/python/test_session_start_info_validation.py -v
 """
+
 import json
 import shutil
 import tempfile
@@ -47,7 +48,7 @@ def sdk_with_feature(temp_graph_dir):
         status="in-progress",
         priority="high",
         created=datetime.now(),
-        updated=datetime.now()
+        updated=datetime.now(),
     )
 
     graph.add(feature)
@@ -87,13 +88,7 @@ class TestActiveWorkItemInSessionStartInfo:
         """Test that all expected sections are in session start info."""
         info = empty_sdk.get_session_start_info()
 
-        expected_keys = [
-            "status",
-            "active_work",
-            "features",
-            "sessions",
-            "analytics"
-        ]
+        expected_keys = ["status", "active_work", "features", "sessions", "analytics"]
 
         for key in expected_keys:
             assert key in info, f"Missing key: {key}"
@@ -153,7 +148,7 @@ class TestWorkTypeSymbolMapping:
             "bug": "🐛",
             "spike": "🔍",
             "chore": "🔧",
-            "epic": "🎯"
+            "epic": "🎯",
         }.get("feature")
 
         assert type_symbol == "✨"
@@ -165,7 +160,7 @@ class TestWorkTypeSymbolMapping:
             "bug": "🐛",
             "spike": "🔍",
             "chore": "🔧",
-            "epic": "🎯"
+            "epic": "🎯",
         }.get("bug")
 
         assert type_symbol == "🐛"
@@ -177,7 +172,7 @@ class TestWorkTypeSymbolMapping:
             "bug": "🐛",
             "spike": "🔍",
             "chore": "🔧",
-            "epic": "🎯"
+            "epic": "🎯",
         }.get("spike")
 
         assert type_symbol == "🔍"
@@ -189,7 +184,7 @@ class TestWorkTypeSymbolMapping:
             "bug": "🐛",
             "spike": "🔍",
             "chore": "🔧",
-            "epic": "🎯"
+            "epic": "🎯",
         }.get("unknown", "📝")
 
         assert type_symbol == "📝"
@@ -213,12 +208,14 @@ class TestCLIOutputFormatting:
             "bug": "🐛",
             "spike": "🔍",
             "chore": "🔧",
-            "epic": "🎯"
+            "epic": "🎯",
         }.get(active_work.get("type"), "📝")
 
         steps_total = active_work.get("steps_total", 0)
         steps_completed = active_work.get("steps_completed", 0)
-        progress_str = f"({steps_completed}/{steps_total} steps)" if steps_total > 0 else ""
+        progress_str = (
+            f"({steps_completed}/{steps_total} steps)" if steps_total > 0 else ""
+        )
 
         output = f"  {type_symbol} {active_work['id']}: {active_work['title']} {progress_str}".strip()
 
@@ -238,7 +235,7 @@ class TestCLIOutputFormatting:
         warning_lines = [
             "  ⚠️  No active work item",
             "  Code changes will be blocked until you assign work.",
-            "  Create a feature: uv run htmlgraph feature create \"Title\""
+            '  Create a feature: uv run htmlgraph feature create "Title"',
         ]
 
         # Verify warnings would be shown
@@ -298,7 +295,7 @@ class TestActiveWorkItemIntegration:
             type="feature",
             status="in-progress",
             created=datetime.now(),
-            updated=datetime.now()
+            updated=datetime.now(),
         )
 
         feature2 = Node(
@@ -307,7 +304,7 @@ class TestActiveWorkItemIntegration:
             type="feature",
             status="in-progress",
             created=datetime.now(),
-            updated=datetime.now()
+            updated=datetime.now(),
         )
 
         graph.add(feature1)
@@ -340,7 +337,7 @@ class TestActiveWorkWithNodeTypes:
             type="feature",
             status="in-progress",
             created=datetime.now(),
-            updated=datetime.now()
+            updated=datetime.now(),
         )
 
         graph.add(feature)
@@ -352,6 +349,7 @@ class TestActiveWorkWithNodeTypes:
     def test_ignore_completed_work_items(self, temp_graph_dir):
         """Test that completed work items are not returned as active."""
         from htmlgraph import HtmlGraph
+
         graph = HtmlGraph(temp_graph_dir)
         sdk = SDK(directory=temp_graph_dir, agent="claude")
 
@@ -361,7 +359,7 @@ class TestActiveWorkWithNodeTypes:
             type="feature",
             status="done",
             created=datetime.now(),
-            updated=datetime.now()
+            updated=datetime.now(),
         )
 
         graph.add(completed_feature)
@@ -373,6 +371,7 @@ class TestActiveWorkWithNodeTypes:
     def test_ignore_todo_work_items(self, temp_graph_dir):
         """Test that todo work items are not returned as active."""
         from htmlgraph import HtmlGraph
+
         graph = HtmlGraph(temp_graph_dir)
         sdk = SDK(directory=temp_graph_dir, agent="claude")
 
@@ -382,7 +381,7 @@ class TestActiveWorkWithNodeTypes:
             type="feature",
             status="todo",
             created=datetime.now(),
-            updated=datetime.now()
+            updated=datetime.now(),
         )
 
         graph.add(todo_feature)

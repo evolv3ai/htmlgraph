@@ -109,7 +109,11 @@ def sync_plugin_to_local(dry_run: bool = False, check_only: bool = False) -> boo
         plugin_dir / "hooks",
         local_dir / "hooks",
         dry_run=dry_run or check_only,
-        exclude=["__pycache__", ".pyc", "hooks.json"],  # Exclude hooks.json - intentionally different
+        exclude=[
+            "__pycache__",
+            ".pyc",
+            "hooks.json",
+        ],  # Exclude hooks.json - intentionally different
     )
 
     # Sync skills
@@ -152,7 +156,12 @@ def sync_plugin_to_local(dry_run: bool = False, check_only: bool = False) -> boo
 
     # Update .claude/settings.json to use synced hooks
     settings_file = local_dir / "settings.json"
-    if settings_file.exists() and (all_created or all_updated) and not dry_run and not check_only:
+    if (
+        settings_file.exists()
+        and (all_created or all_updated)
+        and not dry_run
+        and not check_only
+    ):
         print("\n⚠️  Note: .claude/settings.json may need manual review")
         print("   Ensure hook paths reference the synced files correctly")
 

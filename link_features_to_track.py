@@ -16,7 +16,7 @@ for feature_file in feature_files:
     content = feature_file.read_text(encoding="utf-8")
 
     # Check if already has data-track-id
-    if 'data-track-id=' in content:
+    if "data-track-id=" in content:
         print(f"  ⏭️  {feature_file.name} - already has track-id")
         continue
 

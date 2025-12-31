@@ -33,8 +33,7 @@ class TestSessionInitSpike:
 
         # Should have one session-init spike
         session_init_spikes = [
-            s for s in spikes
-            if s.spike_subtype == "session-init" and s.auto_generated
+            s for s in spikes if s.spike_subtype == "session-init" and s.auto_generated
         ]
         assert len(session_init_spikes) == 1
 
@@ -55,23 +54,16 @@ class TestSessionInitSpike:
 
         # Start session twice (simulating session restart)
         session1 = manager.start_session(
-            session_id="test-session",
-            agent="test-agent",
-            title="Test Session"
+            session_id="test-session", agent="test-agent", title="Test Session"
         )
         session2 = manager.start_session(
-            session_id="test-session",
-            agent="test-agent",
-            title="Test Session"
+            session_id="test-session", agent="test-agent", title="Test Session"
         )
 
         # Should only have one session-init spike
         spike_converter = NodeConverter(graph_dir / "spikes")
         spikes = spike_converter.load_all()
-        session_init_spikes = [
-            s for s in spikes
-            if s.spike_subtype == "session-init"
-        ]
+        session_init_spikes = [s for s in spikes if s.spike_subtype == "session-init"]
 
         assert len(session_init_spikes) == 1
 
@@ -90,10 +82,7 @@ class TestSessionInitSpike:
         # Session should have spike in worked_on
         spike_converter = NodeConverter(graph_dir / "spikes")
         spikes = spike_converter.load_all()
-        session_init_spikes = [
-            s for s in spikes
-            if s.spike_subtype == "session-init"
-        ]
+        session_init_spikes = [s for s in spikes if s.spike_subtype == "session-init"]
 
         assert len(session_init_spikes) == 1
         spike = session_init_spikes[0]
@@ -123,8 +112,7 @@ class TestTransitionSpike:
         spikes = spike_converter.load_all()
 
         transition_spikes = [
-            s for s in spikes
-            if s.spike_subtype == "transition" and s.auto_generated
+            s for s in spikes if s.spike_subtype == "transition" and s.auto_generated
         ]
         assert len(transition_spikes) == 1
 
@@ -155,10 +143,7 @@ class TestTransitionSpike:
         # Find transition spike
         spike_converter = NodeConverter(graph_dir / "spikes")
         spikes = spike_converter.load_all()
-        transition_spikes = [
-            s for s in spikes
-            if s.spike_subtype == "transition"
-        ]
+        transition_spikes = [s for s in spikes if s.spike_subtype == "transition"]
 
         assert len(transition_spikes) == 1
         spike = transition_spikes[0]

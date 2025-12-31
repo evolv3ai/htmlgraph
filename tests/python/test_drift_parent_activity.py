@@ -48,7 +48,7 @@ def test_child_activities_have_no_drift(manager):
         session_id=session.id,
         tool="Skill",
         summary="Skill: create PDF document",
-        file_paths=[]
+        file_paths=[],
     )
 
     # Track child activities that wouldn't normally match the feature
@@ -57,7 +57,7 @@ def test_child_activities_have_no_drift(manager):
         tool="Read",
         summary="Read: /tmp/document.pdf",
         file_paths=["/tmp/document.pdf"],
-        parent_activity_id=parent_activity.id
+        parent_activity_id=parent_activity.id,
     )
 
     child2 = manager.track_activity(
@@ -65,7 +65,7 @@ def test_child_activities_have_no_drift(manager):
         tool="Bash",
         summary="Bash: pdflatex document.tex",
         file_paths=[],
-        parent_activity_id=parent_activity.id
+        parent_activity_id=parent_activity.id,
     )
 
     # Verify parent activity may have drift (independent activity)
@@ -102,7 +102,7 @@ def test_child_activities_inherit_feature_context(manager):
         session_id=session.id,
         tool="Task",
         summary="Task: Research OAuth providers",
-        file_paths=[]
+        file_paths=[],
     )
 
     # Track child activities with different file paths
@@ -111,7 +111,7 @@ def test_child_activities_inherit_feature_context(manager):
         tool="WebSearch",
         summary="WebSearch: OAuth 2.0 best practices",
         file_paths=[],
-        parent_activity_id=parent_activity.id
+        parent_activity_id=parent_activity.id,
     )
 
     child2 = manager.track_activity(
@@ -119,7 +119,7 @@ def test_child_activities_inherit_feature_context(manager):
         tool="WebFetch",
         summary="WebFetch: https://oauth.net/2/",
         file_paths=[],
-        parent_activity_id=parent_activity.id
+        parent_activity_id=parent_activity.id,
     )
 
     # All activities should be attributed to the same feature
@@ -140,7 +140,7 @@ def test_independent_activities_still_have_drift(manager):
         collection="features",
         description="Implement user auth",
         priority="high",
-        steps=["Design", "Implement", "Test"]
+        steps=["Design", "Implement", "Test"],
     )
 
     # Start the feature
@@ -154,14 +154,11 @@ def test_independent_activities_still_have_drift(manager):
         session_id=session.id,
         tool="Read",
         summary="Read: /tmp/unrelated.txt",
-        file_paths=["/tmp/unrelated.txt"]
+        file_paths=["/tmp/unrelated.txt"],
     )
 
     activity2 = manager.track_activity(
-        session_id=session.id,
-        tool="Bash",
-        summary="Bash: npm install",
-        file_paths=[]
+        session_id=session.id, tool="Bash", summary="Bash: npm install", file_paths=[]
     )
 
     # These should have drift scores (they're independent activities)
@@ -193,7 +190,7 @@ def test_nested_parent_activities(manager):
         session_id=session.id,
         tool="Skill",
         summary="Skill: Generate PDF documentation",
-        file_paths=[]
+        file_paths=[],
     )
 
     # Track inner parent (Task within Skill)
@@ -202,7 +199,7 @@ def test_nested_parent_activities(manager):
         tool="Task",
         summary="Task: Research PDF generation",
         file_paths=[],
-        parent_activity_id=skill_activity.id
+        parent_activity_id=skill_activity.id,
     )
 
     # Track child of Task
@@ -211,7 +208,7 @@ def test_nested_parent_activities(manager):
         tool="WebSearch",
         summary="WebSearch: Python PDF libraries",
         file_paths=[],
-        parent_activity_id=task_activity.id
+        parent_activity_id=task_activity.id,
     )
 
     # All should be linked to the feature
@@ -233,10 +230,7 @@ def test_parent_activity_persists_in_html(manager):
 
     # Track parent and child
     parent = manager.track_activity(
-        session_id=session.id,
-        tool="Skill",
-        summary="Skill: test",
-        file_paths=[]
+        session_id=session.id, tool="Skill", summary="Skill: test", file_paths=[]
     )
 
     child = manager.track_activity(
@@ -244,7 +238,7 @@ def test_parent_activity_persists_in_html(manager):
         tool="Read",
         summary="Read: test.txt",
         file_paths=["test.txt"],
-        parent_activity_id=parent.id
+        parent_activity_id=parent.id,
     )
 
     # Reload session from disk
@@ -252,7 +246,9 @@ def test_parent_activity_persists_in_html(manager):
     reloaded_session = manager.get_session(session.id)
 
     # Find the activities
-    reloaded_parent = next(a for a in reloaded_session.activity_log if a.id == parent.id)
+    reloaded_parent = next(
+        a for a in reloaded_session.activity_log if a.id == parent.id
+    )
     reloaded_child = next(a for a in reloaded_session.activity_log if a.id == child.id)
 
     # Verify parent_activity_id persisted

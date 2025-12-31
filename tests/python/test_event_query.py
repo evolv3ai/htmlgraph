@@ -19,28 +19,49 @@ def temp_events_dir():
 @pytest.fixture
 def sample_session(temp_events_dir):
     """Create a sample session with events."""
-    session = Session(
-        id="test-session-001",
-        agent="test-agent",
-        status="active"
-    )
+    session = Session(id="test-session-001", agent="test-agent", status="active")
 
     # Create event log and add some events
     event_log = JsonlEventLog(temp_events_dir)
 
     # Add various events
     events = [
-        {"event_id": "evt-001", "tool": "Bash", "feature_id": "feat-123", "summary": "Test 1"},
-        {"event_id": "evt-002", "tool": "Edit", "feature_id": "feat-123", "summary": "Test 2"},
-        {"event_id": "evt-003", "tool": "Bash", "feature_id": None, "summary": "Test 3"},
-        {"event_id": "evt-004", "tool": "Read", "feature_id": "feat-456", "summary": "Test 4"},
-        {"event_id": "evt-005", "tool": "Bash", "feature_id": "feat-123", "summary": "Test 5"},
+        {
+            "event_id": "evt-001",
+            "tool": "Bash",
+            "feature_id": "feat-123",
+            "summary": "Test 1",
+        },
+        {
+            "event_id": "evt-002",
+            "tool": "Edit",
+            "feature_id": "feat-123",
+            "summary": "Test 2",
+        },
+        {
+            "event_id": "evt-003",
+            "tool": "Bash",
+            "feature_id": None,
+            "summary": "Test 3",
+        },
+        {
+            "event_id": "evt-004",
+            "tool": "Read",
+            "feature_id": "feat-456",
+            "summary": "Test 4",
+        },
+        {
+            "event_id": "evt-005",
+            "tool": "Bash",
+            "feature_id": "feat-123",
+            "summary": "Test 5",
+        },
     ]
 
     for i, evt_data in enumerate(events):
         record = EventRecord(
             event_id=evt_data["event_id"],
-            timestamp=datetime.now() - timedelta(minutes=5-i),
+            timestamp=datetime.now() - timedelta(minutes=5 - i),
             session_id=session.id,
             agent="test-agent",
             tool=evt_data["tool"],
@@ -49,7 +70,7 @@ def sample_session(temp_events_dir):
             feature_id=evt_data["feature_id"],
             drift_score=None,
             start_commit=None,
-            continued_from=None
+            continued_from=None,
         )
         event_log.append(record)
 
@@ -110,13 +131,13 @@ def test_session_query_events_by_tool_and_feature(sample_session):
     """Test querying events by both tool and feature."""
     session, events_dir = sample_session
     filtered = session.query_events(
-        tool="Bash",
-        feature_id="feat-123",
-        events_dir=events_dir
+        tool="Bash", feature_id="feat-123", events_dir=events_dir
     )
 
     assert len(filtered) == 2
-    assert all(evt["tool"] == "Bash" and evt["feature_id"] == "feat-123" for evt in filtered)
+    assert all(
+        evt["tool"] == "Bash" and evt["feature_id"] == "feat-123" for evt in filtered
+    )
 
 
 def test_session_query_events_with_limit(sample_session):
@@ -166,7 +187,7 @@ def test_event_log_get_session_events(temp_events_dir):
             feature_id=None,
             drift_score=None,
             start_commit=None,
-            continued_from=None
+            continued_from=None,
         )
         event_log.append(record)
 
@@ -202,7 +223,7 @@ def test_event_log_query_events_all_sessions(temp_events_dir):
                 feature_id=None,
                 drift_score=None,
                 start_commit=None,
-                continued_from=None
+                continued_from=None,
             )
             event_log.append(record)
 
@@ -221,7 +242,7 @@ def test_event_log_query_events_since(temp_events_dir):
     for i in range(5):
         record = EventRecord(
             event_id=f"evt-{i}",
-            timestamp=base_time - timedelta(minutes=5-i),
+            timestamp=base_time - timedelta(minutes=5 - i),
             session_id="test-session",
             agent="test",
             tool="Test",
@@ -230,16 +251,13 @@ def test_event_log_query_events_since(temp_events_dir):
             feature_id=None,
             drift_score=None,
             start_commit=None,
-            continued_from=None
+            continued_from=None,
         )
         event_log.append(record)
 
     # Query events from last 2 minutes
     recent_time = base_time - timedelta(minutes=2)
-    recent_events = event_log.query_events(
-        session_id="test-session",
-        since=recent_time
-    )
+    recent_events = event_log.query_events(session_id="test-session", since=recent_time)
 
     # Should get events 3 and 4 (most recent 2)
     assert len(recent_events) >= 2

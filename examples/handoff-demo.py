@@ -31,13 +31,17 @@ def demo_sdk_handoff():
         feature = (
             sdk.features.create("Implement User Authentication")
             .set_priority("high")
-            .add_steps([
-                "Create JWT-based authentication",
-                "Implement OAuth 2.0 provider",
-                "Add refresh token rotation",
-                "Write comprehensive tests",
-            ])
-            .set_description("Multi-provider authentication system with secure token handling")
+            .add_steps(
+                [
+                    "Create JWT-based authentication",
+                    "Implement OAuth 2.0 provider",
+                    "Add refresh token rotation",
+                    "Write comprehensive tests",
+                ]
+            )
+            .set_description(
+                "Multi-provider authentication system with secure token handling"
+            )
             .complete_and_handoff(
                 reason="requires cryptography expertise for OAuth flow",
                 notes="Basic JWT implementation done. Need expert to implement OAuth providers and refresh token rotation. All tests passing.",
@@ -178,7 +182,7 @@ def demo_multiple_handoffs():
         # Simulate passing through multiple agents
         for i, (agent, reason) in enumerate(zip(agents[:-1], handoff_reasons[:-1])):
             # Claim
-            print(f"\n[Agent {i+1}] {agent.capitalize()} claims feature")
+            print(f"\n[Agent {i + 1}] {agent.capitalize()} claims feature")
             feature = manager.claim_feature(
                 feature_id="feat-dashboard-001",
                 agent=agent,
@@ -236,14 +240,16 @@ def demo_handoff_efficiency():
     html = feature.to_html()
 
     print("\nHandoff Context Size:")
-    print(f"  - Lightweight context: {len(context)} chars (~{len(context)/4:.0f} tokens)")
-    print(f"  - Full HTML document: {len(html)} chars (~{len(html)/4:.0f} tokens)")
-    print(f"  - Ratio: {len(html)/len(context):.1f}x")
+    print(
+        f"  - Lightweight context: {len(context)} chars (~{len(context) / 4:.0f} tokens)"
+    )
+    print(f"  - Full HTML document: {len(html)} chars (~{len(html) / 4:.0f} tokens)")
+    print(f"  - Ratio: {len(html) / len(context):.1f}x")
 
     print("\nToken Usage Comparison:")
     print("  - Using hyperlink reference: ~50 tokens")
-    print(f"  - Embedding full context: ~{len(html)/4:.0f} tokens")
-    print(f"  - Savings: {(1 - 50/(len(html)/4)) * 100:.0f}%")
+    print(f"  - Embedding full context: ~{len(html) / 4:.0f} tokens")
+    print(f"  - Savings: {(1 - 50 / (len(html) / 4)) * 100:.0f}%")
 
     print("\nBenefit: Agents can pass lightweight context with hyperlink to full HTML")
     print("         while maintaining git-friendly, queryable audit trail")

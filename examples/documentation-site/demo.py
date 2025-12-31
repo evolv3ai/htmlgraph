@@ -55,7 +55,7 @@ def create_documentation_pages(sdk: SDK):
                 Edge(target_id="doc-quickstart", relationship="navigates_to"),
                 Edge(target_id="doc-api-overview", relationship="navigates_to"),
             ]
-        }
+        },
     )
 
     # Getting Started - Installation
@@ -89,8 +89,8 @@ def create_documentation_pages(sdk: SDK):
         edges={
             "previous": [Edge(target_id="doc-index", relationship="previous")],
             "next": [Edge(target_id="doc-quickstart", relationship="next")],
-            "related": [Edge(target_id="doc-quickstart", relationship="related")]
-        }
+            "related": [Edge(target_id="doc-quickstart", relationship="related")],
+        },
     )
 
     # Getting Started - Quickstart
@@ -146,9 +146,9 @@ feature = sdk.features.create("Add authentication")</code></pre>
             "next": [Edge(target_id="doc-api-overview", relationship="next")],
             "related": [
                 Edge(target_id="doc-api-overview", relationship="related"),
-                Edge(target_id="doc-example-basic", relationship="related")
-            ]
-        }
+                Edge(target_id="doc-example-basic", relationship="related"),
+            ],
+        },
     )
 
     # API Reference - Overview
@@ -188,9 +188,9 @@ feature = sdk.features.create("Add authentication")</code></pre>
             "next": [Edge(target_id="doc-api-graph", relationship="next")],
             "related": [
                 Edge(target_id="doc-api-graph", relationship="related"),
-                Edge(target_id="doc-api-sdk", relationship="related")
-            ]
-        }
+                Edge(target_id="doc-api-sdk", relationship="related"),
+            ],
+        },
     )
 
     # API Reference - Graph API
@@ -237,9 +237,9 @@ feature = sdk.features.create("Add authentication")</code></pre>
             "next": [Edge(target_id="doc-api-sdk", relationship="next")],
             "related": [
                 Edge(target_id="doc-api-sdk", relationship="related"),
-                Edge(target_id="doc-example-basic", relationship="related")
-            ]
-        }
+                Edge(target_id="doc-example-basic", relationship="related"),
+            ],
+        },
     )
 
     # API Reference - SDK
@@ -291,9 +291,9 @@ feature = sdk.features.create("Add authentication")</code></pre>
             "next": [Edge(target_id="doc-example-basic", relationship="next")],
             "related": [
                 Edge(target_id="doc-api-graph", relationship="related"),
-                Edge(target_id="doc-example-advanced", relationship="related")
-            ]
-        }
+                Edge(target_id="doc-example-advanced", relationship="related"),
+            ],
+        },
     )
 
     # Examples - Basic
@@ -354,9 +354,9 @@ graph.add(task)</code></pre>
             "next": [Edge(target_id="doc-example-advanced", relationship="next")],
             "related": [
                 Edge(target_id="doc-example-advanced", relationship="related"),
-                Edge(target_id="doc-api-graph", relationship="related")
-            ]
-        }
+                Edge(target_id="doc-api-graph", relationship="related"),
+            ],
+        },
     )
 
     # Examples - Advanced
@@ -414,9 +414,9 @@ print(mermaid)
             "previous": [Edge(target_id="doc-example-basic", relationship="previous")],
             "related": [
                 Edge(target_id="doc-example-basic", relationship="related"),
-                Edge(target_id="doc-api-sdk", relationship="related")
-            ]
-        }
+                Edge(target_id="doc-api-sdk", relationship="related"),
+            ],
+        },
     )
 
     # Add all pages to graph
@@ -428,7 +428,7 @@ print(mermaid)
         graph_api,
         sdk_api,
         basic_example,
-        advanced_example
+        advanced_example,
     ]
 
     for page in pages:
@@ -520,17 +520,15 @@ def generate_table_of_contents(sdk: SDK):
     print(f"\n{homepage.title}")
 
     # Group by category (based on ID prefix)
-    categories = {
-        "Getting Started": [],
-        "API Reference": [],
-        "Examples": []
-    }
+    categories = {"Getting Started": [], "API Reference": [], "Examples": []}
 
     all_docs = sdk.features.where(type="doc")
     for doc in all_docs:
         if doc.id == "doc-index":
             continue
-        elif doc.id.startswith("doc-installation") or doc.id.startswith("doc-quickstart"):
+        elif doc.id.startswith("doc-installation") or doc.id.startswith(
+            "doc-quickstart"
+        ):
             categories["Getting Started"].append(doc)
         elif doc.id.startswith("doc-api"):
             categories["API Reference"].append(doc)

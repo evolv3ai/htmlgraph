@@ -51,7 +51,7 @@ class TestHtmlGraphDelete:
         node_a = Node(
             id="a",
             title="Node A",
-            edges={"blocks": [Edge(target_id="b", relationship="blocks")]}
+            edges={"blocks": [Edge(target_id="b", relationship="blocks")]},
         )
         node_b = Node(id="b", title="Node B")
 
@@ -83,13 +83,13 @@ class TestHtmlGraphDelete:
             title="Node B",
             edges={
                 "blocked_by": [Edge(target_id="a", relationship="blocked_by")],
-                "related": [Edge(target_id="c", relationship="related")]
-            }
+                "related": [Edge(target_id="c", relationship="related")],
+            },
         )
         node_c = Node(
             id="c",
             title="Node C",
-            edges={"blocks": [Edge(target_id="b", relationship="blocks")]}
+            edges={"blocks": [Edge(target_id="b", relationship="blocks")]},
         )
 
         graph.add(node_a)
@@ -105,10 +105,7 @@ class TestHtmlGraphDelete:
 
     def test_batch_delete(self, graph):
         """Test batch deleting multiple nodes."""
-        nodes = [
-            Node(id=f"node-{i}", title=f"Node {i}")
-            for i in range(5)
-        ]
+        nodes = [Node(id=f"node-{i}", title=f"Node {i}") for i in range(5)]
 
         for node in nodes:
             graph.add(node)
@@ -130,7 +127,9 @@ class TestHtmlGraphDelete:
             graph.add(node)
 
         # Try to delete 2 existing + 2 nonexistent
-        count = graph.batch_delete(["node-0", "node-1", "nonexistent-1", "nonexistent-2"])
+        count = graph.batch_delete(
+            ["node-0", "node-1", "nonexistent-1", "nonexistent-2"]
+        )
 
         assert count == 2
         assert "node-0" not in graph
@@ -175,10 +174,7 @@ class TestSDKCollectionDelete:
 
     def test_sdk_batch_delete(self, sdk):
         """Test SDK batch delete."""
-        features = [
-            sdk.features.create(f"Feature {i}").save()
-            for i in range(5)
-        ]
+        features = [sdk.features.create(f"Feature {i}").save() for i in range(5)]
         feature_ids = [f.id for f in features]
 
         # Delete first 3
@@ -255,17 +251,17 @@ class TestDeleteEdgeCases:
         node_a = Node(
             id="a",
             title="Node A",
-            edges={"blocks": [Edge(target_id="b", relationship="blocks")]}
+            edges={"blocks": [Edge(target_id="b", relationship="blocks")]},
         )
         node_b = Node(
             id="b",
             title="Node B",
-            edges={"blocks": [Edge(target_id="c", relationship="blocks")]}
+            edges={"blocks": [Edge(target_id="c", relationship="blocks")]},
         )
         node_c = Node(
             id="c",
             title="Node C",
-            edges={"blocks": [Edge(target_id="a", relationship="blocks")]}
+            edges={"blocks": [Edge(target_id="a", relationship="blocks")]},
         )
 
         graph.add(node_a)
@@ -299,10 +295,7 @@ class TestTrackCollectionDelete:
     def test_delete_single_file_track(self, sdk):
         """Test deleting a single-file track (.html)."""
         # Create a consolidated (single-file) track
-        track = sdk.tracks.builder() \
-            .title("Test Track") \
-            .consolidated() \
-            .create()
+        track = sdk.tracks.builder().title("Test Track").consolidated().create()
 
         track_id = track.id
 
@@ -322,12 +315,14 @@ class TestTrackCollectionDelete:
     def test_delete_directory_based_track(self, sdk):
         """Test deleting a directory-based track (legacy format)."""
         # Create a separate-files (directory-based) track
-        track = sdk.tracks.builder() \
-            .title("Test Track") \
-            .separate_files() \
-            .with_spec(overview="Test overview") \
-            .with_plan_phases([("Phase 1", ["Task 1", "Task 2"])]) \
+        track = (
+            sdk.tracks.builder()
+            .title("Test Track")
+            .separate_files()
+            .with_spec(overview="Test overview")
+            .with_plan_phases([("Phase 1", ["Task 1", "Task 2"])])
             .create()
+        )
 
         track_id = track.id
 
@@ -354,9 +349,7 @@ class TestTrackCollectionDelete:
 
     def test_delete_twice(self, sdk):
         """Test deleting the same track twice."""
-        track = sdk.tracks.builder() \
-            .title("Test Track") \
-            .create()
+        track = sdk.tracks.builder().title("Test Track").create()
 
         track_id = track.id
 
@@ -371,9 +364,7 @@ class TestTrackCollectionDelete:
         # Create multiple tracks
         tracks = []
         for i in range(5):
-            track = sdk.tracks.builder() \
-                .title(f"Track {i}") \
-                .create()
+            track = sdk.tracks.builder().title(f"Track {i}").create()
             tracks.append(track)
 
         track_ids = [t.id for t in tracks]
@@ -391,17 +382,16 @@ class TestTrackCollectionDelete:
     def test_batch_delete_mixed_formats(self, sdk):
         """Test batch deleting tracks with mixed formats (single-file and directory)."""
         # Create single-file track
-        track1 = sdk.tracks.builder() \
-            .title("Single File Track") \
-            .consolidated() \
-            .create()
+        track1 = sdk.tracks.builder().title("Single File Track").consolidated().create()
 
         # Create directory-based track
-        track2 = sdk.tracks.builder() \
-            .title("Directory Track") \
-            .separate_files() \
-            .with_spec(overview="Test") \
+        track2 = (
+            sdk.tracks.builder()
+            .title("Directory Track")
+            .separate_files()
+            .with_spec(overview="Test")
             .create()
+        )
 
         # Batch delete both
         count = sdk.tracks.batch_delete([track1.id, track2.id])
@@ -417,12 +407,9 @@ class TestTrackCollectionDelete:
         track2 = sdk.tracks.builder().title("Track 2").create()
 
         # Try to delete 2 existing + 2 nonexistent
-        count = sdk.tracks.batch_delete([
-            track1.id,
-            track2.id,
-            "nonexistent-1",
-            "nonexistent-2"
-        ])
+        count = sdk.tracks.batch_delete(
+            [track1.id, track2.id, "nonexistent-1", "nonexistent-2"]
+        )
 
         assert count == 2
         assert sdk.tracks.get(track1.id) is None

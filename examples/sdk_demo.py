@@ -30,8 +30,8 @@ def old_api_example():
         steps=[
             Step(description="Create login endpoint"),
             Step(description="Add JWT middleware"),
-            Step(description="Write tests")
-        ]
+            Step(description="Write tests"),
+        ],
     )
     agent.graph.add(feature)
     print(f"✓ Created feature: {feature.id}")
@@ -49,7 +49,8 @@ def old_api_example():
 
     # Query features (manual filtering)
     high_priority = [
-        n for n in agent.graph
+        n
+        for n in agent.graph
         if n.type == "feature" and n.priority == "high" and n.status == "todo"
     ]
     print(f"\n✓ Found {len(high_priority)} high priority features")
@@ -68,15 +69,13 @@ def new_api_example():
     sdk = SDK(agent="claude")
 
     # Create feature with fluent interface
-    feature = sdk.features.create("User Authentication") \
-        .set_priority("high") \
-        .set_description("Implement user authentication with OAuth") \
-        .add_steps([
-            "Create login endpoint",
-            "Add JWT middleware",
-            "Write tests"
-        ]) \
+    feature = (
+        sdk.features.create("User Authentication")
+        .set_priority("high")
+        .set_description("Implement user authentication with OAuth")
+        .add_steps(["Create login endpoint", "Add JWT middleware", "Write tests"])
         .save()
+    )
 
     print(f"✓ Created feature: {feature.id}")
 
@@ -167,11 +166,31 @@ def comparison_table():
     comparisons = [
         ("Feature", "Old API", "New SDK"),
         ("-" * 20, "-" * 20, "-" * 20),
-        ("Initialization", "AgentInterface('.htmlgraph/features', agent_id='claude')", "SDK(agent='claude')"),
-        ("Create Feature", "Node(id=..., title=..., type=..., steps=[...])", "sdk.features.create('Title').add_steps([...])"),
-        ("Edit Feature", "node.status = 'done'; graph.update(node)", "with sdk.features.edit('id') as f: f.status = 'done'"),
-        ("Query", "[n for n in graph if n.status=='todo']", "sdk.features.where(status='todo')"),
-        ("Batch Ops", "for id in ids: graph.get(id).status='done'", "sdk.features.mark_done(ids)"),
+        (
+            "Initialization",
+            "AgentInterface('.htmlgraph/features', agent_id='claude')",
+            "SDK(agent='claude')",
+        ),
+        (
+            "Create Feature",
+            "Node(id=..., title=..., type=..., steps=[...])",
+            "sdk.features.create('Title').add_steps([...])",
+        ),
+        (
+            "Edit Feature",
+            "node.status = 'done'; graph.update(node)",
+            "with sdk.features.edit('id') as f: f.status = 'done'",
+        ),
+        (
+            "Query",
+            "[n for n in graph if n.status=='todo']",
+            "sdk.features.where(status='todo')",
+        ),
+        (
+            "Batch Ops",
+            "for id in ids: graph.get(id).status='done'",
+            "sdk.features.mark_done(ids)",
+        ),
         ("Context Mgr", "❌ No", "✅ Auto-save"),
         ("Auto-discover", "❌ No", "✅ Yes"),
         ("Method Chain", "❌ No", "✅ Yes"),

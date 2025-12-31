@@ -52,9 +52,7 @@ class TestOrchestratorEnable:
 
     def test_enable_default_level(self, temp_graph_dir):
         """Test enabling with default strict level."""
-        result = run_cli(
-            ["orchestrator", "enable", "--graph-dir", str(temp_graph_dir)]
-        )
+        result = run_cli(["orchestrator", "enable", "--graph-dir", str(temp_graph_dir)])
 
         assert result.returncode == 0
         assert "Orchestrator mode enabled (strict enforcement)" in result.stdout
@@ -66,7 +64,14 @@ class TestOrchestratorEnable:
     def test_enable_strict_level(self, temp_graph_dir):
         """Test enabling with explicit strict level."""
         result = run_cli(
-            ["orchestrator", "enable", "--level", "strict", "--graph-dir", str(temp_graph_dir)]
+            [
+                "orchestrator",
+                "enable",
+                "--level",
+                "strict",
+                "--graph-dir",
+                str(temp_graph_dir),
+            ]
         )
 
         assert result.returncode == 0
@@ -75,7 +80,14 @@ class TestOrchestratorEnable:
     def test_enable_guidance_level(self, temp_graph_dir):
         """Test enabling with guidance level."""
         result = run_cli(
-            ["orchestrator", "enable", "--level", "guidance", "--graph-dir", str(temp_graph_dir)]
+            [
+                "orchestrator",
+                "enable",
+                "--level",
+                "guidance",
+                "--graph-dir",
+                str(temp_graph_dir),
+            ]
         )
 
         assert result.returncode == 0
@@ -84,7 +96,14 @@ class TestOrchestratorEnable:
     def test_enable_short_flag(self, temp_graph_dir):
         """Test enabling with short -l flag."""
         result = run_cli(
-            ["orchestrator", "enable", "-l", "guidance", "--graph-dir", str(temp_graph_dir)]
+            [
+                "orchestrator",
+                "enable",
+                "-l",
+                "guidance",
+                "--graph-dir",
+                str(temp_graph_dir),
+            ]
         )
 
         assert result.returncode == 0
@@ -93,7 +112,14 @@ class TestOrchestratorEnable:
     def test_enable_invalid_level(self, temp_graph_dir):
         """Test enabling with invalid level fails."""
         result = run_cli(
-            ["orchestrator", "enable", "--level", "invalid", "--graph-dir", str(temp_graph_dir)]
+            [
+                "orchestrator",
+                "enable",
+                "--level",
+                "invalid",
+                "--graph-dir",
+                str(temp_graph_dir),
+            ]
         )
 
         assert result.returncode != 0
@@ -109,14 +135,18 @@ class TestOrchestratorDisable:
         run_cli(["orchestrator", "enable", "--graph-dir", str(temp_graph_dir)])
 
         # Then disable
-        result = run_cli(["orchestrator", "disable", "--graph-dir", str(temp_graph_dir)])
+        result = run_cli(
+            ["orchestrator", "disable", "--graph-dir", str(temp_graph_dir)]
+        )
 
         assert result.returncode == 0
         assert "Orchestrator mode disabled" in result.stdout
 
     def test_disable_when_already_disabled(self, temp_graph_dir):
         """Test disabling when orchestrator is already disabled."""
-        result = run_cli(["orchestrator", "disable", "--graph-dir", str(temp_graph_dir)])
+        result = run_cli(
+            ["orchestrator", "disable", "--graph-dir", str(temp_graph_dir)]
+        )
 
         assert result.returncode == 0
         assert "Orchestrator mode disabled" in result.stdout
@@ -157,7 +187,14 @@ class TestOrchestratorStatus:
         """Test status when orchestrator is enabled with guidance level."""
         # Enable with guidance
         run_cli(
-            ["orchestrator", "enable", "--level", "guidance", "--graph-dir", str(temp_graph_dir)]
+            [
+                "orchestrator",
+                "enable",
+                "--level",
+                "guidance",
+                "--graph-dir",
+                str(temp_graph_dir),
+            ]
         )
 
         result = run_cli(["orchestrator", "status", "--graph-dir", str(temp_graph_dir)])
@@ -231,7 +268,9 @@ class TestOrchestratorWorkflow:
         assert "enabled" in result.stdout
 
         # Disable
-        result = run_cli(["orchestrator", "disable", "--graph-dir", str(temp_graph_dir)])
+        result = run_cli(
+            ["orchestrator", "disable", "--graph-dir", str(temp_graph_dir)]
+        )
         assert result.returncode == 0
         assert "disabled" in result.stdout
 
@@ -248,7 +287,14 @@ class TestOrchestratorWorkflow:
 
         # Change to guidance
         result = run_cli(
-            ["orchestrator", "enable", "--level", "guidance", "--graph-dir", str(temp_graph_dir)]
+            [
+                "orchestrator",
+                "enable",
+                "--level",
+                "guidance",
+                "--graph-dir",
+                str(temp_graph_dir),
+            ]
         )
         assert "guidance mode" in result.stdout
 

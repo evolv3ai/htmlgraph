@@ -32,30 +32,38 @@ def test_get_active_work_item_no_items(sdk: SDK):
     """Test when no work items exist (excluding auto-generated spikes)."""
     # Auto-spike may exist, but we're looking for user-created work items
     # Exclude spikes from search
-    result = sdk.get_active_work_item(work_types=["features", "bugs", "chores", "epics"])
+    result = sdk.get_active_work_item(
+        work_types=["features", "bugs", "chores", "epics"]
+    )
     assert result is None
 
 
 def test_get_active_work_item_only_todo(sdk: SDK):
     """Test when only todo items exist (no in-progress user work)."""
     # Create a todo feature
-    feature = sdk.features.create("Test Feature") \
-        .set_priority("high") \
-        .add_steps(["Step 1", "Step 2"]) \
+    feature = (
+        sdk.features.create("Test Feature")
+        .set_priority("high")
+        .add_steps(["Step 1", "Step 2"])
         .save()
+    )
 
     # Exclude auto-generated spikes
-    result = sdk.get_active_work_item(work_types=["features", "bugs", "chores", "epics"])
+    result = sdk.get_active_work_item(
+        work_types=["features", "bugs", "chores", "epics"]
+    )
     assert result is None
 
 
 def test_get_active_work_item_single_in_progress_feature(sdk: SDK):
     """Test with a single in-progress feature."""
     # Create an in-progress feature
-    feature = sdk.features.create("Active Feature") \
-        .set_priority("high") \
-        .add_steps(["Step 1", "Step 2", "Step 3"]) \
+    feature = (
+        sdk.features.create("Active Feature")
+        .set_priority("high")
+        .add_steps(["Step 1", "Step 2", "Step 3"])
         .save()
+    )
 
     # Start the feature
     with sdk.features.edit(feature.id) as f:
@@ -84,13 +92,14 @@ def test_get_active_work_item_multiple_types(sdk: SDK):
 
     # Create in-progress bug using SDK (proper way)
     from htmlgraph.graph import HtmlGraph
+
     bugs_graph = HtmlGraph(sdk._directory / "bugs")
     bug = Node(
         id="bug-001",
         title="Active Bug",
         type="bug",
         status="in-progress",
-        steps=[Step(description="Fix bug")]
+        steps=[Step(description="Fix bug")],
     )
     bugs_graph.add(bug)
 
@@ -106,6 +115,7 @@ def test_get_active_work_item_filter_by_agent(sdk: SDK):
     """Test filtering by agent."""
     # Create features assigned to different agents using the graph directly
     from htmlgraph.graph import HtmlGraph
+
     features_graph = HtmlGraph(sdk._directory / "features")
 
     feature1 = Node(
@@ -114,7 +124,7 @@ def test_get_active_work_item_filter_by_agent(sdk: SDK):
         type="feature",
         status="in-progress",
         agent_assigned="agent-1",
-        steps=[]
+        steps=[],
     )
     features_graph.add(feature1)
 
@@ -124,7 +134,7 @@ def test_get_active_work_item_filter_by_agent(sdk: SDK):
         type="feature",
         status="in-progress",
         agent_assigned="agent-2",
-        steps=[]
+        steps=[],
     )
     features_graph.add(feature2)
 
@@ -133,19 +143,25 @@ def test_get_active_work_item_filter_by_agent(sdk: SDK):
     assert result is not None
 
     # With agent filtering - should return only agent-1's work
-    result = sdk.get_active_work_item(agent="agent-1", filter_by_agent=True, work_types=["features"])
+    result = sdk.get_active_work_item(
+        agent="agent-1", filter_by_agent=True, work_types=["features"]
+    )
     assert result is not None
     assert result["agent"] == "agent-1"
     assert result["id"] == "feat-agent1"
 
     # With agent filtering for agent-2
-    result = sdk.get_active_work_item(agent="agent-2", filter_by_agent=True, work_types=["features"])
+    result = sdk.get_active_work_item(
+        agent="agent-2", filter_by_agent=True, work_types=["features"]
+    )
     assert result is not None
     assert result["agent"] == "agent-2"
     assert result["id"] == "feat-agent2"
 
     # With agent filtering for non-existent agent
-    result = sdk.get_active_work_item(agent="agent-3", filter_by_agent=True, work_types=["features"])
+    result = sdk.get_active_work_item(
+        agent="agent-3", filter_by_agent=True, work_types=["features"]
+    )
     assert result is None
 
 
@@ -160,17 +176,13 @@ def test_get_active_work_item_specific_work_types(sdk: SDK):
         title="Active Feature",
         type="feature",
         status="in-progress",
-        steps=[]
+        steps=[],
     )
     features_graph.add(feature)
 
     bugs_graph = HtmlGraph(sdk._directory / "bugs")
     bug = Node(
-        id="bug-001",
-        title="Active Bug",
-        type="bug",
-        status="in-progress",
-        steps=[]
+        id="bug-001", title="Active Bug", type="bug", status="in-progress", steps=[]
     )
     bugs_graph.add(bug)
 
@@ -193,6 +205,7 @@ def test_get_active_work_item_done_items_ignored(sdk: SDK):
     """Test that done/completed items are not returned."""
     # Create a done feature using graph
     from htmlgraph.graph import HtmlGraph
+
     features_graph = HtmlGraph(sdk._directory / "features")
 
     feature = Node(
@@ -201,26 +214,24 @@ def test_get_active_work_item_done_items_ignored(sdk: SDK):
         type="feature",
         status="done",
         priority="high",
-        steps=[Step(description="Step 1", completed=True)]
+        steps=[Step(description="Step 1", completed=True)],
     )
     features_graph.add(feature)
 
     # Should not return done items (exclude spikes to avoid auto-spikes)
-    result = sdk.get_active_work_item(work_types=["features", "bugs", "chores", "epics"])
+    result = sdk.get_active_work_item(
+        work_types=["features", "bugs", "chores", "epics"]
+    )
     assert result is None
 
 
 def test_get_active_work_item_step_progress(sdk: SDK):
     """Test step progress calculation."""
-    feature = sdk.features.create("Feature with Steps") \
-        .add_steps([
-            "Step 1",
-            "Step 2",
-            "Step 3",
-            "Step 4",
-            "Step 5"
-        ]) \
+    feature = (
+        sdk.features.create("Feature with Steps")
+        .add_steps(["Step 1", "Step 2", "Step 3", "Step 4", "Step 5"])
         .save()
+    )
 
     with sdk.features.edit(feature.id) as f:
         f.status = "in-progress"
@@ -248,7 +259,7 @@ def test_get_active_work_item_auto_spike_deprioritized(sdk: SDK):
         spike_subtype="session-init",
         auto_generated=True,
         session_id="sess-test-001",  # Required for auto-generated spikes
-        steps=[]
+        steps=[],
     )
     spikes_graph.add(auto_spike)
 

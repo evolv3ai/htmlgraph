@@ -38,7 +38,9 @@ def mock_transcript_session():
 class TestLinkTranscriptToFeature:
     """Tests for SessionManager._link_transcript_to_feature"""
 
-    def test_link_adds_implemented_by_edge(self, temp_graph_dir, mock_transcript_session):
+    def test_link_adds_implemented_by_edge(
+        self, temp_graph_dir, mock_transcript_session
+    ):
         """Linking should add an implemented-by edge to the feature."""
         from htmlgraph.models import Node
         from htmlgraph.session_manager import SessionManager
@@ -56,7 +58,9 @@ class TestLinkTranscriptToFeature:
         with patch("htmlgraph.transcript.TranscriptReader") as mock_reader:
             mock_reader.return_value.read_session.return_value = mock_transcript_session
 
-            manager._link_transcript_to_feature(node, "agent-test123", manager.features_graph)
+            manager._link_transcript_to_feature(
+                node, "agent-test123", manager.features_graph
+            )
 
         # Check edge was added
         edges = node.edges.get("implemented-by", [])
@@ -92,7 +96,9 @@ class TestLinkTranscriptToFeature:
         with patch("htmlgraph.transcript.TranscriptReader") as mock_reader:
             mock_reader.return_value.read_session.return_value = mock_transcript_session
 
-            manager._link_transcript_to_feature(node, "agent-test123", manager.features_graph)
+            manager._link_transcript_to_feature(
+                node, "agent-test123", manager.features_graph
+            )
 
         # Should still only have one edge
         edges = node.edges.get("implemented-by", [])
@@ -115,7 +121,9 @@ class TestLinkTranscriptToFeature:
         with patch("htmlgraph.transcript.TranscriptReader") as mock_reader:
             mock_reader.return_value.read_session.return_value = mock_transcript_session
 
-            manager._link_transcript_to_feature(node, "agent-test123", manager.features_graph)
+            manager._link_transcript_to_feature(
+                node, "agent-test123", manager.features_graph
+            )
 
         # Check properties were added
         assert node.properties.get("transcript_tool_count") == 42
@@ -135,7 +143,7 @@ class TestCompleteWithTranscript:
 
         # Create a test feature
         feature = sdk.features.create("Test Feature")
-        feature_id = feature.id if hasattr(feature, 'id') else feature.save().id
+        feature_id = feature.id if hasattr(feature, "id") else feature.save().id
 
         mock_session = MagicMock()
         mock_session.tool_call_count = 25
@@ -180,10 +188,12 @@ class TestParallelWorkflowLinkTranscripts:
         with patch("htmlgraph.transcript.TranscriptReader") as mock_reader:
             mock_reader.return_value.read_session.return_value = mock_session
 
-            result = workflow.link_transcripts([
-                (f1.id, "agent-001"),
-                (f2.id, "agent-002"),
-            ])
+            result = workflow.link_transcripts(
+                [
+                    (f1.id, "agent-001"),
+                    (f2.id, "agent-002"),
+                ]
+            )
 
         assert result["linked_count"] == 2
         assert result["failed_count"] == 0
@@ -197,9 +207,11 @@ class TestParallelWorkflowLinkTranscripts:
         sdk = SDK(directory=temp_graph_dir, agent="test-agent")
         workflow = ParallelWorkflow(sdk)
 
-        result = workflow.link_transcripts([
-            ("feat-nonexistent", "agent-001"),
-        ])
+        result = workflow.link_transcripts(
+            [
+                ("feat-nonexistent", "agent-001"),
+            ]
+        )
 
         assert result["linked_count"] == 0
         assert result["failed_count"] == 1
@@ -245,7 +257,9 @@ class TestEventPayloadTranscriptId:
 
         # Mock active session
         with patch.object(manager, "get_active_session", return_value=mock_session):
-            with patch.object(manager, "_create_transition_spike"):  # Skip spike creation
+            with patch.object(
+                manager, "_create_transition_spike"
+            ):  # Skip spike creation
                 with patch("htmlgraph.transcript.TranscriptReader") as mock_reader:
                     mock_reader.return_value.read_session.return_value = mock_transcript
 

@@ -70,9 +70,9 @@ def get_context_percentage(data: dict) -> tuple[int, str]:
 
     # Calculate tokens in current context
     current_tokens = (
-        usage.get("input_tokens", 0) +
-        usage.get("cache_creation_input_tokens", 0) +
-        usage.get("cache_read_input_tokens", 0)
+        usage.get("input_tokens", 0)
+        + usage.get("cache_creation_input_tokens", 0)
+        + usage.get("cache_read_input_tokens", 0)
     )
 
     percent = int(current_tokens * 100 / context_size) if context_size > 0 else 0
@@ -109,7 +109,9 @@ def find_htmlgraph_dir() -> Path | None:
     return None
 
 
-def record_context_snapshot(htmlgraph_dir: Path, data: dict, feature_id: str | None) -> None:
+def record_context_snapshot(
+    htmlgraph_dir: Path, data: dict, feature_id: str | None
+) -> None:
     """
     Record a context snapshot to the active session.
 
@@ -133,9 +135,7 @@ def record_context_snapshot(htmlgraph_dir: Path, data: dict, feature_id: str | N
         if session:
             # Create snapshot from Claude Code input
             snapshot = ContextSnapshot.from_claude_input(
-                data,
-                trigger="status_update",
-                feature_id=feature_id
+                data, trigger="status_update", feature_id=feature_id
             )
 
             # Record to session (with sampling to avoid bloat)
@@ -143,6 +143,7 @@ def record_context_snapshot(htmlgraph_dir: Path, data: dict, feature_id: str | N
 
             # Save session back to disk
             from htmlgraph.converter import SessionConverter
+
             converter = SessionConverter(htmlgraph_dir / "sessions")
             converter.save(session)
 
@@ -172,7 +173,9 @@ def get_htmlgraph_context(htmlgraph_dir: Path, input_data: dict | None = None) -
         active_session = sdk.session_manager.get_active_session()
         if active_session:
             context["session"] = {
-                "id": active_session.id[:12] + "..." if len(active_session.id) > 15 else active_session.id,
+                "id": active_session.id[:12] + "..."
+                if len(active_session.id) > 15
+                else active_session.id,
                 "full_id": active_session.id,
                 "agent": active_session.agent,
                 "event_count": active_session.event_count,
@@ -202,7 +205,9 @@ def get_htmlgraph_context(htmlgraph_dir: Path, input_data: dict | None = None) -
 
             # Record context snapshot if we have input data
             if input_data:
-                record_context_snapshot(htmlgraph_dir, input_data, context.get("feature"))
+                record_context_snapshot(
+                    htmlgraph_dir, input_data, context.get("feature")
+                )
 
         # Check drift queue for high-drift activities (and clean up stale entries)
         drift_queue_path = htmlgraph_dir / "drift-queue.json"
@@ -216,7 +221,9 @@ def get_htmlgraph_context(htmlgraph_dir: Path, input_data: dict | None = None) -
                 fresh_activities = []
                 for activity in activities:
                     try:
-                        activity_time = datetime.fromisoformat(activity.get("timestamp", ""))
+                        activity_time = datetime.fromisoformat(
+                            activity.get("timestamp", "")
+                        )
                         if activity_time >= cutoff_time:
                             fresh_activities.append(activity)
                     except (ValueError, TypeError):
@@ -234,7 +241,11 @@ def get_htmlgraph_context(htmlgraph_dir: Path, input_data: dict | None = None) -
                 if fresh_activities:
                     # Average drift score of pending items
                     total_drift = sum(a.get("drift_score", 0) for a in fresh_activities)
-                    context["drift_score"] = total_drift / len(fresh_activities) if fresh_activities else None
+                    context["drift_score"] = (
+                        total_drift / len(fresh_activities)
+                        if fresh_activities
+                        else None
+                    )
                     context["drift_count"] = len(fresh_activities)
 
     except ImportError:
@@ -253,13 +264,13 @@ def get_item_type_symbol(item_type: str | None) -> str:
         return "📋"
 
     symbols = {
-        "feature": "✨",      # Sparkles - new capability
-        "bug": "🐛",          # Bug - fixing defects
-        "spike": "🔍",        # Magnifying glass - investigation/research
-        "chore": "🔧",        # Wrench - maintenance/tech debt
-        "epic": "🎯",         # Target - large initiative
-        "track": "🗺️",        # Map - multi-feature planning
-        "phase": "📊",        # Chart - project phase
+        "feature": "✨",  # Sparkles - new capability
+        "bug": "🐛",  # Bug - fixing defects
+        "spike": "🔍",  # Magnifying glass - investigation/research
+        "chore": "🔧",  # Wrench - maintenance/tech debt
+        "epic": "🎯",  # Target - large initiative
+        "track": "🗺️",  # Map - multi-feature planning
+        "phase": "📊",  # Chart - project phase
     }
 
     return symbols.get(item_type.lower(), "📋")

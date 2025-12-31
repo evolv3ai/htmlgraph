@@ -1193,6 +1193,8 @@ print(f"Work breakdown: {breakdown}")
 
 HtmlGraph enforces a research-first philosophy. This emerged from dogfooding where we repeatedly made trial-and-error attempts before researching documentation.
 
+**Complete debugging guide:** See [DEBUGGING.md](../../../DEBUGGING.md)
+
 ### When to Research (Before ANY Implementation)
 
 **STOP and research if:**

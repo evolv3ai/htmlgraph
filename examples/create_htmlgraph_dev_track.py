@@ -38,6 +38,7 @@ def main():
 
     if dev_path.exists():
         import shutil
+
         shutil.rmtree(dev_path)
 
     track_path.rename(dev_path)
@@ -66,59 +67,59 @@ def main():
         {
             "description": "Python library with core graph operations",
             "priority": "must-have",
-            "notes": "HtmlGraph class, add/update/query/get methods, file-based storage"
+            "notes": "HtmlGraph class, add/update/query/get methods, file-based storage",
         },
         {
             "description": "HTML node creation and serialization",
             "priority": "must-have",
-            "notes": "Node.to_html() method, Pydantic models, data-* attributes"
+            "notes": "Node.to_html() method, Pydantic models, data-* attributes",
         },
         {
             "description": "CSS selector query engine",
             "priority": "must-have",
-            "notes": "graph.query(selector) using justhtml parser"
+            "notes": "graph.query(selector) using justhtml parser",
         },
         {
             "description": "Hyperlink-based edge system",
             "priority": "must-have",
-            "notes": "Native <a href> for relationships, data-relationship attributes"
+            "notes": "Native <a href> for relationships, data-relationship attributes",
         },
         {
             "description": "Pydantic data models with validation",
             "priority": "must-have",
-            "notes": "Node, Edge, Step models with schema validation"
+            "notes": "Node, Edge, Step models with schema validation",
         },
         {
             "description": "Agent interface for AI coordination",
             "priority": "must-have",
-            "notes": "Lightweight context, get_next_task(), complete_step()"
+            "notes": "Lightweight context, get_next_task(), complete_step()",
         },
         # P1
         {
             "description": "JavaScript library for browser-side queries",
             "priority": "should-have",
-            "notes": "HtmlGraph JS class, DOMParser integration, CSS selectors"
+            "notes": "HtmlGraph JS class, DOMParser integration, CSS selectors",
         },
         {
             "description": "Interactive dashboard with multiple views",
             "priority": "should-have",
-            "notes": "Vanilla JS, kanban/graph/timeline views, real-time updates"
+            "notes": "Vanilla JS, kanban/graph/timeline views, real-time updates",
         },
         {
             "description": "Example implementations (todo, agent coordination)",
             "priority": "should-have",
-            "notes": "Working demos showing different use cases"
+            "notes": "Working demos showing different use cases",
         },
         # P2
         {
             "description": "SQLite index for complex queries",
             "priority": "nice-to-have",
-            "notes": "Optional full-text search, analytics, performance optimization"
+            "notes": "Optional full-text search, analytics, performance optimization",
         },
         {
             "description": "File watching for real-time updates",
             "priority": "nice-to-have",
-            "notes": "Auto-reload dashboard when HTML files change"
+            "notes": "Auto-reload dashboard when HTML files change",
         },
     ]
 
@@ -135,27 +136,27 @@ def main():
     spec.acceptance_criteria = [
         AcceptanceCriterion(
             description="Parse 1000 HTML nodes in <1 second",
-            test_case="test_performance_large_graph"
+            test_case="test_performance_large_graph",
         ),
         AcceptanceCriterion(
             description="CSS selector queries return results in <100ms",
-            test_case="test_query_performance"
+            test_case="test_query_performance",
         ),
         AcceptanceCriterion(
             description="Dashboard loads and renders in <500ms",
-            test_case="test_dashboard_load_time"
+            test_case="test_dashboard_load_time",
         ),
         AcceptanceCriterion(
             description="Zero external dependencies except justhtml + Pydantic",
-            test_case="test_dependencies"
+            test_case="test_dependencies",
         ),
         AcceptanceCriterion(
             description="Works offline without network access",
-            test_case="test_offline_mode"
+            test_case="test_offline_mode",
         ),
         AcceptanceCriterion(
             description="Git diff shows clear changes to graph state",
-            test_case="test_version_control_friendly"
+            test_case="test_version_control_friendly",
         ),
     ]
 
