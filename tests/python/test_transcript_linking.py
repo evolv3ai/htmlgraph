@@ -158,7 +158,7 @@ class TestCompleteWithTranscript:
 
         if completed:
             # Check that implemented-by edge was added
-            edges = completed.edges.get("implemented-by", [])
+            completed.edges.get("implemented-by", [])
             # May or may not have edge depending on mock behavior
             assert completed.status == "done"
 

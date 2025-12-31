@@ -41,7 +41,7 @@ def test_get_active_work_item_no_items(sdk: SDK):
 def test_get_active_work_item_only_todo(sdk: SDK):
     """Test when only todo items exist (no in-progress user work)."""
     # Create a todo feature
-    feature = (
+    (
         sdk.features.create("Test Feature")
         .set_priority("high")
         .add_steps(["Step 1", "Step 2"])

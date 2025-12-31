@@ -26,7 +26,7 @@ def remove_white_background(image_path, output_path, threshold=240):
     data = np.array(img)
 
     # Get RGB channels
-    r, g, b, a = data[:, :, 0], data[:, :, 1], data[:, :, 2], data[:, :, 3]
+    r, g, b, _a = data[:, :, 0], data[:, :, 1], data[:, :, 2], data[:, :, 3]
 
     # Find white/light pixels (all RGB values above threshold)
     white_areas = (r > threshold) & (g > threshold) & (b > threshold)
@@ -138,7 +138,7 @@ def process_all_images():
 
 if __name__ == "__main__":
     try:
-        import numpy
+        import numpy  # noqa: F401 - Used to verify availability
         from PIL import Image
     except ImportError:
         print("❌ Required packages not installed")

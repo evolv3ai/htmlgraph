@@ -343,6 +343,115 @@ Task(
 
 ---
 
+## Parallel Task Coordination
+
+**Use Task ID pattern for parallel delegations.**
+
+### Task ID Pattern
+
+Generate unique IDs to track parallel tasks:
+
+```python
+from htmlgraph.orchestration import delegate_with_id, get_results_by_task_id
+
+# Generate task ID and prepare prompt
+task_id, enhanced_prompt = delegate_with_id(
+    description="Implement feature X",
+    prompt="Your task instructions...",
+    subagent_type="general-purpose"
+)
+
+# Delegate
+Task(
+    prompt=enhanced_prompt,
+    description=f"{task_id}: Implement feature X",
+    subagent_type="general-purpose"
+)
+
+# Retrieve results
+results = get_results_by_task_id(sdk, task_id, timeout=120)
+print(results["findings"])
+```
+
+### Parallel Example
+
+```python
+# Three independent tasks in parallel
+tasks = []
+
+# Task 1: Authentication
+auth_id, auth_prompt = delegate_with_id("Add auth", "Implement JWT...", "general-purpose")
+tasks.append((auth_id, auth_prompt, "Add auth"))
+
+# Task 2: Tests
+test_id, test_prompt = delegate_with_id("Write tests", "Add unit tests...", "general-purpose")
+tasks.append((test_id, test_prompt, "Write tests"))
+
+# Task 3: Documentation
+docs_id, docs_prompt = delegate_with_id("Update docs", "Document API...", "general-purpose")
+tasks.append((docs_id, docs_prompt, "Update docs"))
+
+# Spawn all in parallel (single message)
+for task_id, prompt, desc in tasks:
+    Task(prompt=prompt, description=f"{task_id}: {desc}", subagent_type="general-purpose")
+
+# Retrieve all results
+for task_id, _, desc in tasks:
+    results = get_results_by_task_id(sdk, task_id)
+    if results["success"]:
+        print(f"✅ {desc}: {results['spike_id']}")
+```
+
+### Benefits
+
+- **Works with parallel delegations** - Each task has unique ID
+- **Full traceability** - Task → task_id → spike → findings
+- **Timeout handling** - Polling with configurable timeout
+- **Independent retrieval** - Results can be retrieved in any order
+- **Automatic tracking** - Subagents save to HtmlGraph spikes
+
+### Common Patterns
+
+#### Sequential with Dependencies
+
+```python
+# Task 1: Research
+research_id, research_prompt = delegate_with_id("Research auth patterns", "...", "general-purpose")
+Task(prompt=research_prompt, description=f"{research_id}: Research")
+
+# Wait for research
+research = get_results_by_task_id(sdk, research_id, timeout=60)
+
+# Task 2: Implement (depends on research)
+impl_id, impl_prompt = delegate_with_id(
+    "Implement auth",
+    f"Based on research:\n{research['findings']}\n\nImplement JWT auth...",
+    "general-purpose"
+)
+Task(prompt=impl_prompt, description=f"{impl_id}: Implement")
+
+# Wait for implementation
+impl = get_results_by_task_id(sdk, impl_id, timeout=120)
+```
+
+#### Fully Parallel
+
+```python
+# All tasks independent - spawn all at once
+task_ids = []
+for desc, prompt in tasks:
+    task_id, enhanced_prompt = delegate_with_id(desc, prompt, "general-purpose")
+    task_ids.append((task_id, desc))
+    Task(prompt=enhanced_prompt, description=f"{task_id}: {desc}")
+
+# Collect all results
+results = {}
+for task_id, desc in task_ids:
+    results[desc] = get_results_by_task_id(sdk, task_id, timeout=120)
+```
+
+---
+
 ## Debugging Delegation Patterns
 
 When delegating error resolution tasks:

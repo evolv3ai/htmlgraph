@@ -270,7 +270,7 @@ class TestTodoCollection:
         """Test summary statistics."""
         t1 = sdk.todos.add("Task 1", "Doing task 1")
         t2 = sdk.todos.add("Task 2", "Doing task 2")
-        t3 = sdk.todos.add("Task 3", "Doing task 3")
+        sdk.todos.add("Task 3", "Doing task 3")
 
         sdk.todos.start(t1.id)
         sdk.todos.complete(t2.id)

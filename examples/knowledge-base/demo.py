@@ -21,7 +21,7 @@ def create_notes(sdk: SDK):
     print("📝 Creating knowledge base notes...")
 
     # Daily note
-    daily = (
+    (
         sdk.features.create(f"Daily Note: {date.today()}").set_priority("low").save()
     )
 
@@ -148,7 +148,7 @@ def create_notes(sdk: SDK):
 
     # Add all notes to graph
     for note in [htmlgraph_note, web_standards_note, graph_db_note, ai_agents_note]:
-        filepath = sdk.features._ensure_graph().add(note, overwrite=True)
+        sdk.features._ensure_graph().add(note, overwrite=True)
         print(f"   ✅ Created: {note.title}")
 
     print("\n📚 Created 4 interconnected concept notes")

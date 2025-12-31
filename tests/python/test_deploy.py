@@ -75,7 +75,7 @@ def test_main_with_no_arguments(mock_deploy_script, monkeypatch):
     with mock.patch("subprocess.run") as mock_run:
         mock_run.return_value = mock.Mock(returncode=0)
 
-        result = main(["--dry-run"])
+        main(["--dry-run"])
 
         # Should run deploy script with --dry-run
         assert mock_run.called
@@ -90,7 +90,7 @@ def test_main_with_version_argument(mock_deploy_script, monkeypatch):
     with mock.patch("subprocess.run") as mock_run:
         mock_run.return_value = mock.Mock(returncode=0)
 
-        result = main(["0.9.0", "--dry-run"])
+        main(["0.9.0", "--dry-run"])
 
         # Should pass version to deploy script
         call_args = mock_run.call_args[0][0]
@@ -104,7 +104,7 @@ def test_main_with_docs_only_flag(mock_deploy_script, monkeypatch):
     with mock.patch("subprocess.run") as mock_run:
         mock_run.return_value = mock.Mock(returncode=0)
 
-        result = main(["--docs-only"])
+        main(["--docs-only"])
 
         call_args = mock_run.call_args[0][0]
         assert "--docs-only" in call_args
@@ -117,7 +117,7 @@ def test_main_with_build_only_flag(mock_deploy_script, monkeypatch):
     with mock.patch("subprocess.run") as mock_run:
         mock_run.return_value = mock.Mock(returncode=0)
 
-        result = main(["--build-only"])
+        main(["--build-only"])
 
         call_args = mock_run.call_args[0][0]
         assert "--build-only" in call_args
@@ -130,7 +130,7 @@ def test_main_with_skip_pypi_flag(mock_deploy_script, monkeypatch):
     with mock.patch("subprocess.run") as mock_run:
         mock_run.return_value = mock.Mock(returncode=0)
 
-        result = main(["--skip-pypi"])
+        main(["--skip-pypi"])
 
         call_args = mock_run.call_args[0][0]
         assert "--skip-pypi" in call_args
@@ -143,7 +143,7 @@ def test_main_with_skip_plugins_flag(mock_deploy_script, monkeypatch):
     with mock.patch("subprocess.run") as mock_run:
         mock_run.return_value = mock.Mock(returncode=0)
 
-        result = main(["--skip-plugins"])
+        main(["--skip-plugins"])
 
         call_args = mock_run.call_args[0][0]
         assert "--skip-plugins" in call_args
@@ -156,7 +156,7 @@ def test_main_with_dry_run_flag(mock_deploy_script, monkeypatch):
     with mock.patch("subprocess.run") as mock_run:
         mock_run.return_value = mock.Mock(returncode=0)
 
-        result = main(["--dry-run"])
+        main(["--dry-run"])
 
         call_args = mock_run.call_args[0][0]
         assert "--dry-run" in call_args
@@ -169,7 +169,7 @@ def test_main_with_multiple_flags(mock_deploy_script, monkeypatch):
     with mock.patch("subprocess.run") as mock_run:
         mock_run.return_value = mock.Mock(returncode=0)
 
-        result = main(["0.9.0", "--skip-pypi", "--dry-run"])
+        main(["0.9.0", "--skip-pypi", "--dry-run"])
 
         call_args = mock_run.call_args[0][0]
         assert "0.9.0" in call_args
@@ -279,7 +279,7 @@ def test_main_version_before_flags(mock_deploy_script, monkeypatch):
     with mock.patch("subprocess.run") as mock_run:
         mock_run.return_value = mock.Mock(returncode=0)
 
-        result = main(["0.9.0", "--skip-pypi", "--dry-run"])
+        main(["0.9.0", "--skip-pypi", "--dry-run"])
 
         call_args = mock_run.call_args[0][0]
         # Version should be first argument to script
@@ -323,7 +323,7 @@ def test_version_from_pyproject_toml(mock_project_root, monkeypatch):
         mock_run.return_value = mock.Mock(returncode=0)
 
         # Run without explicit version
-        result = main(["--dry-run"])
+        main(["--dry-run"])
 
         # Should have detected version from pyproject.toml
         call_args = mock_run.call_args[0][0]

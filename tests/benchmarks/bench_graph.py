@@ -165,7 +165,7 @@ class TestQueryPerformance:
 
         for _ in range(10):
             start = time.perf_counter()
-            nodes = medium_graph.query("[data-status='todo'][data-priority='high']")
+            medium_graph.query("[data-status='todo'][data-priority='high']")
             elapsed = time.perf_counter() - start
 
             result.record(elapsed)
@@ -297,7 +297,7 @@ class TestTraversalPerformance:
         for _ in range(5):
             start = time.perf_counter()
             for node in nodes_with_deps[:10]:
-                ancestors = large_graph.ancestors(node.id)
+                large_graph.ancestors(node.id)
             elapsed = time.perf_counter() - start
 
             result.record(elapsed)
@@ -326,7 +326,7 @@ class TestTraversalPerformance:
         for _ in range(5):
             start = time.perf_counter()
             for node_id in blocking_nodes[:10]:
-                descendants = large_graph.descendants(node_id)
+                large_graph.descendants(node_id)
             elapsed = time.perf_counter() - start
 
             result.record(elapsed)
@@ -352,7 +352,7 @@ class TestTraversalPerformance:
             for i in range(min(10, len(nodes_with_edges) - 1)):
                 source = nodes_with_edges[i].id
                 target = nodes_with_edges[i + 1].id
-                path = large_graph.shortest_path(source, target)
+                large_graph.shortest_path(source, target)
             elapsed = time.perf_counter() - start
 
             result.record(elapsed)

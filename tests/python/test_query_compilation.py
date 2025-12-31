@@ -132,10 +132,10 @@ def test_compiled_query_lru_eviction():
         )
 
         # Compile 4 different queries (exceeds cache size)
-        compiled1 = graph.compile_query("[data-status='blocked']")
-        compiled2 = graph.compile_query("[data-status='todo']")
-        compiled3 = graph.compile_query("[data-status='done']")
-        compiled4 = graph.compile_query("[data-priority='high']")
+        graph.compile_query("[data-status='blocked']")
+        graph.compile_query("[data-status='todo']")
+        graph.compile_query("[data-status='done']")
+        graph.compile_query("[data-priority='high']")
 
         # Cache should only hold 3 queries
         assert len(graph._compiled_queries) == 3
@@ -192,7 +192,7 @@ def test_cache_invalidation_clears_compiled_queries():
         )
 
         # Compile query
-        compiled = graph.compile_query("[data-status='blocked']")
+        graph.compile_query("[data-status='blocked']")
         assert len(graph._compiled_queries) == 1
 
         # Add another node (triggers cache invalidation)

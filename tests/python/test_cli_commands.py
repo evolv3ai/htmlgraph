@@ -216,7 +216,7 @@ def test_node_properties(sample_graph):
 def test_invalid_node_id():
     """Test that invalid node ID raises appropriate error."""
     with pytest.raises((ValueError, KeyError, AttributeError)):
-        node = Node(
+        Node(
             id="",  # Empty ID should fail
             title="Invalid",
             type="feature",

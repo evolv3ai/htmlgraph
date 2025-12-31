@@ -432,7 +432,7 @@ print(mermaid)
     ]
 
     for page in pages:
-        filepath = sdk.features._ensure_graph().add(page, overwrite=True)
+        sdk.features._ensure_graph().add(page, overwrite=True)
         print(f"   ✅ Created: {page.title}")
 
     print(f"\n📚 Created {len(pages)} documentation pages")

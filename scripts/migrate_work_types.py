@@ -101,7 +101,7 @@ def migrate_sessions(dry_run: bool = False) -> dict:
     from htmlgraph import SDK
     from htmlgraph.converter import html_to_session, session_to_html
 
-    sdk = SDK()
+    SDK()
     sessions_dir = Path(".htmlgraph/sessions")
 
     stats = {"total_sessions": 0, "updated_sessions": 0, "sessions_with_breakdown": {}}

@@ -234,7 +234,7 @@ class TestTransaction:
         """Test transaction with no operations."""
         initial_count = len(temp_graph)
 
-        with temp_graph.transaction() as tx:
+        with temp_graph.transaction():
             pass  # No operations
 
         # Graph should be unchanged

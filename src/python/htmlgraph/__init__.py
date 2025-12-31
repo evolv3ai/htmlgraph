@@ -46,6 +46,12 @@ from htmlgraph.models import (
     Step,
     WorkType,
 )
+from htmlgraph.orchestration import (
+    delegate_with_id,
+    generate_task_id,
+    get_results_by_task_id,
+    parallel_delegate,
+)
 from htmlgraph.orchestrator_mode import OrchestratorMode, OrchestratorModeManager
 from htmlgraph.parallel import AggregateResult, ParallelAnalysis, ParallelWorkflow
 from htmlgraph.query_builder import Condition, Operator, QueryBuilder
@@ -175,4 +181,9 @@ __all__ = [
     # Orchestrator Mode Management
     "OrchestratorMode",
     "OrchestratorModeManager",
+    # Orchestration helpers for parallel task coordination
+    "delegate_with_id",
+    "get_results_by_task_id",
+    "parallel_delegate",
+    "generate_task_id",
 ]

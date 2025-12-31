@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Implement Task ID pattern for parallel agent coordination</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-ef098d5b"
+             data-type="feature"
+             data-status="done"
+             data-priority="high"
+             data-created="2025-12-31T04:23:22.984928"
+             data-updated="2025-12-31T04:23:23.410476">
+
+        <header>
+            <h1>Implement Task ID pattern for parallel agent coordination</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-40ed8a68.html" data-relationship="implemented-in" data-since="2025-12-31T04:23:23.410465">sess-40ed8a68</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true">✅ Create src/python/htmlgraph/orchestration.py with helper functions</li>
+                <li data-completed="true">✅ Implement delegate_with_id() function</li>
+                <li data-completed="true">✅ Implement get_results_by_task_id() with polling and timeout</li>
+                <li data-completed="true">✅ Implement parallel_delegate() for batch coordination</li>
+                <li data-completed="true">✅ Update CLAUDE.md orchestrator directives with Task ID pattern</li>
+                <li data-completed="true">✅ Update htmlgraph-orchestrator/SKILL.md with parallel examples</li>
+                <li data-completed="true">✅ Add unit tests for orchestration helpers</li>
+                <li data-completed="true">✅ Add integration test with parallel tasks</li>
+                <li data-completed="true">✅ Update DEBUGGING.md with Task ID tracing guide</li>
+                <li data-completed="true">✅ Create example script demonstrating parallel coordination</li>
+            </ol>
+        </section>
+        <section data-content>
+            <h3>Description</h3>
+            Implement Task ID pattern to enable reliable result retrieval from parallel Task() delegations.
+
+**Problem:**
+Current delegation pattern cannot distinguish results from parallel tasks:
+- Timestamp-based lookup returns first spike after timestamp
+- With parallel tasks, we get multiple spikes but cannot match to specific task
+- No traceability from Task() call to spike results
+
+**Solution:**
+Generate unique task ID for each Task() delegation and include in spike title.
+
+**Pattern:**
+
+
+**Implementation Requirements:**
+
+1. **Helper Functions** (new file: src/python/htmlgraph/orchestration.py):
+   - delegate_with_id(description, prompt, subagent_type) -> task_id
+   - get_results_by_task_id(sdk, task_id, timeout) -> dict
+   - parallel_delegate(tasks: list) -> dict[task_id: results]
+
+2. **Orchestrator Directives Update** (CLAUDE.md):
+   - Add Task ID pattern to Section 6 (HtmlGraph Delegation)
+   - Show parallel task coordination example
+   - Document helper functions
+
+3. **Orchestrator Skill Update** (htmlgraph-orchestrator/SKILL.md):
+   - Add Parallel Task Coordination section
+   - Show task ID pattern examples
+   - Anti-patterns (timestamp-only for parallel)
+
+4. **SDK Enhancement** (Optional):
+   - Add orchestration module to SDK
+   - sdk.orchestrate.delegate_with_id()
+   - sdk.orchestrate.get_results()
+
+**Success Criteria:**
+- Can spawn 3+ parallel tasks and retrieve each result correctly
+- Task ID visible in spike title
+- Timeout handling works
+- Polling mechanism efficient
+- Documented with examples
+
+**Example Usage:**
+        </section>
+    </article>
+</body>
+</html>

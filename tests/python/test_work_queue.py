@@ -32,12 +32,12 @@ def temp_sdk(tmp_path):
     sdk = SDK(directory=graph_dir, agent="test-agent")
 
     # Create test features with different priorities and statuses
-    feat1 = sdk.features.create("High priority feature", priority="high").save()
-    feat2 = sdk.features.create("Medium priority feature", priority="medium").save()
-    feat3 = sdk.features.create("Low priority feature", priority="low").save()
+    sdk.features.create("High priority feature", priority="high").save()
+    sdk.features.create("Medium priority feature", priority="medium").save()
+    sdk.features.create("Low priority feature", priority="low").save()
 
     # Create a bug
-    bug1 = sdk.bugs.create("Critical bug", priority="high").save()
+    sdk.bugs.create("Critical bug", priority="high").save()
 
     # Create a blocked feature directly
     from htmlgraph.ids import generate_id
@@ -228,10 +228,10 @@ def test_work_queue_priority_ordering(temp_sdk):
     if high_priority and low_priority:
         # High priority should generally score higher than low priority
         # (though routing can override based on other factors)
-        avg_high_score = sum(item["score"] for item in high_priority) / len(
+        sum(item["score"] for item in high_priority) / len(
             high_priority
         )
-        avg_low_score = sum(item["score"] for item in low_priority) / len(low_priority)
+        sum(item["score"] for item in low_priority) / len(low_priority)
 
         # This is a soft check - routing logic may vary
         # Just ensure high priority items are represented in top results

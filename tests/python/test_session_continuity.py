@@ -28,9 +28,9 @@ class TestStrategicRecommendations:
         sdk = SDK(directory=graph_dir, agent="test-agent")
 
         # Create some features with dependencies
-        f1 = sdk.features.create("Feature 1").set_priority("high").save()
-        f2 = sdk.features.create("Feature 2").set_priority("medium").save()
-        f3 = sdk.features.create("Feature 3").set_priority("low").save()
+        sdk.features.create("Feature 1").set_priority("high").save()
+        sdk.features.create("Feature 2").set_priority("medium").save()
+        sdk.features.create("Feature 3").set_priority("low").save()
 
         # Get recommendations
         recs = sdk.recommend_next_work(agent_count=1)
@@ -56,8 +56,8 @@ class TestStrategicRecommendations:
 
         # Create features with blocking relationships
         f1 = sdk.features.create("Blocker Feature").save()
-        f2 = sdk.features.create("Blocked Feature 1").blocked_by(f1.id).save()
-        f3 = sdk.features.create("Blocked Feature 2").blocked_by(f1.id).save()
+        sdk.features.create("Blocked Feature 1").blocked_by(f1.id).save()
+        sdk.features.create("Blocked Feature 2").blocked_by(f1.id).save()
 
         # Get bottlenecks
         bottlenecks = sdk.find_bottlenecks(top_n=3)
@@ -105,8 +105,8 @@ class TestMultiAgentAwareness:
         manager = SessionManager(graph_dir)
 
         # Create sessions for different agents
-        session1 = manager.start_session(agent="agent-1", title="Agent 1 Session")
-        session2 = manager.start_session(agent="agent-2", title="Agent 2 Session")
+        manager.start_session(agent="agent-1", title="Agent 1 Session")
+        manager.start_session(agent="agent-2", title="Agent 2 Session")
 
         # Get all active sessions
         converter = SessionConverter(sessions_dir)

@@ -43,7 +43,7 @@ def test_auto_release_on_session_end(tmp_path):
     manager = SessionManager(tmp_path)
 
     # Start session
-    session = manager.start_session("sess-1", agent="agent1")
+    manager.start_session("sess-1", agent="agent1")
 
     # Create and claim feature
     feature = manager.create_feature("Test Feature")

@@ -53,10 +53,10 @@ class TestSessionInitSpike:
         manager = SessionManager(graph_dir)
 
         # Start session twice (simulating session restart)
-        session1 = manager.start_session(
+        manager.start_session(
             session_id="test-session", agent="test-agent", title="Test Session"
         )
-        session2 = manager.start_session(
+        manager.start_session(
             session_id="test-session", agent="test-agent", title="Test Session"
         )
 
@@ -100,7 +100,7 @@ class TestTransitionSpike:
         manager = SessionManager(graph_dir)
 
         # Create and start a session
-        session = manager.start_session(agent="test-agent", title="Test Session")
+        manager.start_session(agent="test-agent", title="Test Session")
 
         # Create and complete a feature
         feature = manager.create_feature("Test Feature", agent="test-agent")
@@ -161,7 +161,7 @@ class TestAutoSpikeCompletion:
         manager = SessionManager(graph_dir)
 
         # Start session (creates session-init spike)
-        session = manager.start_session(agent="test-agent", title="Test Session")
+        manager.start_session(agent="test-agent", title="Test Session")
 
         # Verify session-init spike is in-progress
         spike_converter = NodeConverter(graph_dir / "spikes")
@@ -186,7 +186,7 @@ class TestAutoSpikeCompletion:
 
         manager = SessionManager(graph_dir)
 
-        session = manager.start_session(agent="test-agent", title="Test Session")
+        manager.start_session(agent="test-agent", title="Test Session")
 
         # Complete first feature (creates transition spike)
         feature1 = manager.create_feature("Feature 1", agent="test-agent")
@@ -219,7 +219,7 @@ class TestAutoSpikeCompletion:
         manager = SessionManager(graph_dir)
 
         # Start session (creates session-init spike)
-        session = manager.start_session(agent="test-agent", title="Test Session")
+        manager.start_session(agent="test-agent", title="Test Session")
 
         # Verify session-init spike exists
         spike_converter = NodeConverter(graph_dir / "spikes")

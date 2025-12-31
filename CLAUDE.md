@@ -274,6 +274,66 @@ Task(
 
 **See:** `packages/claude-plugin/skills/htmlgraph-orchestrator/SKILL.md` for complete orchestrator patterns
 
+### Task ID Pattern for Parallel Coordination
+
+**Problem:** Timestamp-based lookup cannot distinguish parallel task results.
+
+**Solution:** Generate unique task ID for each delegation.
+
+#### Helper Functions
+
+HtmlGraph provides orchestration helpers in `htmlgraph.orchestration`:
+
+```python
+from htmlgraph.orchestration import delegate_with_id, get_results_by_task_id
+
+# Generate task ID and enhanced prompt
+task_id, prompt = delegate_with_id(
+    "Implement authentication",
+    "Add JWT auth to API endpoints...",
+    "general-purpose"
+)
+
+# Delegate (orchestrator calls Task tool)
+Task(
+    prompt=prompt,
+    description=f"{task_id}: Implement authentication",
+    subagent_type="general-purpose"
+)
+
+# Retrieve results by task ID
+results = get_results_by_task_id(sdk, task_id, timeout=120)
+if results["success"]:
+    print(results["findings"])
+```
+
+#### Parallel Task Coordination
+
+```python
+from htmlgraph.orchestration import delegate_with_id, get_results_by_task_id
+
+# Spawn 3 parallel tasks
+auth_id, auth_prompt = delegate_with_id("Implement auth", "...", "general-purpose")
+test_id, test_prompt = delegate_with_id("Write tests", "...", "general-purpose")
+docs_id, docs_prompt = delegate_with_id("Update docs", "...", "general-purpose")
+
+# Delegate all in parallel (single message, multiple Task calls)
+Task(prompt=auth_prompt, description=f"{auth_id}: Implement auth")
+Task(prompt=test_prompt, description=f"{test_id}: Write tests")
+Task(prompt=docs_prompt, description=f"{docs_id}: Update docs")
+
+# Retrieve results independently (order doesn't matter)
+auth_results = get_results_by_task_id(sdk, auth_id)
+test_results = get_results_by_task_id(sdk, test_id)
+docs_results = get_results_by_task_id(sdk, docs_id)
+```
+
+**Benefits:**
+- Works with parallel delegations
+- Full traceability (Task → task_id → spike → findings)
+- Timeout handling with polling
+- Independent result retrieval
+
 ---
 
 ## 🧹 Code Hygiene - MANDATORY

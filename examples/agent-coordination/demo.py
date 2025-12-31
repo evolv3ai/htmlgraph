@@ -147,7 +147,6 @@ def simulate_agent_work(sdk: SDK):
 
     # Agent 2: Frontend specialist (works on UI)
     print("\n👤 Agent 2 (Frontend Specialist):")
-    agent2 = "frontend-agent"
 
     frontend_work = [f for f in available if "Dashboard" in f.title or "UI" in f.title]
 
@@ -165,7 +164,6 @@ def simulate_agent_work(sdk: SDK):
 
     # Agent 3: Full-stack (can work on anything)
     print("\n👤 Agent 3 (Full-Stack):")
-    agent3 = "fullstack-agent"
 
     # Use recommendation system
     recs = sdk.recommend_next_work(agent_count=1)
@@ -277,7 +275,7 @@ def main():
     sdk = SDK(directory=".", agent="demo-coordinator")
 
     # Setup project
-    features = setup_project(sdk)
+    setup_project(sdk)
 
     # Simulate agent work
     simulate_agent_work(sdk)

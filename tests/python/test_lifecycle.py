@@ -147,7 +147,7 @@ class TestFullLifecycle:
 
         manager = SessionManager(graph_dir, wip_limit=3)
 
-        session = manager.start_session(
+        manager.start_session(
             agent="test-agent", title="Parallel Work Session"
         )
 
@@ -335,13 +335,13 @@ class TestEdgeCases:
 
         # Create session and feature with one manager instance
         manager1 = SessionManager(graph_dir)
-        session = manager1.start_session(agent="test-agent", title="Persistence Test")
+        manager1.start_session(agent="test-agent", title="Persistence Test")
         feature = manager1.create_feature("Test Feature", agent="test-agent")
         manager1.start_feature(feature.id, agent="test-agent")
         manager1.complete_feature(feature.id, agent="test-agent")
 
         # Create new manager instance (simulates process restart)
-        manager2 = SessionManager(graph_dir)
+        SessionManager(graph_dir)
 
         # Verify spikes are still there
         spike_converter = NodeConverter(graph_dir / "spikes")
