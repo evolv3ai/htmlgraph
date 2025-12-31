@@ -27,7 +27,7 @@ Hook Output (stdout): JSON with guidance {"decision": "allow", "guidance": "..."
 import json
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 # Anti-patterns to detect (tool sequence -> warning message)
@@ -77,9 +77,30 @@ def load_tool_history() -> list[dict]:
     if TOOL_HISTORY_FILE.exists():
         try:
             data = json.loads(TOOL_HISTORY_FILE.read_text())
+
+            # Handle both formats: {"history": [...]} and [...] (legacy)
+            if isinstance(data, dict):
+                data = data.get("history", [])
+
             # Filter to last hour only
-            cutoff = datetime.now().timestamp() - 3600
-            return [t for t in data if t.get("ts", 0) > cutoff][-MAX_HISTORY:]
+            cutoff = datetime.now(timezone.utc).timestamp() - 3600
+
+            # Handle both "ts" (old) and "timestamp" (new) formats
+            filtered = []
+            for t in data:
+                ts = t.get("ts", 0)
+                if not ts and "timestamp" in t:
+                    # Parse ISO format timestamp
+                    try:
+                        ts = datetime.fromisoformat(
+                            t["timestamp"].replace("Z", "+00:00")
+                        ).timestamp()
+                    except Exception:
+                        ts = 0
+                if ts > cutoff:
+                    filtered.append(t)
+
+            return filtered[-MAX_HISTORY:]
         except Exception:
             pass
     return []
@@ -88,14 +109,18 @@ def load_tool_history() -> list[dict]:
 def save_tool_history(history: list[dict]) -> None:
     """Save tool history to temp file."""
     try:
-        TOOL_HISTORY_FILE.write_text(json.dumps(history[-MAX_HISTORY:]))
+        # Use wrapped format to match orchestrator-enforce.py
+        TOOL_HISTORY_FILE.write_text(
+            json.dumps({"history": history[-MAX_HISTORY:]}, indent=2)
+        )
     except Exception:
         pass
 
 
 def record_tool(tool: str, history: list[dict]) -> list[dict]:
     """Record a tool use in history."""
-    history.append({"tool": tool, "ts": datetime.now().timestamp()})
+    # Use same format as orchestrator-enforce.py for consistency
+    history.append({"tool": tool, "timestamp": datetime.now(timezone.utc).isoformat()})
     return history[-MAX_HISTORY:]
 
 
@@ -392,8 +417,9 @@ def main():
         # Read tool input from stdin
         tool_input = json.load(sys.stdin)
 
-        tool = tool_input.get("tool", "")
-        params = tool_input.get("params", {})
+        # Claude Code uses "name" and "input", fallback to "tool" and "params"
+        tool = tool_input.get("name", "") or tool_input.get("tool", "")
+        params = tool_input.get("input", {}) or tool_input.get("params", {})
 
         # Load config
         config = load_validation_config()

@@ -69,6 +69,9 @@ def load_tool_history() -> list[dict]:
 
     try:
         data = json.loads(TOOL_HISTORY_FILE.read_text())
+        # Handle both formats: {"history": [...]} and [...] (legacy)
+        if isinstance(data, list):
+            return data
         return data.get("history", [])
     except Exception:
         return []
@@ -374,28 +377,17 @@ def main():
     except json.JSONDecodeError:
         hook_input = {}
 
-    # Get tool name and parameters
-    tool_name = hook_input.get("tool_name", "")
-    tool_input = hook_input.get("tool_input", {})
+    # Get tool name and parameters (Claude Code uses "name" and "input")
+    tool_name = hook_input.get("name", "") or hook_input.get("tool_name", "")
+    tool_input = hook_input.get("input", {}) or hook_input.get("tool_input", {})
 
     if not tool_name:
         # No tool name, allow
         print(json.dumps({"continue": True}))
         return
 
-    # Enforce orchestrator mode
+    # Enforce orchestrator mode (saves to history internally)
     response = enforce_orchestrator_mode(tool_name, tool_input)
-
-    # Save current tool to history for pattern detection
-    # This enables detection of multiple Read/Grep/Glob sequences
-    history = load_tool_history()
-    history.append(
-        {
-            "tool": tool_name,
-            "timestamp": datetime.now().isoformat(),
-        }
-    )
-    save_tool_history(history[-MAX_HISTORY_SIZE:])  # Keep last 50
 
     # Output JSON response
     print(json.dumps(response))

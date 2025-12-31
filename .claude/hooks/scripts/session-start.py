@@ -141,6 +141,7 @@ try:
     from htmlgraph import SDK, generate_id
     from htmlgraph.converter import node_to_dict
     from htmlgraph.graph import HtmlGraph
+    from htmlgraph.orchestrator_mode import OrchestratorModeManager
     from htmlgraph.session_manager import SessionManager
 except Exception as e:
     print(
@@ -149,6 +150,47 @@ except Exception as e:
     )
     print(json.dumps({}))
     sys.exit(0)
+
+
+def activate_orchestrator_mode(
+    graph_dir: Path, features: list[dict], session_id: str
+) -> tuple[bool, str]:
+    """
+    Activate orchestrator mode unconditionally.
+
+    Plugin installed = Orchestrator mode enabled.
+    This is the default operating mode for all htmlgraph projects.
+
+    Args:
+        graph_dir: Path to .htmlgraph directory
+        features: List of features (unused, kept for compatibility)
+        session_id: Current session ID
+
+    Returns:
+        (is_active, enforcement_level)
+    """
+    try:
+        manager = OrchestratorModeManager(graph_dir)
+
+        # Get current mode
+        mode = manager.load()
+
+        # Decision: Always enable orchestrator mode unless user explicitly disabled
+        if mode.disabled_by_user:
+            # User explicitly disabled - respect their choice
+            return False, "disabled"
+
+        # Enable if not already enabled
+        if not mode.enabled:
+            manager.enable(session_id=session_id, level="strict", auto=True)
+            return True, "strict"
+
+        # Already enabled - return current state
+        return True, mode.enforcement_level
+
+    except Exception as e:
+        print(f"Warning: Could not manage orchestrator mode: {e}", file=sys.stderr)
+        return False, "error"
 
 
 def get_features(graph_dir: Path) -> list[dict]:
@@ -311,16 +353,120 @@ uv run htmlgraph serve
 - `index.html` - Dashboard (open in browser)
 """
 
+TRACKER_WORKFLOW = """## 📊 HTMLGRAPH TRACKING WORKFLOW
+
+**CRITICAL: Follow this checklist for EVERY session.**
+
+### Session Start (DO THESE FIRST)
+1. ✅ Check active features: `uv run htmlgraph status`
+2. ✅ Review session context and decide what to work on
+3. ✅ **DECIDE:** Create feature or implement directly?
+   - Create FEATURE if ANY apply: >30min, 3+ files, needs tests, multi-component, hard to revert
+   - Implement DIRECTLY if ALL apply: single file, <30min, trivial, easy to revert
+
+### During Work (DO CONTINUOUSLY)
+1. ✅ **Feature MUST be in-progress before writing code**
+   - Start feature: `sdk.features.start("feature-id")` or `uv run htmlgraph feature start <id>`
+2. ✅ **CRITICAL:** Mark each step complete IMMEDIATELY after finishing it:
+   ```python
+   from htmlgraph import SDK
+   sdk = SDK(agent="claude")
+   with sdk.features.edit("feature-id") as f:
+       f.steps[0].completed = True  # First step done
+       f.steps[1].completed = True  # Second step done
+   ```
+3. ✅ Document decisions as you make them
+4. ✅ Test incrementally - don't wait until the end
+
+### Session End (MUST DO BEFORE COMPLETING FEATURE)
+1. ✅ **RUN TESTS:** All tests MUST pass
+2. ✅ **VERIFY STEPS:** ALL feature steps marked complete
+3. ✅ **CLEAN CODE:** Remove debug code, console.logs, TODOs
+4. ✅ **COMMIT WORK:** Git commit IMMEDIATELY (include feature ID in message)
+5. ✅ **COMPLETE FEATURE:** `sdk.features.complete("feature-id")` or `uv run htmlgraph feature complete <id>`
+
+### SDK Usage (ALWAYS USE SDK, NEVER DIRECT FILE EDITS)
+❌ **FORBIDDEN:** `Write('/path/.htmlgraph/features/...', ...)` `Edit('/path/.htmlgraph/...')`
+✅ **REQUIRED:** Use SDK for ALL operations on `.htmlgraph/` files
+
+```python
+from htmlgraph import SDK
+sdk = SDK(agent="claude")
+
+# Create and work on features
+feature = sdk.features.create("Title").set_priority("high").add_steps(["Step 1", "Step 2"]).save()
+with sdk.features.edit("feature-id") as f:
+    f.status = "done"
+
+# Query and batch operations
+high_priority = sdk.features.where(status="todo", priority="high")
+sdk.features.batch_update(["feat-1", "feat-2"], {"status": "done"})
+```
+
+**For complete SDK documentation → see `docs/AGENTS.md`**
+"""
+
 ORCHESTRATOR_DIRECTIVES = """## 🎯 ORCHESTRATOR DIRECTIVES (IMPERATIVE)
 
 **YOU ARE THE ORCHESTRATOR.** Follow these directives:
 
-### 1. DELEGATE Implementation Work
-**DO NOT execute code directly.** Use `Task(subagent_type="general-purpose")` for coding tasks.
+### 1. ALWAYS DELEGATE - Even "Simple" Operations
 
-**Why:** Direct execution fills YOUR context with implementation details. You are strategic, not tactical.
+**CRITICAL INSIGHT:** What looks like "one tool call" often becomes 2, 3, 4+ calls.
 
-### 2. CREATE Work Items FIRST
+**ALWAYS delegate, even if you think it's simple:**
+- ❌ "Just read one file" → ✅ Delegate to Explorer
+- ❌ "Just edit one file" → ✅ Delegate to Coder
+- ❌ "Just run tests" → ✅ Delegate to Tester
+- ❌ "Just search for X" → ✅ Delegate to Explorer
+
+**Why ALWAYS delegate:**
+- Tool outputs are unknown until execution
+- "One operation" often expands into many
+- Each subagent has self-contained context
+- Orchestrator only pays for: Task() call + Task output (not intermediate tool calls)
+- Your context stays strategic, not filled with implementation details
+
+**ONLY execute directly:**
+- Task() - Delegation itself
+- AskUserQuestion() - Clarifying with user
+- TodoWrite() - Tracking work
+- SDK operations - Creating features/work items
+
+**Everything else → DELEGATE.**
+
+### 2. YOUR ONLY JOB: Provide Clear Task Descriptions
+
+**You don't execute, you describe what needs executing.**
+
+**Good delegation:**
+```python
+Task(
+    prompt="Find all files in src/auth/ that handle JWT validation.
+            List the files and explain what each one does.",
+    subagent_type="Explore"
+)
+
+Task(
+    prompt="Fix the bug in src/auth/jwt.py where tokens expire immediately.
+            The issue is in the validate_token() function.
+            Run tests after fixing to verify the fix works.",
+    subagent_type="general-purpose"
+)
+```
+
+**Your job:**
+- ✅ Describe the task clearly
+- ✅ Provide context the subagent needs
+- ✅ Specify what success looks like
+- ✅ Give enough detail for self-contained execution
+
+**Not your job:**
+- ❌ Execute the task yourself
+- ❌ Guess how many tool calls it will take
+- ❌ Read files to "check if it's simple"
+
+### 3. CREATE Work Items FIRST
 **Before ANY implementation, create features:**
 ```python
 from htmlgraph import SDK
@@ -330,12 +476,12 @@ feature = sdk.features.create("Feature Title").save()
 
 **Why:** Work items enable learning, pattern detection, and progress tracking.
 
-### 3. PARALLELIZE Independent Tasks
+### 4. PARALLELIZE Independent Tasks
 **Spawn multiple `Task()` calls in a single message when tasks don't depend on each other.**
 
 **Example:**
 ```python
-# DO THIS:
+# DO THIS (parallel):
 Task("Implement auth API", subagent_type="general-purpose")
 Task("Write auth tests", subagent_type="general-purpose")
 Task("Update docs", subagent_type="general-purpose")
@@ -350,29 +496,82 @@ Task("Update docs")         # wait...
 
 **Why:** Parallel delegation is faster. You coordinate, subagents execute.
 
-### 4. PRESERVE Your Context
-**Your context is STRATEGIC. Keep it lean:**
-- ✅ Project overview, architecture decisions
-- ✅ Feature dependencies, bottlenecks
-- ✅ High-level coordination
-- ❌ Implementation details (delegate these)
-- ❌ File contents (subagents handle)
-- ❌ Test results (subagents report)
+### 5. CONTEXT COST MODEL
 
-**Why:** Strategic context = better decisions. Tactical details = noise.
+**Understand what uses YOUR context:**
+- ✅ Task() call (tiny - just the prompt)
+- ✅ Task output (small - summary from subagent)
+- ❌ Subagent's tool calls (NOT in your context!)
+- ❌ Subagent's file reads (NOT in your context!)
+- ❌ Subagent's intermediate results (NOT in your context!)
 
-### 5. USE Exploration Agents
-**For codebase research, use `Task(subagent_type="Explore")`:**
-```python
-Task("Find all authentication-related files", subagent_type="Explore")
-Task("Analyze database schema for users table", subagent_type="Explore")
+**Example:**
+```
+Your context cost for "Fix auth bug":
+- Task("Fix auth bug in jwt.py...") → 100 tokens
+- Task output: "Fixed. Tests pass." → 50 tokens
+Total: 150 tokens
+
+If you did it yourself:
+- Read jwt.py → 5000 tokens
+- Read tests → 3000 tokens
+- Edit jwt.py → 200 tokens
+- Run tests → 1000 tokens
+Total: 9200 tokens (61x more expensive!)
 ```
 
-**Why:** Exploration agents search efficiently without filling your context.
+**Your context is precious. Delegate everything.**
 
 ---
 
-**YOU ARE THE ARCHITECT. SUBAGENTS ARE BUILDERS. DELEGATE.**
+**YOU ARE THE ARCHITECT. SUBAGENTS ARE BUILDERS. DELEGATE EVERYTHING.**
+"""
+
+
+def _build_orchestrator_status(active: bool, level: str) -> str:
+    """
+    Build orchestrator status section for context.
+
+    Args:
+        active: Whether orchestrator mode is active
+        level: Enforcement level ('strict', 'guidance', 'disabled', 'error')
+
+    Returns:
+        Formatted status message
+    """
+    if not active or level == "disabled":
+        return """## 🎯 ORCHESTRATOR MODE: INACTIVE
+
+⚠️  Orchestrator mode has been manually disabled. This is unusual - the default mode is ORCHESTRATOR ENABLED.
+
+**Note:** Without orchestrator mode, you will fill context with implementation details instead of delegating to subagents.
+
+To re-enable: `uv run htmlgraph orchestrator enable`
+"""
+
+    if level == "error":
+        return """## 🎯 ORCHESTRATOR MODE: ERROR
+
+Warning: Could not determine orchestrator mode status. Proceeding without enforcement.
+"""
+
+    # Active mode
+    enforcement_desc = (
+        "blocks direct implementation"
+        if level == "strict"
+        else "provides guidance only"
+    )
+
+    return f"""## 🎯 ORCHESTRATOR MODE: ACTIVE ({level} enforcement)
+
+**Default operating mode** - Plugin installed = Orchestrator enabled.
+
+**Enforcement:** This mode {enforcement_desc}. Follow the delegation workflow in ORCHESTRATOR DIRECTIVES below.
+
+**Why:** Orchestrator mode saves 80%+ context by delegating implementation to subagents instead of executing directly.
+
+To disable: `uv run htmlgraph orchestrator disable`
+To change level: `uv run htmlgraph orchestrator set-level guidance`
 """
 
 
@@ -696,12 +895,21 @@ def main():
     # Get features and stats
     features, stats = get_feature_summary(graph_dir)
 
+    # Activate orchestrator mode (default operating mode for htmlgraph)
+    orchestrator_active, orchestrator_level = activate_orchestrator_mode(
+        graph_dir, features, external_session_id
+    )
+
     if not features:
         context = f"""{version_warning}{HTMLGRAPH_PROCESS_NOTICE}
 
 ---
 
 {ORCHESTRATOR_DIRECTIVES}
+
+---
+
+{TRACKER_WORKFLOW}
 
 ---
 
@@ -732,12 +940,19 @@ Or create features manually in `.htmlgraph/features/`
     # Get recent commits
     recent_commits = get_recent_commits(project_dir, count=5)
 
+    # Build orchestrator status section
+    orchestrator_status = _build_orchestrator_status(
+        orchestrator_active, orchestrator_level
+    )
+
     # Build context (prepend version warning if outdated)
     context_parts = []
     if version_warning:
         context_parts.append(version_warning.strip())
     context_parts.append(HTMLGRAPH_PROCESS_NOTICE)
+    context_parts.append(orchestrator_status)
     context_parts.append(ORCHESTRATOR_DIRECTIVES)
+    context_parts.append(TRACKER_WORKFLOW)
 
     # Previous session summary (enhanced with more detail)
     prev_session = get_session_summary(graph_dir)

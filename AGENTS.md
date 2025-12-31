@@ -573,6 +573,258 @@ if __name__ == "__main__":
 
 ---
 
+## Orchestrator Mode
+
+### What is Orchestrator Mode?
+
+Orchestrator Mode is an **enforcement system** that guides AI agents to delegate low-cognitive, context-filling work to specialized subagents using the Task tool. When enabled, certain operations are blocked or warned against to encourage efficient workflow patterns.
+
+**Key Principles:**
+- **Context preservation** - Keep orchestrator context for high-level decisions
+- **Parallel execution** - Delegate to subagents for concurrent work
+- **Pattern enforcement** - Block operations that fill context unnecessarily
+- **Progressive guidance** - Start with warnings, escalate to blocks
+
+### Quick Start
+
+```bash
+# Enable orchestrator mode (strict enforcement)
+uv run htmlgraph orchestrator enable
+
+# Enable with guidance only (warnings, no blocks)
+uv run htmlgraph orchestrator enable --mode guidance
+
+# Check current status
+uv run htmlgraph orchestrator status
+
+# Disable orchestrator mode
+uv run htmlgraph orchestrator disable
+```
+
+### How It Works
+
+Orchestrator Mode uses HtmlGraph's **PreToolUse hook** to intercept tool calls before execution:
+
+1. **Tool call initiated** - Agent attempts to use a tool (e.g., Bash, Edit, Grep)
+2. **Hook intercepts** - PreToolUse hook examines the tool and context
+3. **Classification** - Determines if operation should be allowed, warned, or blocked
+4. **Guidance** - Provides feedback and suggests delegation
+5. **Execution** - Either allows the operation or blocks it (depending on mode)
+
+**Enforcement Modes:**
+
+- **Strict** (default) - Blocks disallowed operations, agent must delegate
+- **Guidance** - Shows warnings but allows all operations (learning mode)
+
+### Operation Classification
+
+#### ✅ Always Allowed (No restrictions)
+
+- **SDK Operations** - `sdk.features.create()`, `sdk.features.edit()`, etc.
+- **Task Tool** - Delegation to subagents
+- **TodoWrite** - Task list management
+- **Read** - Reading files (≤5 per session)
+- **Strategic Analysis** - `dep_analytics`, `recommend_next_work()`
+
+#### ⚠️ Warned (Allowed with guidance)
+
+- **Bash** - First 3 calls allowed, then warned
+- **Edit** - First 5 calls allowed, then warned
+- **Grep** - First 5 calls allowed, then warned
+- **Glob** - First 5 calls allowed, then warned
+
+#### 🚫 Blocked in Strict Mode
+
+- **Excessive Read** - More than 5 file reads
+- **Excessive Bash** - More than 3 bash calls
+- **Excessive Edit** - More than 5 file edits
+- **Excessive Grep** - More than 5 searches
+- **Excessive Glob** - More than 5 pattern matches
+
+### Examples
+
+#### ❌ Direct Execution (Fills Context)
+
+```python
+# Orchestrator runs tests directly - sequential, fills context
+result1 = bash("uv run pytest tests/unit/")
+result2 = bash("uv run pytest tests/integration/")
+result3 = bash("uv run pytest tests/e2e/")
+# Result: 3 sequential calls, full output in orchestrator context
+# Orchestrator mode: BLOCKED after 3rd call
+```
+
+#### ✅ Delegated Execution (Preserves Context)
+
+```python
+# Orchestrator spawns parallel subagents
+Task(
+    subagent_type="general-purpose",
+    prompt="Run unit tests and report only failures"
+)
+Task(
+    subagent_type="general-purpose",
+    prompt="Run integration tests and report only failures"
+)
+Task(
+    subagent_type="general-purpose",
+    prompt="Run e2e tests and report only failures"
+)
+# Result: 3 parallel agents, orchestrator gets summaries only
+# Orchestrator mode: ALLOWED
+```
+
+#### ❌ Multiple File Edits (Fills Context)
+
+```python
+# Orchestrator edits 10 files
+for file in files:
+    Edit(file, ...)  # Each edit adds to context
+# Orchestrator mode: BLOCKED after 5 edits
+```
+
+#### ✅ Delegated File Edits
+
+```python
+# Orchestrator delegates to subagent
+Task(
+    subagent_type="general-purpose",
+    prompt=f"Update all files in {files} to use new API. Report summary of changes."
+)
+# Orchestrator mode: ALLOWED
+```
+
+### Configuration
+
+Orchestrator mode is configured via `.htmlgraph/orchestrator.json`:
+
+```json
+{
+  "enabled": true,
+  "mode": "strict",
+  "thresholds": {
+    "max_bash_calls": 3,
+    "max_file_reads": 5,
+    "max_file_edits": 5,
+    "max_grep_calls": 5,
+    "max_glob_calls": 5
+  },
+  "allowed_tools": [
+    "SDK",
+    "Task",
+    "TodoWrite"
+  ]
+}
+```
+
+**Customization:**
+
+```bash
+# Edit thresholds directly
+vim .htmlgraph/orchestrator.json
+
+# Or use CLI (future)
+uv run htmlgraph orchestrator set-threshold max_bash_calls 5
+```
+
+### When to Use Orchestrator Mode
+
+**Use Orchestrator Mode When:**
+- ✅ Managing complex multi-step workflows
+- ✅ Coordinating multiple features or phases
+- ✅ Running comprehensive test suites
+- ✅ Large-scale refactoring across many files
+- ✅ Exploratory analysis of large codebases
+
+**Skip Orchestrator Mode When:**
+- ❌ Working on a single, focused task
+- ❌ Quick bug fixes (1-2 files)
+- ❌ Prototyping or experimentation
+- ❌ Writing documentation
+
+### Troubleshooting
+
+**Problem: Operation blocked but I need to do it**
+
+Solution: Use `--mode guidance` for warnings only:
+```bash
+uv run htmlgraph orchestrator enable --mode guidance
+```
+
+**Problem: Too many operations blocked**
+
+Solution: Increase thresholds or disable temporarily:
+```bash
+# Increase thresholds
+vim .htmlgraph/orchestrator.json  # Edit max_* values
+
+# Or disable temporarily
+uv run htmlgraph orchestrator disable
+```
+
+**Problem: Don't understand why operation was blocked**
+
+Solution: Check the guidance message - it explains why and suggests delegation:
+```
+⚠️ ORCHESTRATOR MODE: Exceeded threshold for Bash calls (3/3)
+Suggestion: Delegate to subagent using Task tool
+Example: Task(subagent_type="general-purpose", prompt="Run pytest and report failures")
+```
+
+### Best Practices
+
+1. **Start with Guidance Mode** - Learn the patterns before enforcing
+   ```bash
+   uv run htmlgraph orchestrator enable --mode guidance
+   ```
+
+2. **Delegate Early** - Don't wait until you hit thresholds
+   ```python
+   # As soon as you see multiple similar operations
+   Task(prompt="Handle all test files in tests/ directory")
+   ```
+
+3. **Use Task Tool Liberally** - It's designed for this
+   ```python
+   # Good delegation patterns
+   Task(prompt="Explore codebase and find all API endpoints")
+   Task(prompt="Run full test suite and report failures")
+   Task(prompt="Update all imports to use new module structure")
+   ```
+
+4. **Monitor Context Usage** - Check your context regularly
+   ```python
+   # If you're filling context, delegate
+   if len(messages) > 50:
+       Task(prompt="Complete this implementation")
+   ```
+
+5. **Review Guidance Messages** - Learn from warnings
+   ```
+   # Each warning teaches a pattern
+   ⚠️ Orchestrator mode suggests delegation
+   # → Adjust your workflow
+   ```
+
+### FAQ
+
+**Q: Will this slow me down?**
+A: No - delegation is faster (parallel) and preserves context for high-level decisions.
+
+**Q: Can I bypass orchestrator mode?**
+A: Yes - use `--mode guidance` or disable it. But you'll lose the benefits.
+
+**Q: What if I disagree with a block?**
+A: Open an issue - we want to improve the classification logic.
+
+**Q: Does this work with all AI agents?**
+A: Yes - any agent using HtmlGraph will respect orchestrator mode.
+
+**Q: How do I know it's working?**
+A: Check status: `uv run htmlgraph orchestrator status`
+
+---
+
 ## Orchestrator Success Patterns
 
 ### Pattern 1: Parallel Test Execution
