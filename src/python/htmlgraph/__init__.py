@@ -46,6 +46,7 @@ from htmlgraph.models import (
     Step,
     WorkType,
 )
+from htmlgraph.orchestrator_mode import OrchestratorMode, OrchestratorModeManager
 from htmlgraph.parallel import AggregateResult, ParallelAnalysis, ParallelWorkflow
 from htmlgraph.query_builder import Condition, Operator, QueryBuilder
 from htmlgraph.sdk import SDK
@@ -77,7 +78,7 @@ from htmlgraph.types import (
 )
 from htmlgraph.work_type_utils import infer_work_type, infer_work_type_from_id
 
-__version__ = "0.13.8"
+__version__ = "0.13.9"
 __all__ = [
     # Exceptions
     "HtmlGraphError",
@@ -171,4 +172,7 @@ __all__ = [
     # Active Learning Persistence
     "LearningPersistence",
     "auto_persist_on_session_end",
+    # Orchestrator Mode Management
+    "OrchestratorMode",
+    "OrchestratorModeManager",
 ]
