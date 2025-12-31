@@ -386,6 +386,17 @@ def main():
     # Enforce orchestrator mode
     response = enforce_orchestrator_mode(tool_name, tool_input)
 
+    # Save current tool to history for pattern detection
+    # This enables detection of multiple Read/Grep/Glob sequences
+    history = load_tool_history()
+    history.append(
+        {
+            "tool": tool_name,
+            "timestamp": datetime.now().isoformat(),
+        }
+    )
+    save_tool_history(history[-MAX_HISTORY_SIZE:])  # Keep last 50
+
     # Output JSON response
     print(json.dumps(response))
 
