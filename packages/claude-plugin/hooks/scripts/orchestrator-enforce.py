@@ -216,21 +216,31 @@ def create_task_suggestion(tool: str, params: dict) -> str:
     """
     Create Task tool suggestion based on blocked operation.
 
+    Includes HtmlGraph reporting pattern for result retrieval.
+
     Args:
         tool: Tool that was blocked
         params: Tool parameters
 
     Returns:
-        Example Task() code to suggest
+        Example Task() code with HtmlGraph reporting pattern
     """
     if tool in ["Edit", "Write", "NotebookEdit"]:
         file_path = params.get("file_path", "<file>")
         return (
             "# Delegate to Coder subagent:\n"
             "Task(\n"
-            f"    prompt='Implement changes to {file_path}',\n"
+            f"    prompt='''Implement changes to {file_path}\n\n"
+            "    🔴 CRITICAL - Report Results:\n"
+            "    from htmlgraph import SDK\n"
+            "    sdk = SDK(agent='coder')\n"
+            "    sdk.spikes.create('Code Changes Complete') \\\\\n"
+            "        .set_findings('Changes made: ...') \\\\\n"
+            "        .save()\n"
+            "    ''',\n"
             "    subagent_type='general-purpose'\n"
-            ")"
+            ")\n"
+            "# Then retrieve: uv run python -c \"from htmlgraph import SDK; print(SDK().spikes.get_latest(agent='coder')[0].findings)\""
         )
 
     elif tool in ["Read", "Grep", "Glob"]:
@@ -238,9 +248,17 @@ def create_task_suggestion(tool: str, params: dict) -> str:
         return (
             "# Delegate to Explorer subagent:\n"
             "Task(\n"
-            f"    prompt='Search codebase for {pattern} and report findings',\n"
+            f"    prompt='''Find {pattern} in codebase\n\n"
+            "    🔴 CRITICAL - Report Results:\n"
+            "    from htmlgraph import SDK\n"
+            "    sdk = SDK(agent='explorer')\n"
+            "    sdk.spikes.create('Search Results') \\\\\n"
+            "        .set_findings('Found files: ...') \\\\\n"
+            "        .save()\n"
+            "    ''',\n"
             "    subagent_type='Explore'\n"
-            ")"
+            ")\n"
+            "# Then retrieve: uv run python -c \"from htmlgraph import SDK; print(SDK().spikes.get_latest(agent='explorer')[0].findings)\""
         )
 
     elif tool == "Bash":
@@ -249,26 +267,50 @@ def create_task_suggestion(tool: str, params: dict) -> str:
             return (
                 "# Delegate testing to subagent:\n"
                 "Task(\n"
-                "    prompt='Run tests and report results',\n"
+                "    prompt='''Run tests and report results\n\n"
+                "    🔴 CRITICAL - Report Results:\n"
+                "    from htmlgraph import SDK\n"
+                "    sdk = SDK(agent='tester')\n"
+                "    sdk.spikes.create('Test Results') \\\\\n"
+                "        .set_findings('Tests passed: X, failed: Y') \\\\\n"
+                "        .save()\n"
+                "    ''',\n"
                 "    subagent_type='general-purpose'\n"
-                ")"
+                ")\n"
+                "# Then retrieve: uv run python -c \"from htmlgraph import SDK; print(SDK().spikes.get_latest(agent='tester')[0].findings)\""
             )
         elif any(x in command.lower() for x in ["build", "compile", "make"]):
             return (
                 "# Delegate build to subagent:\n"
                 "Task(\n"
-                "    prompt='Build project and report any errors',\n"
+                "    prompt='''Build project and report any errors\n\n"
+                "    🔴 CRITICAL - Report Results:\n"
+                "    from htmlgraph import SDK\n"
+                "    sdk = SDK(agent='builder')\n"
+                "    sdk.spikes.create('Build Results') \\\\\n"
+                "        .set_findings('Build status: ...') \\\\\n"
+                "        .save()\n"
+                "    ''',\n"
                 "    subagent_type='general-purpose'\n"
-                ")"
+                ")\n"
+                "# Then retrieve: uv run python -c \"from htmlgraph import SDK; print(SDK().spikes.get_latest(agent='builder')[0].findings)\""
             )
 
     # Generic suggestion
     return (
-        "# Use Task tool to delegate:\n"
+        "# Use Task tool with HtmlGraph reporting:\n"
         "Task(\n"
-        "    prompt='<describe what needs to be done>',\n"
+        "    prompt='''<describe task>\n\n"
+        "    🔴 CRITICAL - Report Results:\n"
+        "    from htmlgraph import SDK\n"
+        "    sdk = SDK(agent='subagent')\n"
+        "    sdk.spikes.create('Task Results') \\\\\n"
+        "        .set_findings('...') \\\\\n"
+        "        .save()\n"
+        "    ''',\n"
         "    subagent_type='general-purpose'\n"
-        ")"
+        ")\n"
+        "# Then retrieve: uv run python -c \"from htmlgraph import SDK; print(SDK().spikes.get_latest(agent='subagent')[0].findings)\""
     )
 
 
@@ -333,30 +375,30 @@ def enforce_orchestrator_mode(tool: str, params: dict) -> dict:
             }
         return {"continue": True}
 
-    # Operation not allowed
-    if enforcement_level == "strict":
-        # BLOCK the operation
-        suggestion = create_task_suggestion(tool, params)
+    # Operation not allowed - provide strong warnings
+    # NOTE: {"continue": False} doesn't work in Claude Code, so we use advisory warnings only
+    suggestion = create_task_suggestion(tool, params)
 
+    if enforcement_level == "strict":
+        # STRICT mode - loud warning but allow (blocking doesn't work)
         error_message = (
-            f"🎯 ORCHESTRATOR MODE: {reason}\n\n"
+            f"🚫 ORCHESTRATOR MODE VIOLATION: {reason}\n\n"
+            f"⚠️  WARNING: Direct operations waste context and break delegation pattern!\n\n"
             f"Suggested delegation:\n"
             f"{suggestion}\n\n"
+            f"See ORCHESTRATOR_DIRECTIVES in session context for HtmlGraph delegation pattern.\n"
             f"To disable orchestrator mode: uv run htmlgraph orchestrator disable"
         )
 
         return {
-            "continue": False,
+            "continue": True,  # Changed from False - blocking doesn't work
             "hookSpecificOutput": {
                 "hookEventName": "PreToolUse",
                 "additionalContext": error_message,
-                "error": reason,
             },
         }
     else:
-        # GUIDANCE mode - allow but warn
-        suggestion = create_task_suggestion(tool, params)
-
+        # GUIDANCE mode - softer warning
         warning_message = (
             f"⚠️ ORCHESTRATOR: {reason}\n\nSuggested delegation:\n{suggestion}"
         )

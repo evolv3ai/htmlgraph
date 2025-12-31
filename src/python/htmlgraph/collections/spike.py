@@ -51,3 +51,39 @@ class SpikeCollection(BaseCollection["SpikeCollection"]):
         from htmlgraph.builders import SpikeBuilder
 
         self._builder_class = SpikeBuilder
+
+    def get_latest(self, agent: str | None = None, limit: int = 1) -> list:
+        """
+        Get the most recent spike(s), optionally filtered by agent.
+
+        Useful for retrieving subagent findings after delegation.
+
+        Args:
+            agent: Filter by agent_assigned (optional)
+            limit: Maximum number of spikes to return (default: 1)
+
+        Returns:
+            List of most recent Spike nodes (newest first)
+
+        Example:
+            >>> # Get latest spike from explorer subagent
+            >>> sdk = SDK(agent="orchestrator")
+            >>> findings = sdk.spikes.get_latest(agent="explorer")
+            >>> if findings:
+            ...     print(findings[0].findings)
+            >>>
+            >>> # Get latest 5 spikes from any agent
+            >>> recent = sdk.spikes.get_latest(limit=5)
+        """
+        # Get all spikes
+        all_spikes = self.all()
+
+        # Filter by agent if specified
+        if agent:
+            all_spikes = [s for s in all_spikes if s.agent_assigned == agent]
+
+        # Sort by created timestamp (newest first)
+        all_spikes.sort(key=lambda s: s.created, reverse=True)
+
+        # Return limited results
+        return all_spikes[:limit]

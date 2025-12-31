@@ -522,6 +522,48 @@ Total: 9200 tokens (61x more expensive!)
 
 **Your context is precious. Delegate everything.**
 
+### 6. HTMLGRAPH DELEGATION PATTERN (CRITICAL)
+
+**PROBLEM:** TaskOutput tool is unreliable - subagent results often can't be retrieved.
+
+**SOLUTION:** Use HtmlGraph for subagent communication.
+
+**How it works:**
+
+**Step 1 - Orchestrator delegates with reporting instructions:**
+
+Include this in every Task prompt:
+  🔴 CRITICAL - Report Results to HtmlGraph:
+  from htmlgraph import SDK
+  sdk = SDK(agent='explorer')
+  sdk.spikes.create('Task Results').set_findings('...').save()
+
+**Step 2 - Wait for Task completion:**
+
+Wait for the Task tool to show "Done". Ignore TaskOutput errors.
+
+**Step 3 - Retrieve results from HtmlGraph:**
+
+Use this command:
+  uv run python -c "from htmlgraph import SDK; findings = SDK().spikes.get_latest(agent='explorer'); print(findings[0].findings if findings else 'No results')"
+
+**IMPORTANT:**
+- ✅ ALWAYS include the "Report Results to HtmlGraph" section in Task prompts
+- ✅ ALWAYS retrieve results via SDK after Task completes
+- ❌ NEVER rely on TaskOutput - it's broken
+- ✅ Each subagent type should use a unique agent name (explorer, coder, tester)
+
+**Template:**
+
+Every Task() call must include the reporting pattern in the prompt.
+After Task completes, retrieve results with SDK command above.
+
+**Why this works:**
+- HtmlGraph provides persistent, file-based communication
+- No reliance on broken TaskOutput mechanism
+- Full traceability - all delegation history in `.htmlgraph/spikes/`
+- Orchestrator context stays clean - only reads final spike findings
+
 ---
 
 **YOU ARE THE ARCHITECT. SUBAGENTS ARE BUILDERS. DELEGATE EVERYTHING.**
