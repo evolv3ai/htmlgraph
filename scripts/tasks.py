@@ -7,14 +7,12 @@ Run with: invoke --list (see available tasks)
 """
 
 import json
-import sys
 import subprocess
+import sys
 from pathlib import Path
-from typing import Optional
 
-from invoke import task
 import tomllib  # Python 3.11+ built-in TOML parser
-
+from invoke import task
 
 # ============================================================================
 # Configuration
@@ -158,7 +156,7 @@ def build_package(ctx, dry_run=False):
 
 
 @task
-def publish_pypi(ctx, version: Optional[str] = None, dry_run=False):
+def publish_pypi(ctx, version: str | None = None, dry_run=False):
     """Publish package to PyPI"""
     log_section("Step 3: Publishing to PyPI")
 
@@ -194,7 +192,7 @@ def publish_pypi(ctx, version: Optional[str] = None, dry_run=False):
 
 
 @task
-def install_local(ctx, version: Optional[str] = None, dry_run=False):
+def install_local(ctx, version: str | None = None, dry_run=False):
     """Install latest version locally"""
     log_section("Step 4: Installing Latest Version Locally")
 
@@ -253,7 +251,7 @@ def update_claude_plugin(ctx, dry_run=False):
 
 
 @task
-def update_gemini_extension(ctx, version: Optional[str] = None, dry_run=False):
+def update_gemini_extension(ctx, version: str | None = None, dry_run=False):
     """Update Gemini extension"""
     log_section("Step 6: Updating Gemini Extension")
 
@@ -276,7 +274,7 @@ def update_gemini_extension(ctx, version: Optional[str] = None, dry_run=False):
         return
 
     if not dry_run:
-        with open(config_file, "r") as f:
+        with open(config_file) as f:
             config = json.load(f)
 
         config["version"] = version
@@ -328,7 +326,7 @@ def update_codex_skill(ctx, dry_run=False):
 @task
 def deploy(
     ctx,
-    version: Optional[str] = None,
+    version: str | None = None,
     docs_only: bool = False,
     build_only: bool = False,
     skip_pypi: bool = False,
@@ -403,7 +401,7 @@ def deploy(
         log_success("All deployment steps completed successfully!")
 
         if not dry_run:
-            print(f"\nVerify deployment:")
+            print("\nVerify deployment:")
             print(f"  - PyPI: https://pypi.org/project/{PACKAGE_NAME}/{version}/")
             print(f"  - GitHub: https://github.com/Shakes-tzd/{PACKAGE_NAME}")
             print(f"  - Local: python -c 'import {PACKAGE_NAME}; print({PACKAGE_NAME}.__version__)'")

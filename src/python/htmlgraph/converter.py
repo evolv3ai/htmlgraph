@@ -10,9 +10,9 @@ Provides:
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
-from htmlgraph.models import ActivityEntry, Edge, Node, Session, Step
+from htmlgraph.models import ActivityEntry, Chore, Edge, Node, Session, Spike, Step
 from htmlgraph.parser import HtmlParser
 
 logger = logging.getLogger(__name__)
@@ -20,13 +20,13 @@ logger = logging.getLogger(__name__)
 
 def html_to_node(filepath: Path | str) -> Node:
     """
-    Parse HTML file into a Node model.
+    Parse HTML file into a Node model (or subclass).
 
     Args:
         filepath: Path to HTML file
 
     Returns:
-        Node instance populated from HTML
+        Node instance (or Spike/Chore subclass) populated from HTML
 
     Raises:
         FileNotFoundError: If file doesn't exist
@@ -69,7 +69,16 @@ def html_to_node(filepath: Path | str) -> Node:
     ]
     data["steps"] = steps
 
-    return Node(**data)
+    # Map node type to model class
+    node_type = data.get("type", "node")
+    model_classes: dict[str, type[Node]] = {
+        "spike": Spike,
+        "chore": Chore,
+        "node": Node,
+    }
+
+    model_class = model_classes.get(node_type, Node)
+    return cast(Node, model_class(**data))
 
 
 def node_to_html(

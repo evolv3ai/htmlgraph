@@ -2,17 +2,17 @@
 Tests for QueryBuilder - Fluent query API.
 """
 
-import pytest
 import re
 import tempfile
-from pathlib import Path
 
-from htmlgraph.query_builder import (
-    QueryBuilder, ConditionBuilder, Condition,
-    Operator, LogicalOp, _get_nested_attr
-)
-from htmlgraph.models import Node, Edge
+import pytest
 from htmlgraph.graph import HtmlGraph
+from htmlgraph.models import Node
+from htmlgraph.query_builder import (
+    Condition,
+    Operator,
+    _get_nested_attr,
+)
 
 
 class TestNestedAttributeAccess:

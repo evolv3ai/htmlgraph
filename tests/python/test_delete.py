@@ -4,13 +4,12 @@ Tests for delete operations (CRUD completion).
 Tests both HtmlGraph.delete() and SDK Collection.delete() methods.
 """
 
-import pytest
 import tempfile
-from pathlib import Path
 
-from htmlgraph.models import Node, Edge
-from htmlgraph.graph import HtmlGraph
+import pytest
 from htmlgraph import SDK
+from htmlgraph.graph import HtmlGraph
+from htmlgraph.models import Edge, Node
 
 
 class TestHtmlGraphDelete:

@@ -4,19 +4,15 @@ Tests for deployment automation module.
 Tests version extraction, flag parsing, and dry-run functionality.
 """
 
-import subprocess
-import tempfile
 from pathlib import Path
 from unittest import mock
 
 import pytest
-
 from htmlgraph.scripts.deploy import (
     get_project_root,
     main,
     run_deploy_script,
 )
-
 
 # ============================================================================
 # Fixtures

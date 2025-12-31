@@ -1,10 +1,11 @@
 """Tests for SDK event inspection API."""
 
-import pytest
 import tempfile
-from pathlib import Path
 from datetime import datetime, timedelta
-from htmlgraph.event_log import JsonlEventLog, EventRecord
+from pathlib import Path
+
+import pytest
+from htmlgraph.event_log import EventRecord, JsonlEventLog
 from htmlgraph.models import Session
 
 

@@ -8,14 +8,15 @@ Tests the enhanced session-start-info command that displays:
 
 Run with: uv run pytest tests/python/test_session_start_info_validation.py -v
 """
-import pytest
-from pathlib import Path
-from htmlgraph.sdk import SDK
-from htmlgraph.models import Node, Spike
-from datetime import datetime
-import tempfile
-import shutil
 import json
+import shutil
+import tempfile
+from datetime import datetime
+from pathlib import Path
+
+import pytest
+from htmlgraph.models import Node
+from htmlgraph.sdk import SDK
 
 
 @pytest.fixture

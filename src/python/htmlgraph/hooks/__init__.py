@@ -1,21 +1,31 @@
 """
-Git hooks for automatic HtmlGraph tracking.
+HtmlGraph hooks package.
 
-This module provides templates and installation utilities for Git hooks
-that automatically track development activity in HtmlGraph.
+This package contains the hook logic for HtmlGraph tracking integration
+with Claude Code and other AI coding assistants.
+
+All hooks use a unified architecture:
+- Logic lives in package modules (not scripts)
+- Parallel execution where possible (asyncio.gather)
+- Unified error handling and response format
+- Easy testing via direct imports
+- Deployed via package updates
 """
 
-from pathlib import Path
+from htmlgraph.hooks.posttooluse import posttooluse_hook
+from htmlgraph.hooks.pretooluse import pretooluse_hook
 
-HOOKS_DIR = Path(__file__).parent
-
-# Available hook templates
+# Git hooks that can be installed
 AVAILABLE_HOOKS = [
     "pre-commit",
     "post-commit",
+    "pre-push",
     "post-checkout",
     "post-merge",
-    "pre-push",
 ]
 
-__all__ = ["HOOKS_DIR", "AVAILABLE_HOOKS"]
+__all__ = [
+    "pretooluse_hook",
+    "posttooluse_hook",
+    "AVAILABLE_HOOKS",
+]

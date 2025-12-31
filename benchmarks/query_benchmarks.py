@@ -11,18 +11,18 @@ Benchmarks:
 - Graph traversal performance
 """
 
-import time
 import random
+import shutil
 import string
 import tempfile
-import shutil
-from pathlib import Path
+import time
+from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Callable
+from pathlib import Path
 
 from htmlgraph import HtmlGraph
-from htmlgraph.models import Node, Edge
+from htmlgraph.models import Edge, Node
 
 
 @dataclass

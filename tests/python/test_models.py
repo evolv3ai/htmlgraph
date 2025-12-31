@@ -1,9 +1,8 @@
 """Tests for HtmlGraph Pydantic models."""
 
-import pytest
 from datetime import datetime
 
-from htmlgraph.models import Node, Edge, Step, Graph
+from htmlgraph.models import Edge, Graph, Node, Step
 
 
 class TestStep:

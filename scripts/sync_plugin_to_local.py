@@ -17,7 +17,6 @@ import argparse
 import shutil
 import sys
 from pathlib import Path
-from typing import List, Tuple
 
 
 def get_project_root() -> Path:
@@ -37,8 +36,8 @@ def sync_directory(
     source_dir: Path,
     dest_dir: Path,
     dry_run: bool = False,
-    exclude: List[str] = None,
-) -> Tuple[List[str], List[str], List[str]]:
+    exclude: list[str] = None,
+) -> tuple[list[str], list[str], list[str]]:
     """
     Sync directory from source to destination.
 

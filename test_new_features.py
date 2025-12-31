@@ -7,7 +7,8 @@ Test script for new features pulled from remote:
 4. Graph traversal methods
 """
 
-from htmlgraph import HtmlGraph, SDK
+from htmlgraph import HtmlGraph
+
 
 def test_find_api():
     """Test BeautifulSoup-style find() and find_all() API."""

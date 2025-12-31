@@ -2,10 +2,8 @@
 Tests for TodoCollection - persistent todo tracking.
 """
 
-import pytest
-from pathlib import Path
-from datetime import datetime
 
+import pytest
 from htmlgraph import SDK
 from htmlgraph.models import Todo
 

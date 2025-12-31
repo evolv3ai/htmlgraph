@@ -50,11 +50,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \".claude/hooks/scripts/orchestrator-enforce.py\""
-          },
-          {
-            "type": "command",
-            "command": "uv run \".claude/hooks/scripts/validate-work.py\""
+            "command": "uv run \".claude/hooks/scripts/pretooluse-integrator.py\""
           }
         ]
       }
@@ -65,11 +61,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HTMLGRAPH_HOOK_TYPE=PostToolUse uv run \".claude/hooks/scripts/track-event.py\""
-          },
-          {
-            "type": "command",
-            "command": "uv run \".claude/hooks/scripts/orchestrator-reflect.py\""
+            "command": "uv run \".claude/hooks/scripts/posttooluse-integrator.py\""
           }
         ]
       }

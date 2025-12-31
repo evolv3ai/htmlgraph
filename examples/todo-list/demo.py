@@ -12,7 +12,7 @@ from pathlib import Path
 # Add src to path for development
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src" / "python"))
 
-from htmlgraph import HtmlGraph, Node, Edge, Step
+from htmlgraph import Edge, HtmlGraph, Node, Step
 from htmlgraph.agents import AgentInterface
 
 
@@ -29,7 +29,7 @@ def main():
 
     # Show stats
     stats = graph.stats()
-    print(f"\n📊 Statistics:")
+    print("\n📊 Statistics:")
     print(f"   Total tasks: {stats['total']}")
     print(f"   Completion: {stats['completion_rate']}%")
     print(f"   By status: {stats['by_status']}")
@@ -58,7 +58,7 @@ def main():
 
     # Find bottlenecks
     bottlenecks = graph.find_bottlenecks(top_n=3)
-    print(f"\n   Bottleneck tasks (blocking most others):")
+    print("\n   Bottleneck tasks (blocking most others):")
     for task_id, count in bottlenecks:
         task = graph.get(task_id)
         name = task.title if task else task_id
@@ -75,7 +75,7 @@ def main():
     # Get next available task
     next_task = agent.get_next_task()
     if next_task:
-        print(f"\n   Next available task:")
+        print("\n   Next available task:")
         print(f"   {agent.get_context(next_task.id)}")
 
     # Create a new task programmatically
@@ -103,7 +103,7 @@ def main():
     print(f"   Created: {filepath}")
 
     # Show the generated HTML
-    print(f"\n   Generated HTML preview (first 500 chars):")
+    print("\n   Generated HTML preview (first 500 chars):")
     html_content = filepath.read_text()[:500]
     print(f"   {html_content}...")
 

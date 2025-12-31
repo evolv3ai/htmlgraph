@@ -15,8 +15,8 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src" / "python"))
 
+from htmlgraph.planning import AcceptanceCriterion, Phase, Task
 from htmlgraph.track_manager import TrackManager
-from htmlgraph.planning import Requirement, AcceptanceCriterion, Phase, Task, Step
 
 
 def main():
@@ -137,7 +137,7 @@ def main():
 
     # 4. Create the plan with all phases and tasks
     print("\n4. Creating implementation plan...")
-    from htmlgraph.planning import Plan, Phase, Task
+    from htmlgraph.planning import Plan
 
     plan = Plan(
         id="track-001-auth-plan",
@@ -325,9 +325,9 @@ def main():
     print("\n" + "=" * 60)
     print("✓ Demo track created successfully!")
     print("\nView the results:")
-    print(f"  - Track index: .htmlgraph/tracks/track-001-auth/index.html")
-    print(f"  - Spec:        .htmlgraph/tracks/track-001-auth/spec.html")
-    print(f"  - Plan:        .htmlgraph/tracks/track-001-auth/plan.html")
+    print("  - Track index: .htmlgraph/tracks/track-001-auth/index.html")
+    print("  - Spec:        .htmlgraph/tracks/track-001-auth/spec.html")
+    print("  - Plan:        .htmlgraph/tracks/track-001-auth/plan.html")
     print("\nOpen the plan.html in a browser to see:")
     print("  - List view (default)")
     print("  - Kanban board")

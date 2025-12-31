@@ -6,7 +6,8 @@ This shows how to pre-compile frequently used selectors for better performance.
 """
 
 import tempfile
-from htmlgraph import CompiledQuery, HtmlGraph
+
+from htmlgraph import HtmlGraph
 from htmlgraph.models import Node
 
 

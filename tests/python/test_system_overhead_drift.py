@@ -6,7 +6,6 @@ reads from .htmlgraph/ directory) are not flagged as high-drift.
 """
 
 import pytest
-
 from htmlgraph.session_manager import SessionManager
 
 
@@ -170,7 +169,7 @@ def test_multiple_skill_invocations_no_drift(manager):
         activity = manager.track_activity(
             session_id=session.id,
             tool="Skill",
-            summary=f"Skill: {{'skill': 'htmlgraph:htmlgraph-tracker'}}",
+            summary="Skill: {'skill': 'htmlgraph:htmlgraph-tracker'}",
             file_paths=[]
         )
         activities.append(activity)

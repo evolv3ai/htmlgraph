@@ -5,11 +5,11 @@ Tests the cleanup_missing_references() method and automatic cleanup
 during session loading.
 """
 
-import pytest
 from datetime import datetime
-from pathlib import Path
-from htmlgraph.models import Session
+
+import pytest
 from htmlgraph.converter import SessionConverter
+from htmlgraph.models import Session
 
 
 @pytest.fixture

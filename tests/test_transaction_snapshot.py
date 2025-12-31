@@ -5,11 +5,9 @@ Tests the transaction pattern and snapshot capabilities for high-concurrency sce
 """
 
 import tempfile
-from pathlib import Path
 
 import pytest
-
-from htmlgraph.graph import HtmlGraph, GraphSnapshot
+from htmlgraph.graph import GraphSnapshot, HtmlGraph
 from htmlgraph.models import Node
 
 

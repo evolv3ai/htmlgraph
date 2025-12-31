@@ -16,9 +16,8 @@ import time
 from pathlib import Path
 
 import pytest
-
 from htmlgraph.graph import HtmlGraph
-from htmlgraph.models import Edge, Node
+from htmlgraph.models import Node
 
 
 class BenchmarkResult:
@@ -188,7 +187,7 @@ class TestQueryPerformance:
         nodes2 = medium_graph.query("[data-status='in-progress']")
         cached_time = time.perf_counter() - start
 
-        print(f"\nQuery caching:")
+        print("\nQuery caching:")
         print(f"  first (miss): {first_time*1000:.2f}ms")
         print(f"  cached (hit): {cached_time*1000:.2f}ms")
         print(f"  speedup: {first_time/cached_time if cached_time > 0 else float('inf'):.1f}x")
@@ -434,7 +433,7 @@ class TestBaselineComparison:
         baseline_time = benchmark_baseline.get("query_small", 0)
         if baseline_time > 0:
             pct_change = ((current - baseline_time) / baseline_time) * 100
-            print(f"\nPerformance vs baseline:")
+            print("\nPerformance vs baseline:")
             print(f"  baseline: {baseline_time*1000:.2f}ms")
             print(f"  current: {current*1000:.2f}ms")
             print(f"  change: {pct_change:+.1f}%")

@@ -3,12 +3,12 @@ Test track loading including directory-based tracks.
 
 Tests for bug-20251221-042515: Directory-based tracks not loading in graph loader
 """
-import pytest
-from pathlib import Path
-import tempfile
 import shutil
+import tempfile
+from pathlib import Path
+
+import pytest
 from htmlgraph.sdk import SDK
-from htmlgraph.planning import Track
 
 
 @pytest.fixture

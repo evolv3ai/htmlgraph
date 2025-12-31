@@ -9,10 +9,10 @@ Usage:
     source .env && python scripts/generate_branding.py
 """
 
-import base64
 import mimetypes
 import os
 from pathlib import Path
+
 from google import genai
 from google.genai import types
 

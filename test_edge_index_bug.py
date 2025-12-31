@@ -6,9 +6,10 @@ Bug: When a node is updated, all incoming edges are lost from the edge index
 even though they still exist in other nodes' edge lists.
 """
 
-from htmlgraph import HtmlGraph
 import tempfile
-from pathlib import Path
+
+from htmlgraph import HtmlGraph
+
 
 def test_update_preserves_incoming_edges():
     """
@@ -27,7 +28,7 @@ def test_update_preserves_incoming_edges():
         # So: A -> B -> C (dependency chain)
 
         print("\n1. Creating nodes A, B, C with dependency chain A->B->C")
-        from htmlgraph.models import Node, Edge
+        from htmlgraph.models import Edge, Node
 
         node_c = Node(id="node-c", title="Node C", type="feature")
         node_b = Node(
@@ -81,7 +82,7 @@ def test_update_preserves_incoming_edges():
         if len(incoming_to_b_before) == len(incoming_to_b_after):
             print(f"   ✅ PASS: Incoming edges to B preserved ({len(incoming_to_b_after)})")
         else:
-            print(f"   ❌ BUG DETECTED: Incoming edges to B lost!")
+            print("   ❌ BUG DETECTED: Incoming edges to B lost!")
             print(f"      Before update: {len(incoming_to_b_before)} edges")
             print(f"      After update:  {len(incoming_to_b_after)} edges")
             print(f"      Lost: {len(incoming_to_b_before) - len(incoming_to_b_after)} edges")
@@ -91,7 +92,7 @@ def test_update_preserves_incoming_edges():
         # Use the correct relationship type
         dependents_result = graph.dependents("node-b", relationship="depends_on")
         print(f"   Dependents of B after update: {dependents_result}")
-        print(f"   Expected: {{'node-a'}}")
+        print("   Expected: {'node-a'}")
 
         if "node-a" in dependents_result:
             print("   ✅ PASS: dependents() working correctly")

@@ -2,13 +2,12 @@
 Tests for Find API - BeautifulSoup-style find methods.
 """
 
-import pytest
 import tempfile
-from pathlib import Path
 
+import pytest
 from htmlgraph.find_api import FindAPI, find, find_all
-from htmlgraph.models import Node, Edge
 from htmlgraph.graph import HtmlGraph
+from htmlgraph.models import Edge, Node
 
 
 class TestFindAPIBasic:

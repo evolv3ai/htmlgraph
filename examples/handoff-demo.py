@@ -12,11 +12,10 @@ Usage:
 
 import tempfile
 from datetime import datetime
-from pathlib import Path
 
 from htmlgraph import SDK
+from htmlgraph.models import Node
 from htmlgraph.session_manager import SessionManager
-from htmlgraph.models import Node, Edge
 
 
 def demo_sdk_handoff():
@@ -92,7 +91,7 @@ def demo_session_manager_handoff():
         )
         manager.features_graph.add(feature)
 
-        print(f"✅ Feature created and claimed by alice")
+        print("✅ Feature created and claimed by alice")
         print(f"   ID: {feature.id}")
         print(f"   Title: {feature.title}")
         print(f"   Assigned to: {feature.agent_assigned}")
@@ -124,7 +123,7 @@ def demo_session_manager_handoff():
             next_agent="bob",
         )
 
-        print(f"✅ Feature handed off by alice to bob")
+        print("✅ Feature handed off by alice to bob")
         print(f"   Reason: {handed_off.handoff_reason}")
         print(f"   Notes: {handed_off.handoff_notes}")
         print(f"   Feature released: {handed_off.agent_assigned is None}")
@@ -138,7 +137,7 @@ def demo_session_manager_handoff():
             agent="bob",
         )
 
-        print(f"✅ Feature claimed by bob")
+        print("✅ Feature claimed by bob")
         print(f"   Assigned to: {bob_claims.agent_assigned}")
         print(f"   Handoff context preserved: {bob_claims.handoff_required}")
         print(f"   Previous agent: {bob_claims.previous_agent}")
@@ -236,18 +235,18 @@ def demo_handoff_efficiency():
     context = feature.to_context()
     html = feature.to_html()
 
-    print(f"\nHandoff Context Size:")
+    print("\nHandoff Context Size:")
     print(f"  - Lightweight context: {len(context)} chars (~{len(context)/4:.0f} tokens)")
     print(f"  - Full HTML document: {len(html)} chars (~{len(html)/4:.0f} tokens)")
     print(f"  - Ratio: {len(html)/len(context):.1f}x")
 
-    print(f"\nToken Usage Comparison:")
-    print(f"  - Using hyperlink reference: ~50 tokens")
+    print("\nToken Usage Comparison:")
+    print("  - Using hyperlink reference: ~50 tokens")
     print(f"  - Embedding full context: ~{len(html)/4:.0f} tokens")
     print(f"  - Savings: {(1 - 50/(len(html)/4)) * 100:.0f}%")
 
-    print(f"\nBenefit: Agents can pass lightweight context with hyperlink to full HTML")
-    print(f"         while maintaining git-friendly, queryable audit trail")
+    print("\nBenefit: Agents can pass lightweight context with hyperlink to full HTML")
+    print("         while maintaining git-friendly, queryable audit trail")
 
 
 if __name__ == "__main__":

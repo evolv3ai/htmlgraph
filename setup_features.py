@@ -12,8 +12,7 @@ from pathlib import Path
 # Add src to path for local development
 sys.path.insert(0, str(Path(__file__).parent / "src" / "python"))
 
-from datetime import datetime
-from htmlgraph import HtmlGraph, Node, Edge
+from htmlgraph import Edge, HtmlGraph, Node
 from htmlgraph.models import Step
 
 
@@ -220,11 +219,11 @@ def create_features():
 
     print(f"\nTotal nodes: {stats['total']}")
     print(f"Completion: {stats['completion_rate']}%")
-    print(f"\nBy Status:")
+    print("\nBy Status:")
     for status, count in stats['by_status'].items():
         print(f"  {status}: {count}")
 
-    print(f"\nBy Type:")
+    print("\nBy Type:")
     for node_type, count in stats['by_type'].items():
         print(f"  {node_type}: {count}")
 

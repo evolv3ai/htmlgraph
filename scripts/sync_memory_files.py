@@ -15,8 +15,6 @@ Usage:
 import argparse
 import sys
 from pathlib import Path
-from typing import Dict, List
-
 
 # Platform-specific file templates
 PLATFORM_TEMPLATES = {
@@ -160,7 +158,7 @@ def check_file_references_agents(filepath: Path) -> bool:
     return "AGENTS.md" in content
 
 
-def check_all_files(project_root: Path) -> Dict[str, bool]:
+def check_all_files(project_root: Path) -> dict[str, bool]:
     """Check all platform files for AGENTS.md references."""
     results = {}
 
@@ -190,7 +188,7 @@ def check_all_files(project_root: Path) -> Dict[str, bool]:
     return results
 
 
-def sync_all_files(project_root: Path, dry_run: bool = False) -> List[str]:
+def sync_all_files(project_root: Path, dry_run: bool = False) -> list[str]:
     """Synchronize all platform files to reference AGENTS.md."""
     changes = []
 
@@ -298,7 +296,7 @@ def main():
 
             filepath.write_text(content)
             print(f"✅ Created: {filepath}")
-            print(f"\nThe file references AGENTS.md for core documentation.")
+            print("\nThe file references AGENTS.md for core documentation.")
             return 0
 
         except ValueError as e:

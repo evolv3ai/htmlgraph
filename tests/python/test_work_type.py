@@ -1,9 +1,9 @@
 """Tests for Phase 1: Work Type Classification."""
 
 import pytest
-from htmlgraph import WorkType, SpikeType, MaintenanceType, Spike, Chore
-from htmlgraph.work_type_utils import infer_work_type_from_id
+from htmlgraph import Chore, MaintenanceType, Spike, SpikeType, WorkType
 from htmlgraph.models import Session
+from htmlgraph.work_type_utils import infer_work_type_from_id
 
 
 class TestWorkTypeEnums:

@@ -2,12 +2,12 @@
 Tests for EdgeIndex - O(1) reverse edge lookups.
 """
 
+import tempfile
+
 import pytest
 from htmlgraph.edge_index import EdgeIndex, EdgeRef
-from htmlgraph.models import Node, Edge
 from htmlgraph.graph import HtmlGraph
-import tempfile
-from pathlib import Path
+from htmlgraph.models import Edge, Node
 
 
 class TestEdgeRef:

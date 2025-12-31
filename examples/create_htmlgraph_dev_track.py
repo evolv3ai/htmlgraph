@@ -12,8 +12,8 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src" / "python"))
 
+from htmlgraph.planning import AcceptanceCriterion, Phase, Task
 from htmlgraph.track_manager import TrackManager
-from htmlgraph.planning import Requirement, AcceptanceCriterion, Phase, Task
 
 
 def main():
@@ -487,9 +487,9 @@ def main():
     print("\n" + "=" * 60)
     print("✓ HtmlGraph Development Track created successfully!")
     print("\nView the results:")
-    print(f"  - Track: .htmlgraph/tracks/htmlgraph-dev/index.html")
-    print(f"  - Spec:  .htmlgraph/tracks/htmlgraph-dev/spec.html")
-    print(f"  - Plan:  .htmlgraph/tracks/htmlgraph-dev/plan.html")
+    print("  - Track: .htmlgraph/tracks/htmlgraph-dev/index.html")
+    print("  - Spec:  .htmlgraph/tracks/htmlgraph-dev/spec.html")
+    print("  - Plan:  .htmlgraph/tracks/htmlgraph-dev/plan.html")
     print("\nStart the server to view:")
     print("  uv run htmlgraph serve")
     print("  Then open: http://localhost:8080")

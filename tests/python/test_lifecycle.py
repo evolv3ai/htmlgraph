@@ -9,13 +9,11 @@ Tests the complete workflow:
 5. Session end → all spikes finalized
 """
 
-import pytest
-from pathlib import Path
-from datetime import datetime
 
+import pytest
 from htmlgraph import SDK
-from htmlgraph.session_manager import SessionManager
 from htmlgraph.converter import NodeConverter, SessionConverter
+from htmlgraph.session_manager import SessionManager
 
 
 class TestFullLifecycle:

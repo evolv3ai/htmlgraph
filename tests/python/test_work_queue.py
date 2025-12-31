@@ -5,10 +5,10 @@ Tests the get_work_queue() and work_next() SDK methods that power
 the `htmlgraph work queue` and `htmlgraph work next` CLI commands.
 """
 
+
 import pytest
-from pathlib import Path
+from htmlgraph.models import Node
 from htmlgraph.sdk import SDK
-from htmlgraph.models import Node, Step
 
 
 @pytest.fixture
@@ -32,8 +32,8 @@ def temp_sdk(tmp_path):
     bug1 = sdk.bugs.create("Critical bug", priority="high").save()
 
     # Create a blocked feature directly
-    from htmlgraph.models import Node
     from htmlgraph.ids import generate_id
+    from htmlgraph.models import Node
     blocked_feat_id = generate_id("feature", "Blocked feature")
     blocked_feat = Node(
         id=blocked_feat_id,
@@ -231,8 +231,8 @@ def test_work_queue_priority_ordering(temp_sdk):
 
 def test_work_queue_with_dependencies(temp_sdk):
     """Test work queue shows dependency information."""
-    from htmlgraph.models import Node, Edge
     from htmlgraph.ids import generate_id
+    from htmlgraph.models import Edge, Node
 
     # Create a blocker feature
     blocker_id = generate_id("feature", "Blocker feature")

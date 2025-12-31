@@ -18,7 +18,6 @@ Options:
 import argparse
 import json
 from pathlib import Path
-from datetime import datetime
 
 from htmlgraph.work_type_utils import infer_work_type_from_id
 

@@ -7,6 +7,7 @@ Demonstrates the improved SDK for AI agents compared to the old API.
 
 from htmlgraph import SDK
 
+
 def old_api_example():
     """Example using the old verbose API."""
     print("=" * 60)
@@ -40,7 +41,7 @@ def old_api_example():
     print(f"✓ Claimed: {feature.id}")
 
     agent.complete_step(feature.id, 0, agent_id="claude")
-    print(f"✓ Completed step 0")
+    print("✓ Completed step 0")
 
     # Get context
     context = agent.get_context(feature.id)
@@ -85,7 +86,7 @@ def new_api_example():
         f.agent_assigned = "claude"
         f.steps[0].completed = True
 
-    print(f"✓ Claimed and completed step 0")
+    print("✓ Claimed and completed step 0")
 
     # Get context
     updated = sdk.features.get(feature.id)
@@ -147,7 +148,7 @@ def real_world_ai_workflow():
             all_done = all(s.completed for s in feature.steps)
             if all_done:
                 feature.status = "done"
-                print(f"   ✓ All steps complete - marking as done")
+                print("   ✓ All steps complete - marking as done")
 
         # Cleanup
         sdk._graph.remove(task.id)

@@ -4,6 +4,7 @@ Playwright tests for HtmlGraph dashboard UI.
 Run with: uv run pytest tests/python/test_dashboard_ui.py --headed
 """
 import os
+
 import pytest
 from playwright.sync_api import Page, expect
 

@@ -7,11 +7,8 @@ Tests cover:
 - Routing functions: Task assignment and batch routing
 """
 
-import pytest
-from datetime import datetime
-from pathlib import Path
 
-from htmlgraph.models import Node, Step
+from htmlgraph.models import Node
 from htmlgraph.routing import (
     AgentCapabilityRegistry,
     AgentProfile,

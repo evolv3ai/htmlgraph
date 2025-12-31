@@ -7,6 +7,7 @@ Shows how to use SDK.dep_analytics to analyze the actual project dependencies.
 
 from htmlgraph import SDK
 
+
 def main():
     print("\n" + "📊 "*35)
     print("HTMLGRAPH PROJECT - DEPENDENCY ANALYTICS")
@@ -90,7 +91,7 @@ def main():
         print("  ✓ No orphaned nodes")
 
     if risk.recommendations:
-        print(f"\nRecommendations:")
+        print("\nRecommendations:")
         for rec in risk.recommendations[:3]:
             print(f"  • {rec}")
 

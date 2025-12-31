@@ -1,7 +1,6 @@
 """Test query compilation functionality."""
 
 import tempfile
-from pathlib import Path
 
 from htmlgraph.graph import CompiledQuery, HtmlGraph
 from htmlgraph.models import Node

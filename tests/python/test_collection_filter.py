@@ -4,9 +4,10 @@ Tests for BaseCollection.filter() method.
 This method allows filtering with custom lambda predicates for more complex queries.
 """
 
-import pytest
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
+
+import pytest
 from htmlgraph import SDK, Node
 
 

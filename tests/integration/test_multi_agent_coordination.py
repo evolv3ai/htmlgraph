@@ -8,16 +8,14 @@ Tests realistic workflows with 3+ agents working simultaneously:
 - Handoff chains
 """
 
-import pytest
-from datetime import datetime
-from tempfile import TemporaryDirectory
 
-from htmlgraph.session_manager import SessionManager
+import pytest
 from htmlgraph.models import Node
 from htmlgraph.routing import (
     AgentCapabilityRegistry,
     CapabilityMatcher,
 )
+from htmlgraph.session_manager import SessionManager
 
 
 class TestIndependentAgentWork:

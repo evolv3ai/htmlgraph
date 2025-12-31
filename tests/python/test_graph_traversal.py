@@ -2,12 +2,11 @@
 Tests for Graph Traversal methods.
 """
 
-import pytest
 import tempfile
-from pathlib import Path
 
-from htmlgraph.models import Node, Edge
+import pytest
 from htmlgraph.graph import HtmlGraph
+from htmlgraph.models import Edge, Node
 
 
 class TestAncestorsDescendants:
@@ -15,7 +14,7 @@ class TestAncestorsDescendants:
 
     @pytest.fixture
     def dependency_graph(self):
-        """
+        r"""
         Create a graph with dependency relationships:
 
         a -> b -> d
@@ -247,7 +246,7 @@ class TestAllPaths:
 
     @pytest.fixture
     def graph_with_paths(self):
-        """
+        r"""
         Create a graph with multiple paths:
         a -> b -> d
          \-> c -/

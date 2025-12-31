@@ -12,7 +12,7 @@ from pathlib import Path
 # Add src to path for development
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src" / "python"))
 
-from htmlgraph import SDK, Node, Edge
+from htmlgraph import SDK, Edge, Node
 
 
 def create_documentation_pages(sdk: SDK):
@@ -500,7 +500,7 @@ def demonstrate_search(sdk: SDK):
 
     # Search by priority
     important = sdk.features.where(type="doc", priority="high")
-    print(f"\n⭐ High-priority pages:")
+    print("\n⭐ High-priority pages:")
     for doc in important:
         print(f"   - {doc.title}")
 

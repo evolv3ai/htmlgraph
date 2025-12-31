@@ -9,13 +9,13 @@ oka" use case - multiple agents working on interdependent features.
 """
 
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # Add src to path for development
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src" / "python"))
 
-from htmlgraph import SDK, Node, Step, Edge
+from htmlgraph import SDK
 
 
 def setup_project(sdk: SDK):
@@ -82,7 +82,7 @@ def setup_project(sdk: SDK):
         ]) \
         .save()
 
-    print(f"✅ Created 5 interdependent features")
+    print("✅ Created 5 interdependent features")
     return {
         "db": db_feature,
         "auth": auth_feature,
@@ -108,7 +108,7 @@ def simulate_agent_work(sdk: SDK):
     if backend_work:
         task = backend_work[0]
         print(f"   Found available task: {task.title}")
-        print(f"   Claiming feature...")
+        print("   Claiming feature...")
 
         # Claim the feature
         with sdk.features.edit(task.id) as f:
@@ -134,14 +134,14 @@ def simulate_agent_work(sdk: SDK):
     if frontend_work:
         task = frontend_work[0]
         print(f"   Found task: {task.title}")
-        print(f"   ❌ Cannot start - blocked by dependencies")
+        print("   ❌ Cannot start - blocked by dependencies")
 
         # Check what's blocking it
         if task.edges.get("blocked_by"):
             blocking_ids = [e.target_id for e in task.edges["blocked_by"]]
             print(f"   ⚠️  Waiting for: {', '.join(blocking_ids)}")
     else:
-        print(f"   No frontend work available yet")
+        print("   No frontend work available yet")
 
     # Agent 3: Full-stack (can work on anything)
     print("\n👤 Agent 3 (Full-Stack):")
@@ -158,7 +158,7 @@ def simulate_agent_work(sdk: SDK):
         feature = sdk.features.get(rec['id'])
         if feature and feature.agent_assigned:
             print(f"   ❌ Already claimed by {feature.agent_assigned}")
-            print(f"   Looking for alternative...")
+            print("   Looking for alternative...")
 
             # Get parallel work
             parallel = sdk.get_parallel_work(max_agents=3)
@@ -190,7 +190,7 @@ def show_project_status(sdk: SDK):
     print(f"   Blocked: {len(by_status.get('blocked', []))}")
 
     # Show features by agent
-    print(f"\n👥 Work Distribution:")
+    print("\n👥 Work Distribution:")
     by_agent = {}
     for f in all_features:
         if f.agent_assigned:
@@ -206,7 +206,7 @@ def show_project_status(sdk: SDK):
     # Show bottlenecks
     bottlenecks = sdk.find_bottlenecks(top_n=3)
     if bottlenecks:
-        print(f"\n⚠️  Bottlenecks (blocking other work):")
+        print("\n⚠️  Bottlenecks (blocking other work):")
         for bn in bottlenecks:
             print(f"   - {bn['title']}: blocks {bn['blocks_count']} features")
 
@@ -219,13 +219,13 @@ def show_coordination_insights(sdk: SDK):
 
     # Get parallel work capacity
     parallel = sdk.get_parallel_work(max_agents=5)
-    print(f"\n⚡ Parallelization:")
+    print("\n⚡ Parallelization:")
     print(f"   Maximum agents that can work simultaneously: {parallel['max_parallelism']}")
     print(f"   Tasks ready to start now: {parallel['ready_now']}")
 
     # Get recommendations
     recs = sdk.recommend_next_work(agent_count=3)
-    print(f"\n💡 Top Recommendations for Next Work:")
+    print("\n💡 Top Recommendations for Next Work:")
     for i, rec in enumerate(recs[:3], 1):
         print(f"\n   {i}. {rec['title']} (score: {rec['score']:.1f})")
         print(f"      Priority: {rec['priority']}")
@@ -236,7 +236,7 @@ def show_coordination_insights(sdk: SDK):
     # Risk assessment
     risks = sdk.assess_risks()
     if risks['high_risk_count'] > 0:
-        print(f"\n⚠️  Risks Detected:")
+        print("\n⚠️  Risks Detected:")
         print(f"   {risks['high_risk_count']} high-risk tasks")
         for task in risks['high_risk_tasks'][:3]:
             print(f"   - {task['title']}: {', '.join(task['risk_factors'][:2])}")

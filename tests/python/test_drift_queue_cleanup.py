@@ -14,7 +14,6 @@ from pathlib import Path
 def test_drift_queue_cleanup_after_age():
     """Test that stale drift queue entries are removed based on max_age_hours."""
     # Import the functions from track-event.py
-    import sys
     import importlib.util
 
     # Load the track-event module
@@ -72,7 +71,6 @@ def test_drift_queue_cleanup_after_age():
 
 def test_clear_drift_queue_activities():
     """Test that clear_drift_queue_activities removes all activities."""
-    import sys
     import importlib.util
 
     # Load the track-event module
@@ -125,7 +123,6 @@ def test_clear_drift_queue_activities():
 
 def test_clear_drift_queue_preserves_last_classification():
     """Test that clearing the queue preserves the last_classification timestamp."""
-    import sys
     import importlib.util
 
     # Load the track-event module
@@ -180,7 +177,6 @@ def test_drift_queue_cleanup_integration():
     3. Clear the queue
     4. Verify they're removed
     """
-    import sys
     import importlib.util
 
     # Load the track-event module

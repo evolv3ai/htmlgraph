@@ -1,20 +1,18 @@
 """Tests for Pydantic deployment models."""
 
-import pytest
-from pathlib import Path
-from pydantic import ValidationError
 
+import pytest
 from htmlgraph.deployment_models import (
-    SemanticVersion,
+    BuildConfig,
+    DeploymentConfig,
+    DeploymentResult,
     DeploymentStep,
     GitConfig,
-    BuildConfig,
-    PyPIConfig,
     PluginConfig,
-    DeploymentHooks,
-    DeploymentConfig,
-    DeploymentResult
+    PyPIConfig,
+    SemanticVersion,
 )
+from pydantic import ValidationError
 
 
 class TestSemanticVersion:

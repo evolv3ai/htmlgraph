@@ -14,12 +14,12 @@ This creates a .htmlgraph/ directory with:
 - Features are routed to the best agents based on their capabilities
 """
 
+from htmlgraph.models import Node
 from htmlgraph.routing import (
     AgentCapabilityRegistry,
-    route_tasks_to_agents,
     CapabilityMatcher,
+    route_tasks_to_agents,
 )
-from htmlgraph.models import Node
 
 
 def print_header(title: str) -> None:
@@ -143,12 +143,12 @@ def main():
 
     print(f"\n  Task: {overloaded_task.title}")
     print(f"  Requirements: {', '.join(overloaded_task.required_capabilities)}")
-    print(f"\n  Backend agent WIP: 4/5 (nearly full)")
-    print(f"  Generalist agent WIP: 1/6 (available)")
+    print("\n  Backend agent WIP: 4/5 (nearly full)")
+    print("  Generalist agent WIP: 1/6 (available)")
     print(f"\n  Result: Task routed to {agent.agent_id}")
     print(f"  Score: {score:.1f}")
-    print(f"\n  Explanation: Even though backend is more specialized,")
-    print(f"  generalist was chosen due to lower workload (better availability)")
+    print("\n  Explanation: Even though backend is more specialized,")
+    print("  generalist was chosen due to lower workload (better availability)")
 
     # Step 5: Show capability matching details
     print("\n\nStep 5: Detailed capability matching example...")
@@ -189,16 +189,16 @@ def main():
     successful = sum(1 for _, (agent, _) in routing.items() if agent)
     print(f"Tasks routed:     {successful}/{len(tasks)}")
     print(f"Agents used:      {len(set(agent.agent_id for _, (agent, _) in routing.items() if agent))}")
-    print(f"\nCapability-based routing successfully demonstrated!")
-    print(f"The system intelligently assigned tasks based on:")
-    print(f"  • Agent capabilities (exact and partial matches)")
-    print(f"  • Agent workload (WIP count)")
-    print(f"  • Task priority")
-    print(f"\nUse in production to:")
-    print(f"  1. Register multi-agent teams with diverse capabilities")
-    print(f"  2. Assign complex tasks automatically")
-    print(f"  3. Balance workload across agents")
-    print(f"  4. Prevent overloading specialized agents")
+    print("\nCapability-based routing successfully demonstrated!")
+    print("The system intelligently assigned tasks based on:")
+    print("  • Agent capabilities (exact and partial matches)")
+    print("  • Agent workload (WIP count)")
+    print("  • Task priority")
+    print("\nUse in production to:")
+    print("  1. Register multi-agent teams with diverse capabilities")
+    print("  2. Assign complex tasks automatically")
+    print("  3. Balance workload across agents")
+    print("  4. Prevent overloading specialized agents")
 
 
 if __name__ == "__main__":

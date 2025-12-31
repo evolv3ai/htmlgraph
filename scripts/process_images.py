@@ -10,8 +10,9 @@ Usage:
 """
 
 from pathlib import Path
-from PIL import Image
+
 import numpy as np
+from PIL import Image
 
 
 def remove_white_background(image_path, output_path, threshold=240):

@@ -5,8 +5,9 @@ Verifies that help(), __dir__, and documentation are working correctly
 to make the SDK easier for AI agents to discover and use.
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
 from htmlgraph import SDK
 
 

@@ -4,15 +4,14 @@ Tests for Pre-Work Validation Hook (validate-work.py)
 Tests the validation logic that enforces HtmlGraph workflow before code changes.
 """
 
-import json
-import pytest
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+import importlib.util
 
 # Import the validation functions (validate-work.py has hyphen, so use importlib)
 import sys
-import importlib.util
 from pathlib import Path
+from unittest.mock import patch
+
+import pytest
 
 # Load validate-work.py module
 script_path = Path(__file__).parent.parent.parent / "packages" / "claude-plugin" / "hooks" / "scripts" / "validate-work.py"

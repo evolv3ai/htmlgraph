@@ -23,9 +23,8 @@ Output: Single line with ANSI colors for terminal display
 
 import json
 import sys
-import os
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
 
 # ANSI color codes
 RESET = "\033[0m"
@@ -241,7 +240,7 @@ def get_htmlgraph_context(htmlgraph_dir: Path, input_data: dict | None = None) -
     except ImportError:
         # SDK not available, try direct file access
         pass
-    except Exception as e:
+    except Exception:
         # Silently fail - status line should not break
         pass
 
@@ -379,7 +378,7 @@ def main():
     except json.JSONDecodeError:
         # Invalid JSON, show minimal status
         print(f"{CYAN}Claude{RESET}")
-    except Exception as e:
+    except Exception:
         # Any other error, show minimal status
         print(f"{CYAN}Claude{RESET} {DIM}(error){RESET}")
 

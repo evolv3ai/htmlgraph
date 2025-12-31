@@ -5,15 +5,15 @@ Tests the ability to hand off tasks between agents with preserved context,
 including metadata serialization and lightweight context generation.
 """
 
-import pytest
+from datetime import datetime
 from pathlib import Path
-from datetime import datetime, timedelta
 from tempfile import TemporaryDirectory
 
-from htmlgraph.models import Node, Edge, Session
-from htmlgraph.session_manager import SessionManager
+import pytest
+from htmlgraph.converter import html_to_session, session_to_html
+from htmlgraph.models import Node, Session
 from htmlgraph.sdk import SDK
-from htmlgraph.converter import session_to_html, html_to_session
+from htmlgraph.session_manager import SessionManager
 
 
 class TestHandoffFields:

@@ -8,10 +8,10 @@ Covers:
 - CLI command: htmlgraph transcript link-feature
 """
 
-import pytest
 from datetime import datetime
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 @pytest.fixture
@@ -40,8 +40,8 @@ class TestLinkTranscriptToFeature:
 
     def test_link_adds_implemented_by_edge(self, temp_graph_dir, mock_transcript_session):
         """Linking should add an implemented-by edge to the feature."""
-        from htmlgraph.session_manager import SessionManager
         from htmlgraph.models import Node
+        from htmlgraph.session_manager import SessionManager
 
         manager = SessionManager(temp_graph_dir)
 
@@ -70,8 +70,8 @@ class TestLinkTranscriptToFeature:
 
     def test_link_does_not_duplicate(self, temp_graph_dir, mock_transcript_session):
         """Linking the same transcript twice should not create duplicate edges."""
+        from htmlgraph.models import Edge, Node
         from htmlgraph.session_manager import SessionManager
-        from htmlgraph.models import Node, Edge
 
         manager = SessionManager(temp_graph_dir)
 
@@ -100,8 +100,8 @@ class TestLinkTranscriptToFeature:
 
     def test_link_aggregates_analytics(self, temp_graph_dir, mock_transcript_session):
         """Linking should add transcript analytics to feature properties."""
-        from htmlgraph.session_manager import SessionManager
         from htmlgraph.models import Node
+        from htmlgraph.session_manager import SessionManager
 
         manager = SessionManager(temp_graph_dir)
 
@@ -127,8 +127,9 @@ class TestCompleteWithTranscript:
 
     def test_complete_with_transcript_id(self, temp_graph_dir):
         """Completing a feature with transcript_id should link the transcript."""
-        from htmlgraph import SDK
         from unittest.mock import MagicMock, patch
+
+        from htmlgraph import SDK
 
         sdk = SDK(directory=temp_graph_dir, agent="test-agent")
 
@@ -159,9 +160,10 @@ class TestParallelWorkflowLinkTranscripts:
 
     def test_link_transcripts_success(self, temp_graph_dir):
         """link_transcripts should link multiple features to transcripts."""
+        from unittest.mock import MagicMock, patch
+
         from htmlgraph import SDK
         from htmlgraph.parallel import ParallelWorkflow
-        from unittest.mock import patch, MagicMock
 
         sdk = SDK(directory=temp_graph_dir, agent="test-agent")
         workflow = ParallelWorkflow(sdk)
@@ -209,10 +211,11 @@ class TestEventPayloadTranscriptId:
 
     def test_complete_logs_transcript_id_in_payload(self, temp_graph_dir):
         """FeatureComplete event should include transcript_id in payload."""
-        from htmlgraph.session_manager import SessionManager
-        from htmlgraph.models import Node, Session
-        from unittest.mock import patch, MagicMock
         from datetime import datetime
+        from unittest.mock import MagicMock, patch
+
+        from htmlgraph.models import Node, Session
+        from htmlgraph.session_manager import SessionManager
 
         manager = SessionManager(temp_graph_dir)
 

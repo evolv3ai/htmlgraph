@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Link all features to the htmlgraph-dev track."""
 
-from pathlib import Path
 import re
+from pathlib import Path
 
 features_dir = Path(".htmlgraph/features")
 track_id = "htmlgraph-dev"

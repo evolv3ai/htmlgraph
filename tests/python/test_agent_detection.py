@@ -2,8 +2,6 @@
 Tests for agent detection utilities.
 """
 
-import os
-import pytest
 from htmlgraph.agent_detection import detect_agent_name, get_agent_display_name
 
 

@@ -8,14 +8,12 @@ Tests:
 4. SessionConverter handling of auto-spike fields
 """
 
-import pytest
-from pathlib import Path
 from datetime import datetime
 
-from htmlgraph.session_manager import SessionManager
-from htmlgraph.converter import NodeConverter, SessionConverter, html_to_session
+import pytest
+from htmlgraph.converter import NodeConverter, SessionConverter
 from htmlgraph.models import Node
-from htmlgraph import SDK
+from htmlgraph.session_manager import SessionManager
 
 
 class TestSessionInitSpike:

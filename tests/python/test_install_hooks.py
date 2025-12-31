@@ -2,14 +2,13 @@
 Tests for Git hooks installation and management.
 """
 
-import json
 import shutil
 import tempfile
 from pathlib import Path
-import pytest
 
-from htmlgraph.hooks.installer import HookInstaller, HookConfig
+import pytest
 from htmlgraph.hooks import AVAILABLE_HOOKS
+from htmlgraph.hooks.installer import HookConfig, HookInstaller
 
 
 @pytest.fixture
@@ -416,8 +415,9 @@ class TestCLIIntegration:
 
     def test_cli_command_exists(self):
         """Test that install-hooks command exists in CLI."""
-        from htmlgraph.cli import main
         import sys
+
+        from htmlgraph.cli import main
 
         # This will raise SystemExit, but we just want to check parsing works
         with pytest.raises(SystemExit):

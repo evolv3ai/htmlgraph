@@ -5,8 +5,9 @@ This method is used by the PreToolUse validation hook to check if code changes
 have an active work item for attribution.
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
 from htmlgraph import SDK, Node, Step
 
 

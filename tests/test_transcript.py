@@ -3,19 +3,16 @@ Tests for Claude Code transcript integration.
 """
 
 import json
-import pytest
-from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
+from htmlgraph.session_manager import SessionManager
 from htmlgraph.transcript import (
-    TranscriptReader,
-    TranscriptSession,
     TranscriptEntry,
+    TranscriptReader,
     TranscriptWatcher,
 )
-from htmlgraph.session_manager import SessionManager
-
 
 # Sample JSONL lines from a Claude Code transcript
 SAMPLE_JSONL_LINES = [

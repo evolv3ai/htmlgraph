@@ -8,17 +8,12 @@ Tests the new session-start hook enhancements:
 - Enhanced session summaries
 """
 
-import json
 import subprocess
-import tempfile
-from pathlib import Path
-from datetime import datetime, timezone
 
 import pytest
-
 from htmlgraph import SDK
-from htmlgraph.session_manager import SessionManager
 from htmlgraph.converter import SessionConverter
+from htmlgraph.session_manager import SessionManager
 
 
 class TestStrategicRecommendations:

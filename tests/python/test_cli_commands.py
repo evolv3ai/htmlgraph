@@ -3,13 +3,14 @@ Backend tests for HtmlGraph CLI commands and functionality.
 
 Run with: uv run pytest tests/python/test_cli_commands.py
 """
-import pytest
-from pathlib import Path
-from htmlgraph import HtmlGraph
-from htmlgraph.models import Node, Edge
-from datetime import datetime
-import tempfile
 import shutil
+import tempfile
+from datetime import datetime
+from pathlib import Path
+
+import pytest
+from htmlgraph import HtmlGraph
+from htmlgraph.models import Edge, Node
 
 
 @pytest.fixture
@@ -266,8 +267,9 @@ def test_node_priority_values(sample_graph, priority):
 
 
 def test_cli_init_bootstraps_events_index_and_hooks(temp_graph_dir):
-    from htmlgraph.cli import cmd_init
     import argparse
+
+    from htmlgraph.cli import cmd_init
 
     # Use a fresh temp project dir (with no .gitignore yet).
     args = argparse.Namespace(

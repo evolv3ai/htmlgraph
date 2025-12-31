@@ -12,10 +12,8 @@ Tests the complete deployment cycle:
 import subprocess
 import tempfile
 from pathlib import Path
-from unittest import mock
 
 import pytest
-
 from htmlgraph.scripts.deploy import (
     get_project_root,
     run_deploy_script,

@@ -78,7 +78,7 @@ def main():
             if rec['estimated_hours'] > 0:
                 print(f"   Estimated: {rec['estimated_hours']:.1f} hours")
             print(f"   Unlocks: {rec['unlocks_count']} tasks")
-            print(f"   Reasons:")
+            print("   Reasons:")
             for reason in rec['reasons'][:3]:
                 print(f"     - {reason}")
     else:
@@ -114,7 +114,7 @@ def main():
         print("  ✓ No orphaned tasks")
 
     if risks['recommendations']:
-        print(f"\nRecommendations:")
+        print("\nRecommendations:")
         for rec in risks['recommendations'][:3]:
             print(f"  • {rec}")
 

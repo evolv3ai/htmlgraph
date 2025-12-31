@@ -6,6 +6,7 @@ Extends BaseCollection with spike-specific builder support.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -75,6 +76,8 @@ class SpikeCollection(BaseCollection["SpikeCollection"]):
             >>> # Get latest 5 spikes from any agent
             >>> recent = sdk.spikes.get_latest(limit=5)
         """
+        from datetime import timezone
+
         # Get all spikes
         all_spikes = self.all()
 
@@ -82,8 +85,14 @@ class SpikeCollection(BaseCollection["SpikeCollection"]):
         if agent:
             all_spikes = [s for s in all_spikes if s.agent_assigned == agent]
 
+        # Normalize to UTC for comparison
+        def to_comparable(dt: datetime) -> datetime:
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc)
+            return dt
+
         # Sort by created timestamp (newest first)
-        all_spikes.sort(key=lambda s: s.created, reverse=True)
+        all_spikes.sort(key=lambda s: to_comparable(s.created), reverse=True)
 
         # Return limited results
         return all_spikes[:limit]

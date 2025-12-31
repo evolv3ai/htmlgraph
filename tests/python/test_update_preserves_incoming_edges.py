@@ -6,9 +6,8 @@ from the edge index via remove_node(), but only re-add outgoing edges, causing
 incoming edges to be lost even though they still existed in other nodes' edge lists.
 """
 
-import pytest
 from htmlgraph import HtmlGraph
-from htmlgraph.models import Node, Edge
+from htmlgraph.models import Edge, Node
 
 
 def test_update_preserves_incoming_edges(tmp_path):

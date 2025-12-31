@@ -6,11 +6,9 @@ Tests the PreToolUse hook that enforces orchestrator delegation patterns.
 
 import json
 import subprocess
-import tempfile
 from pathlib import Path
 
 import pytest
-
 from htmlgraph.orchestrator_mode import OrchestratorModeManager
 
 
@@ -276,14 +274,14 @@ class TestMultipleLookupBlocked:
         )
         assert response1["continue"] is True
 
-        # Second read - blocked
+        # Second read - blocked (advisory-only: warns but allows)
         response2 = run_hook(
             hook_script,
             "Read",
             {"file_path": "/tmp/test2.py"},
             cwd=temp_graph_dir.parent
         )
-        assert response2["continue"] is False
+        assert response2["continue"] is True  # Advisory-only: warnings but no blocking
         assert "Multiple Read calls detected" in response2["hookSpecificOutput"]["additionalContext"]
         assert "Explorer subagent" in response2["hookSpecificOutput"]["additionalContext"]
 
@@ -301,14 +299,14 @@ class TestMultipleLookupBlocked:
         )
         assert response1["continue"] is True
 
-        # Second grep - blocked
+        # Second grep - blocked (advisory-only: warns but allows)
         response2 = run_hook(
             hook_script,
             "Grep",
             {"pattern": "test2"},
             cwd=temp_graph_dir.parent
         )
-        assert response2["continue"] is False
+        assert response2["continue"] is True  # Advisory-only: warnings but no blocking
         assert "Multiple Grep calls detected" in response2["hookSpecificOutput"]["additionalContext"]
 
 

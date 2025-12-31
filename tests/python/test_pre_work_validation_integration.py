@@ -12,9 +12,10 @@ as a subprocess with real .htmlgraph data.
 """
 
 import json
-import pytest
 import subprocess
 from pathlib import Path
+
+import pytest
 
 # Test fixtures
 

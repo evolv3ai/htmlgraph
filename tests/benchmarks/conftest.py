@@ -8,7 +8,6 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
 from htmlgraph.graph import HtmlGraph
 from htmlgraph.models import Edge, Node
 

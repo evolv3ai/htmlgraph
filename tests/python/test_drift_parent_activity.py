@@ -7,7 +7,6 @@ match the active feature context.
 """
 
 import pytest
-
 from htmlgraph.session_manager import SessionManager
 
 

@@ -1,8 +1,9 @@
 """Tests for Phase 2: Analytics API."""
 
 import json
-import pytest
 from datetime import datetime
+
+import pytest
 from htmlgraph import SDK, Analytics, WorkType
 from htmlgraph.models import Session
 

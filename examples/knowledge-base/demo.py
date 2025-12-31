@@ -7,13 +7,13 @@ Think Obsidian or Roam Research, but with HTML files.
 """
 
 import sys
+from datetime import date
 from pathlib import Path
-from datetime import datetime, date
 
 # Add src to path for development
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src" / "python"))
 
-from htmlgraph import SDK, Node, Edge
+from htmlgraph import SDK, Edge, Node
 
 
 def create_notes(sdk: SDK):
@@ -163,7 +163,7 @@ def create_notes(sdk: SDK):
         filepath = sdk.features._ensure_graph().add(note, overwrite=True)
         print(f"   ✅ Created: {note.title}")
 
-    print(f"\n📚 Created 4 interconnected concept notes")
+    print("\n📚 Created 4 interconnected concept notes")
 
 
 def demonstrate_queries(sdk: SDK):
@@ -177,12 +177,12 @@ def demonstrate_queries(sdk: SDK):
 
     # Find high-priority notes
     important = sdk.features.where(type="note", priority="high")
-    print(f"\n⭐ High-priority notes:")
+    print("\n⭐ High-priority notes:")
     for note in important:
         print(f"   - {note.title}")
 
     # Find related notes
-    print(f"\n🔗 Notes related to 'HtmlGraph':")
+    print("\n🔗 Notes related to 'HtmlGraph':")
     htmlgraph_note = sdk.features.get("note-htmlgraph")
     if htmlgraph_note:
         related_ids = [e.target_id for e in htmlgraph_note.edges.get("related", [])]
@@ -192,7 +192,7 @@ def demonstrate_queries(sdk: SDK):
                 print(f"   - {note.title}")
 
     # Find connection paths
-    print(f"\n🛤️  Connection path (Web Standards → AI Agents):")
+    print("\n🛤️  Connection path (Web Standards → AI Agents):")
     path = sdk._graph.shortest_path("note-web-standards", "note-ai-agents", relationship="related")
     if path:
         for i, node_id in enumerate(path):
@@ -216,7 +216,7 @@ def demonstrate_graph_visualization(sdk: SDK):
 
     # Show stats
     stats = sdk._graph.stats()
-    print(f"\n📈 Statistics:")
+    print("\n📈 Statistics:")
     print(f"   Total nodes: {stats['total']}")
     print(f"   Total edges: {stats['edge_count']}")
     print(f"   By type: {stats['by_type']}")

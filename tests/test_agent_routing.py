@@ -2,12 +2,12 @@
 Tests for agent capabilities and smart routing.
 """
 
+
 import pytest
-from pathlib import Path
-from htmlgraph.models import Node
-from htmlgraph.agent_registry import AgentRegistry, AgentProfile
+from htmlgraph.agent_registry import AgentProfile, AgentRegistry
 from htmlgraph.agents import AgentInterface
 from htmlgraph.graph import HtmlGraph
+from htmlgraph.models import Node
 
 
 def test_agent_profile_capability_matching():

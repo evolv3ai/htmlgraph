@@ -2,15 +2,15 @@
 
 import pytest
 from htmlgraph.ids import (
-    generate_id,
+    PREFIXES,
     generate_hierarchical_id,
-    parse_id,
-    is_valid_id,
-    is_legacy_id,
+    generate_id,
+    get_depth,
     get_parent_id,
     get_root_id,
-    get_depth,
-    PREFIXES,
+    is_legacy_id,
+    is_valid_id,
+    parse_id,
 )
 
 

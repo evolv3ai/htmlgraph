@@ -8,17 +8,13 @@ This test verifies that:
 4. Capability matching correctly routes the task
 """
 
-import pytest
-from datetime import datetime
-from pathlib import Path
-from tempfile import TemporaryDirectory
 
 from htmlgraph.models import Node
-from htmlgraph.session_manager import SessionManager
 from htmlgraph.routing import (
     AgentCapabilityRegistry,
     CapabilityMatcher,
 )
+from htmlgraph.session_manager import SessionManager
 
 
 class TestHandoffWithCapabilityMatching:
