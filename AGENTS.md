@@ -445,6 +445,53 @@ node = Node(id="...", title="...")
 graph.add(node)
 ```
 
+---
+
+## Debugging & Quality
+
+**See [DEBUGGING.md](./DEBUGGING.md) for the complete debugging guide**
+
+HtmlGraph provides specialized debugging agents for systematic problem-solving:
+
+### Debugging Agents
+
+- **Researcher Agent** (`packages/claude-plugin/agents/researcher.md`)
+  - Research documentation BEFORE implementing solutions
+  - Use for: Unfamiliar errors, Claude Code hooks/plugins, multiple failed attempts
+
+- **Debugger Agent** (`packages/claude-plugin/agents/debugger.md`)
+  - Systematically analyze and resolve errors
+  - Use for: Known errors, test failures, reproduction needed
+
+- **Test Runner Agent** (`packages/claude-plugin/agents/test-runner.md`)
+  - Validate all changes, enforce quality gates
+  - Use for: Pre-commit validation, deployment, regression prevention
+
+### Tool Selection Matrix
+
+| Scenario | Use This Agent | Why |
+|----------|----------------|-----|
+| Unfamiliar error | Researcher | Research docs first |
+| Claude Code hooks issue | Researcher | Official guidance needed |
+| Error with known cause | Debugger | Systematic root cause analysis |
+| Before committing | Test Runner | Validate quality gates |
+| Multiple failed attempts | Researcher | Stop guessing, start researching |
+
+### Quick Reference
+
+```bash
+# Research first
+packages/claude-plugin/agents/researcher.md
+
+# Debug systematically
+packages/claude-plugin/agents/debugger.md
+
+# Validate changes
+packages/claude-plugin/agents/test-runner.md
+```
+
+---
+
 ### 2. Use Context Managers (Auto-Save)
 
 ```python

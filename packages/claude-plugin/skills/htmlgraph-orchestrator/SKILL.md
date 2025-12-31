@@ -133,6 +133,43 @@ Task(
 - Reviewing subagent results
 - Simple fixes (1-2 line changes)
 
+---
+
+## Debugging Delegation Patterns
+
+When delegating error resolution tasks:
+
+**DON'T spawn general-purpose for debugging:**
+```python
+# ❌ WRONG - Will guess without research
+Task(prompt="Fix the authentication error in auth.py...", subagent_type="general-purpose")
+```
+
+**DO delegate research first, then implementation:**
+```python
+# ✅ CORRECT - Research-first workflow
+# Step 1: Research the error
+Task(
+    prompt="Research authentication error patterns in Claude Code docs",
+    subagent_type="claude-code-guide"  # or use researcher agent
+)
+
+# Step 2: Implement fix with context
+Task(
+    prompt=f"Fix auth.py based on research: {findings}...",
+    subagent_type="general-purpose"
+)
+```
+
+**Debugging agent decision tree:**
+- Unfamiliar error → Researcher agent first
+- Root cause known → Debugger agent
+- Fix implemented → Test runner agent
+
+**See [DEBUGGING.md](../../../DEBUGGING.md) for systematic debugging workflow**
+
+---
+
 ## Parallel Subagent Execution
 
 For independent tasks, spawn multiple subagents in parallel:

@@ -61,6 +61,24 @@ Always structure your response with these sections:
 - [Suggestion 2]
 ```
 
+## Research Checkpoint (When Exploring Unfamiliar Code)
+
+Before extensive exploration of unknown codebases:
+
+**Ask yourself:**
+- Have I checked official documentation?
+- Are there similar patterns in this project?
+- Should I use researcher agent for domain-specific knowledge?
+
+**For Claude Code / plugin issues:**
+- Use claude-code-guide subagent first
+- Check https://code.claude.com/docs
+- Review packages/claude-plugin/agents/researcher.md
+
+**See [DEBUGGING.md](../../../DEBUGGING.md) for research-first methodology**
+
+---
+
 ## Anti-Patterns to Avoid
 
 1. **Don't read everything**: Only read files that Grep found relevant

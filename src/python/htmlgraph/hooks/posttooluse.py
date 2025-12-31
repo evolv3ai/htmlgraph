@@ -109,11 +109,65 @@ async def run_task_validation(hook_input: dict[str, Any]) -> dict[str, Any]:
         return {"continue": True}
 
 
+async def suggest_debugging_resources(hook_input: dict[str, Any]) -> dict[str, Any]:
+    """
+    Suggest debugging resources based on tool results.
+
+    Args:
+        hook_input: Hook input with tool execution details
+
+    Returns:
+        Suggestion response: {"hookSpecificOutput": {"additionalContext": "..."}}
+    """
+    try:
+        tool_name = hook_input.get("name", "") or hook_input.get("tool_name", "")
+        tool_response = hook_input.get("result", {}) or hook_input.get(
+            "tool_response", {}
+        )
+
+        suggestions = []
+
+        # Check for error indicators in response
+        response_text = str(tool_response).lower()
+        error_indicators = ["error", "failed", "exception", "traceback", "errno"]
+
+        if any(indicator in response_text for indicator in error_indicators):
+            suggestions.append("⚠️ Error detected in tool response")
+            suggestions.append("Debugging resources:")
+            suggestions.append("  📚 DEBUGGING.md - Systematic debugging guide")
+            suggestions.append("  🔬 Researcher agent - Research error patterns")
+            suggestions.append("  🐛 Debugger agent - Root cause analysis")
+            suggestions.append("  Built-in: /doctor, /hooks, claude --debug")
+
+        # Check for Task tool without save evidence
+        if tool_name == "Task":
+            result_text = str(tool_response).lower()
+            save_indicators = [".save()", "spike", "htmlgraph", ".create("]
+            if not any(ind in result_text for ind in save_indicators):
+                suggestions.append("💡 Task completed - remember to document findings")
+                suggestions.append(
+                    "  See DEBUGGING.md for research documentation patterns"
+                )
+
+        if suggestions:
+            return {
+                "hookSpecificOutput": {
+                    "hookEventName": "PostToolUse",
+                    "additionalContext": "\n".join(suggestions),
+                }
+            }
+
+        return {}
+    except Exception:
+        # Graceful degradation - no suggestions on error
+        return {}
+
+
 async def posttooluse_hook(
     hook_type: str, hook_input: dict[str, Any]
 ) -> dict[str, Any]:
     """
-    Unified PostToolUse hook - runs tracking, reflection, and validation in parallel.
+    Unified PostToolUse hook - runs tracking, reflection, validation, and debugging suggestions in parallel.
 
     Args:
         hook_type: "PostToolUse" or "Stop"
@@ -130,11 +184,17 @@ async def posttooluse_hook(
             }
         }
     """
-    # Run all three in parallel using asyncio.gather
-    event_response, reflection_response, validation_response = await asyncio.gather(
+    # Run all four in parallel using asyncio.gather
+    (
+        event_response,
+        reflection_response,
+        validation_response,
+        debug_suggestions,
+    ) = await asyncio.gather(
         run_event_tracking(hook_type, hook_input),
         run_orchestrator_reflection(hook_input),
         run_task_validation(hook_input),
+        suggest_debugging_resources(hook_input),
     )
 
     # Combine responses (all should return continue=True)
@@ -168,6 +228,12 @@ async def posttooluse_hook(
         sys_msg = validation_response["hookSpecificOutput"].get("systemMessage", "")
         if sys_msg:
             system_messages.append(sys_msg)
+
+    # Debugging suggestions
+    if "hookSpecificOutput" in debug_suggestions:
+        ctx = debug_suggestions["hookSpecificOutput"].get("additionalContext", "")
+        if ctx:
+            guidance_parts.append(ctx)
 
     # Build unified response
     response: dict[str, Any] = {"continue": True}  # PostToolUse never blocks

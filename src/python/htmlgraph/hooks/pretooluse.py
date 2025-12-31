@@ -122,6 +122,53 @@ async def run_task_enforcement(tool_input: dict[str, Any]) -> dict[str, Any]:
         return {"continue": True}
 
 
+async def provide_debugging_guidance(tool_input: dict[str, Any]) -> dict[str, Any]:
+    """
+    Provide debugging guidance based on tool patterns and context.
+
+    Args:
+        tool_input: Hook input with tool name and parameters
+
+    Returns:
+        Guidance response: {"hookSpecificOutput": {"additionalContext": "..."}}
+    """
+    try:
+        tool_name = tool_input.get("name", "") or tool_input.get("tool_name", "")
+        tool_params = tool_input.get("input", {}) or tool_input.get("tool_input", {})
+
+        # High-risk tools that often indicate debugging scenarios
+        high_risk_tools = ["Edit", "Write", "Bash", "Read"]
+        if tool_name not in high_risk_tools:
+            return {}
+
+        guidance = []
+
+        # Check for debugging keywords in tool parameters
+        params_text = str(tool_params).lower()
+        debug_keywords = ["error", "fix", "broken", "failed", "bug", "issue", "problem"]
+
+        if any(kw in params_text for kw in debug_keywords):
+            guidance.append("🔍 Debugging task detected")
+            guidance.append("Consider:")
+            guidance.append("  - Review DEBUGGING.md for systematic approach")
+            guidance.append("  - Use researcher agent for unfamiliar errors")
+            guidance.append("  - Use debugger agent for systematic analysis")
+            guidance.append("  - Run /doctor or /hooks for diagnostics")
+
+        if guidance:
+            return {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "additionalContext": "\n".join(guidance),
+                }
+            }
+
+        return {}
+    except Exception:
+        # Graceful degradation - no guidance on error
+        return {}
+
+
 async def pretooluse_hook(tool_input: dict[str, Any]) -> dict[str, Any]:
     """
     Unified PreToolUse hook - runs all checks in parallel.
@@ -140,11 +187,17 @@ async def pretooluse_hook(tool_input: dict[str, Any]) -> dict[str, Any]:
             }
         }
     """
-    # Run all three checks in parallel using asyncio.gather
-    orch_response, validate_response, task_response = await asyncio.gather(
+    # Run all four checks in parallel using asyncio.gather
+    (
+        orch_response,
+        validate_response,
+        task_response,
+        debug_guidance,
+    ) = await asyncio.gather(
         run_orchestrator_check(tool_input),
         run_validation_check(tool_input),
         run_task_enforcement(tool_input),
+        provide_debugging_guidance(tool_input),
     )
 
     # Integrate responses
@@ -177,6 +230,12 @@ async def pretooluse_hook(tool_input: dict[str, Any]) -> dict[str, Any]:
         ctx = task_response["hookSpecificOutput"].get("additionalContext", "")
         if ctx:
             guidance_parts.append(f"[TaskEnforcer] {ctx}")
+
+    # Debugging guidance
+    if "hookSpecificOutput" in debug_guidance:
+        ctx = debug_guidance["hookSpecificOutput"].get("additionalContext", "")
+        if ctx:
+            guidance_parts.append(f"[Debugging] {ctx}")
 
     # Build unified response
     response = {"continue": should_continue}

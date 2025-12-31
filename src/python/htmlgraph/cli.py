@@ -760,6 +760,93 @@ def cmd_status(args: argparse.Namespace) -> None:
         print(f"  {status}: {count}")
 
 
+def cmd_debug(args: argparse.Namespace) -> None:
+    """Show debugging resources and system diagnostics."""
+    import os
+    from pathlib import Path
+
+    from htmlgraph.sdk import SDK
+
+    print("🔍 HtmlGraph Debugging Resources\n")
+    print("=" * 60)
+
+    # Documentation
+    print("\n📚 Documentation:")
+    print("  - DEBUGGING.md - Complete debugging guide")
+    print("  - AGENTS.md - SDK and agent documentation")
+    print("  - CLAUDE.md - Project workflow")
+
+    # Debugging Agents
+    print("\n🤖 Debugging Agents:")
+    agents_dir = Path("packages/claude-plugin/agents")
+    if agents_dir.exists():
+        print(f"  - {agents_dir}/researcher.md")
+        print(f"  - {agents_dir}/debugger.md")
+        print(f"  - {agents_dir}/test-runner.md")
+    else:
+        print("  - researcher.md - Research documentation before implementing")
+        print("  - debugger.md - Systematic error analysis")
+        print("  - test-runner.md - Quality gates and validation")
+
+    # Diagnostic Commands
+    print("\n🛠️  Diagnostic Commands:")
+    print("  htmlgraph status              - Show current graph state")
+    print("  htmlgraph feature list        - List all features")
+    print("  htmlgraph session list        - List all sessions")
+    print("  htmlgraph analytics           - Project analytics")
+
+    # Current System Status
+    print("\n📊 Current Status:")
+    print(f"  Graph directory: {args.graph_dir}")
+
+    graph_path = Path(args.graph_dir)
+    if graph_path.exists():
+        print("  Status: ✅ Initialized")
+
+        # Try to get quick stats
+        try:
+            sdk = SDK(directory=args.graph_dir)
+
+            # Count features
+            features = sdk.features.all()
+            print(f"  Features: {len(features)}")
+
+            # Count sessions
+            sessions = sdk.sessions.all()
+            print(f"  Sessions: {len(sessions)}")
+
+            # Count other collections
+            for coll_name in ["bugs", "chores", "spikes", "epics", "phases", "tracks"]:
+                try:
+                    coll = getattr(sdk, coll_name)
+                    nodes = coll.all()
+                    if len(nodes) > 0:
+                        print(f"  {coll_name.capitalize()}: {len(nodes)}")
+                except Exception:
+                    pass
+
+        except Exception as e:
+            print(f"  Warning: Could not load graph data: {e}")
+    else:
+        print("  Status: ⚠️  Not initialized")
+        print("  Run 'htmlgraph init' to create .htmlgraph directory")
+
+    # Environment Info
+    print("\n🔧 Environment:")
+    print(f"  Python: {sys.version.split()[0]}")
+    print(f"  Working dir: {os.getcwd()}")
+
+    # Check for common files
+    print("\n📁 Project Files:")
+    for filename in ["pyproject.toml", "package.json", ".git", "README.md"]:
+        exists = "✅" if Path(filename).exists() else "❌"
+        print(f"  {exists} {filename}")
+
+    print("\n" + "=" * 60)
+    print("For more help: https://github.com/Shakes-tzd/htmlgraph")
+    print()
+
+
 def cmd_query(args: argparse.Namespace) -> None:
     """Query nodes with CSS selector."""
     import json
@@ -3114,6 +3201,21 @@ curl Examples:
   curl localhost:8080/api/features
   curl -X POST localhost:8080/api/features -d '{"title": "New feature"}'
   curl -X PATCH localhost:8080/api/features/feat-001 -d '{"status": "done"}'
+
+Debugging & Quality:
+  See DEBUGGING.md for comprehensive debugging guide
+
+  Debugging agents:
+    researcher.md  - Research documentation before implementing
+    debugger.md    - Systematic error analysis
+    test-runner.md - Quality gates and validation
+
+  Quick diagnostics:
+    htmlgraph status          - Check current state
+    htmlgraph feature list    - List all features
+    htmlgraph debug           - Show debugging resources
+
+For more help: https://github.com/Shakes-tzd/htmlgraph
 """,
     )
 
@@ -3205,6 +3307,14 @@ curl Examples:
     # status
     status_parser = subparsers.add_parser("status", help="Show graph status")
     status_parser.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+
+    # debug
+    debug_parser = subparsers.add_parser(
+        "debug", help="Show debugging resources and system diagnostics"
+    )
+    debug_parser.add_argument(
         "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
     )
 
@@ -4268,6 +4378,8 @@ curl Examples:
         cmd_install_hooks(args)
     elif args.command == "status":
         cmd_status(args)
+    elif args.command == "debug":
+        cmd_debug(args)
     elif args.command == "query":
         cmd_query(args)
     elif args.command == "session":

@@ -2,9 +2,19 @@
 
 
 class HtmlGraphError(Exception):
-    """Base exception for all HtmlGraph errors."""
+    """Base exception for all HtmlGraph errors with debugging guidance."""
 
-    pass
+    def __str__(self) -> str:
+        """Return error message with debugging guidance."""
+        base_message = super().__str__()
+        guidance = (
+            "\n\n💡 Debugging help:"
+            "\n  - See DEBUGGING.md for systematic troubleshooting"
+            "\n  - Use researcher agent for unfamiliar errors"
+            "\n  - Run 'htmlgraph --help' for available commands"
+            "\n  - Run 'htmlgraph debug' for diagnostic tools"
+        )
+        return f"{base_message}{guidance}"
 
 
 class NodeNotFoundError(HtmlGraphError):
