@@ -23,6 +23,7 @@ import sys
 from typing import Any
 
 from htmlgraph.hooks.orchestrator import enforce_orchestrator_mode
+from htmlgraph.hooks.task_enforcer import enforce_task_saving
 from htmlgraph.hooks.validator import (
     load_tool_history as validator_load_history,
 )
@@ -93,9 +94,37 @@ async def run_validation_check(tool_input: dict[str, Any]) -> dict[str, Any]:
         return {"decision": "allow"}
 
 
+async def run_task_enforcement(tool_input: dict[str, Any]) -> dict[str, Any]:
+    """
+    Run task save enforcement check (async wrapper).
+
+    Args:
+        tool_input: Hook input with tool name and parameters
+
+    Returns:
+        Task enforcer response: {"continue": bool, "hookSpecificOutput": {...}}
+    """
+    try:
+        loop = asyncio.get_event_loop()
+
+        tool_name = tool_input.get("name", "") or tool_input.get("tool_name", "")
+        tool_params = tool_input.get("input", {}) or tool_input.get("tool_input", {})
+
+        # Run task enforcement
+        return await loop.run_in_executor(
+            None,
+            enforce_task_saving,
+            tool_name,
+            tool_params,
+        )
+    except Exception:
+        # Graceful degradation - allow on error
+        return {"continue": True}
+
+
 async def pretooluse_hook(tool_input: dict[str, Any]) -> dict[str, Any]:
     """
-    Unified PreToolUse hook - runs both checks in parallel.
+    Unified PreToolUse hook - runs all checks in parallel.
 
     Args:
         tool_input: Hook input with tool name and parameters
@@ -106,22 +135,25 @@ async def pretooluse_hook(tool_input: dict[str, Any]) -> dict[str, Any]:
             "continue": bool,
             "hookSpecificOutput": {
                 "hookEventName": "PreToolUse",
+                "updatedInput": {...},  # If task enforcer modified input
                 "additionalContext": "Combined guidance"
             }
         }
     """
-    # Run both checks in parallel using asyncio.gather
-    orch_response, validate_response = await asyncio.gather(
+    # Run all three checks in parallel using asyncio.gather
+    orch_response, validate_response, task_response = await asyncio.gather(
         run_orchestrator_check(tool_input),
         run_validation_check(tool_input),
+        run_task_enforcement(tool_input),
     )
 
     # Integrate responses
     orch_continues = orch_response.get("continue", True)
     validate_allows = validate_response.get("decision", "allow") == "allow"
-    should_continue = orch_continues and validate_allows
+    task_continues = task_response.get("continue", True)
+    should_continue = orch_continues and validate_allows and task_continues
 
-    # Collect guidance from both systems
+    # Collect guidance from all systems
     guidance_parts = []
 
     # Orchestrator guidance
@@ -140,14 +172,32 @@ async def pretooluse_hook(tool_input: dict[str, Any]) -> dict[str, Any]:
     if "suggestion" in validate_response:
         guidance_parts.append(f"[Validator] {validate_response['suggestion']}")
 
+    # Task enforcer guidance
+    if "hookSpecificOutput" in task_response:
+        ctx = task_response["hookSpecificOutput"].get("additionalContext", "")
+        if ctx:
+            guidance_parts.append(f"[TaskEnforcer] {ctx}")
+
     # Build unified response
     response = {"continue": should_continue}
 
-    if guidance_parts:
+    # Check if task enforcer provided updatedInput
+    updated_input = None
+    if "hookSpecificOutput" in task_response:
+        updated_input = task_response["hookSpecificOutput"].get("updatedInput")
+
+    if guidance_parts or updated_input:
         response["hookSpecificOutput"] = {
             "hookEventName": "PreToolUse",
-            "additionalContext": "\n".join(guidance_parts),
         }
+
+        if updated_input:
+            response["hookSpecificOutput"]["updatedInput"] = updated_input
+
+        if guidance_parts:
+            response["hookSpecificOutput"]["additionalContext"] = "\n".join(
+                guidance_parts
+            )
 
     return response
 

@@ -24,6 +24,7 @@ from typing import Any
 
 from htmlgraph.hooks.event_tracker import track_event
 from htmlgraph.hooks.orchestrator_reflector import orchestrator_reflect
+from htmlgraph.hooks.task_validator import validate_task_results
 
 
 async def run_event_tracking(
@@ -78,11 +79,41 @@ async def run_orchestrator_reflection(hook_input: dict[str, Any]) -> dict[str, A
         return {"continue": True}
 
 
+async def run_task_validation(hook_input: dict[str, Any]) -> dict[str, Any]:
+    """
+    Run task result validation (async wrapper).
+
+    Args:
+        hook_input: Hook input with tool execution details
+
+    Returns:
+        Validation response: {"continue": True, "hookSpecificOutput": {...}}
+    """
+    try:
+        loop = asyncio.get_event_loop()
+
+        tool_name = hook_input.get("name", "") or hook_input.get("tool_name", "")
+        tool_response = hook_input.get("result", {}) or hook_input.get(
+            "tool_response", {}
+        )
+
+        # Run task validation
+        return await loop.run_in_executor(
+            None,
+            validate_task_results,
+            tool_name,
+            tool_response,
+        )
+    except Exception:
+        # Graceful degradation - allow on error
+        return {"continue": True}
+
+
 async def posttooluse_hook(
     hook_type: str, hook_input: dict[str, Any]
 ) -> dict[str, Any]:
     """
-    Unified PostToolUse hook - runs both tracking and reflection in parallel.
+    Unified PostToolUse hook - runs tracking, reflection, and validation in parallel.
 
     Args:
         hook_type: "PostToolUse" or "Stop"
@@ -94,22 +125,26 @@ async def posttooluse_hook(
             "continue": True,
             "hookSpecificOutput": {
                 "hookEventName": "PostToolUse",
-                "additionalContext": "Combined feedback"
+                "additionalContext": "Combined feedback",
+                "systemMessage": "Warnings/alerts"
             }
         }
     """
-    # Run both in parallel using asyncio.gather
-    event_response, reflection_response = await asyncio.gather(
+    # Run all three in parallel using asyncio.gather
+    event_response, reflection_response, validation_response = await asyncio.gather(
         run_event_tracking(hook_type, hook_input),
         run_orchestrator_reflection(hook_input),
+        run_task_validation(hook_input),
     )
 
-    # Combine responses (both should return continue=True)
+    # Combine responses (all should return continue=True)
     # Event tracking is async and shouldn't block
     # Reflection provides optional guidance
+    # Validation provides warnings but doesn't block
 
-    # Collect all guidance
+    # Collect all guidance and messages
     guidance_parts = []
+    system_messages = []
 
     # Event tracking guidance (e.g., drift warnings)
     if "hookSpecificOutput" in event_response:
@@ -123,14 +158,34 @@ async def posttooluse_hook(
         if ctx:
             guidance_parts.append(ctx)
 
+    # Task validation feedback
+    if "hookSpecificOutput" in validation_response:
+        ctx = validation_response["hookSpecificOutput"].get("additionalContext", "")
+        if ctx:
+            guidance_parts.append(ctx)
+
+        # Task validation may provide systemMessage for warnings
+        sys_msg = validation_response["hookSpecificOutput"].get("systemMessage", "")
+        if sys_msg:
+            system_messages.append(sys_msg)
+
     # Build unified response
     response: dict[str, Any] = {"continue": True}  # PostToolUse never blocks
 
-    if guidance_parts:
+    if guidance_parts or system_messages:
         response["hookSpecificOutput"] = {
             "hookEventName": "PostToolUse",
-            "additionalContext": "\n".join(guidance_parts),
         }
+
+        if guidance_parts:
+            response["hookSpecificOutput"]["additionalContext"] = "\n".join(
+                guidance_parts
+            )
+
+        if system_messages:
+            response["hookSpecificOutput"]["systemMessage"] = "\n\n".join(
+                system_messages
+            )
 
     return response
 
