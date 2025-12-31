@@ -1,8 +1,8 @@
 {
-  "enabled": false,
-  "activated_at": "2025-12-31T00:18:02.588289+00:00",
+  "enabled": true,
+  "activated_at": "2025-12-31T06:17:36.815929+00:00",
   "session_id": null,
-  "enforcement_level": "guidance",
+  "enforcement_level": "strict",
   "auto_activated": false,
-  "disabled_by_user": true
+  "disabled_by_user": false
 }
