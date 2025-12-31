@@ -629,6 +629,75 @@ class Spike(Node):
         data["type"] = "spike"
         super().__init__(**data)
 
+    def to_html(self, stylesheet_path: str = "../styles.css") -> str:
+        """
+        Convert spike to HTML document with spike-specific fields.
+
+        Overrides Node.to_html() to include findings and decision sections.
+        """
+        # Build findings section
+        findings_html = ""
+        if self.findings:
+            findings_html = f"""
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                {self.findings}
+            </div>
+        </section>"""
+
+        # Build decision section
+        decision_html = ""
+        if self.decision:
+            decision_html = f"""
+        <section data-decision>
+            <h3>Decision</h3>
+            <p>{self.decision}</p>
+        </section>"""
+
+        # Build spike metadata section
+        spike_meta_html = f"""
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>{self.spike_type.value.title()}</dd>"""
+
+        if self.timebox_hours:
+            spike_meta_html += f"""
+                <dt>Timebox</dt>
+                <dd>{self.timebox_hours} hours</dd>"""
+
+        spike_meta_html += """
+            </dl>
+        </section>"""
+
+        # Get base HTML from Node and insert spike-specific sections
+        # We need to call Node's to_html() but inject our sections
+        # Strategy: Get base HTML, then insert our sections before closing article tag
+
+        # Call parent's to_html to get base structure
+        base_html = super().to_html(stylesheet_path)
+
+        # Insert spike sections before </article>
+        spike_sections = f"{spike_meta_html}{findings_html}{decision_html}"
+        html_with_findings = base_html.replace(
+            "</article>", f"{spike_sections}\n    </article>"
+        )
+
+        # Add spike-specific attributes to article tag
+        spike_attrs = f' data-spike-type="{self.spike_type.value}"'
+        if self.timebox_hours:
+            spike_attrs += f' data-timebox-hours="{self.timebox_hours}"'
+
+        # Insert spike attributes into article tag
+        html_with_attrs = html_with_findings.replace(
+            f'data-updated="{self.updated.isoformat()}"',
+            f'data-updated="{self.updated.isoformat()}"{spike_attrs}',
+        )
+
+        return html_with_attrs
+
 
 class Chore(Node):
     """
