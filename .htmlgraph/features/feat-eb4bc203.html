@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Auto-sync dashboard.html to index.html in serve command</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-eb4bc203"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2025-12-31T03:55:23.042706"
+             data-updated="2025-12-31T03:58:33.260057">
+
+        <header>
+            <h1>Auto-sync dashboard.html to index.html in serve command</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-40ed8a68.html" data-relationship="implemented-in" data-since="2025-12-31T03:55:23.412154">sess-40ed8a68</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true">✅ Add sync_dashboard_files() helper function to server.py</li>
+                <li data-completed="true">✅ Call sync check at start of serve() function</li>
+                <li data-completed="true">✅ Add user-friendly console output for sync status</li>
+                <li data-completed="true">✅ Test sync detection and auto-copy</li>
+                <li data-completed="true">✅ Update serve command help text to mention auto-sync</li>
+                <li data-completed="true">✅ Add tests for sync functionality</li>
+            </ol>
+        </section>
+        <section data-content>
+            <h3>Description</h3>
+            Add automatic dashboard sync check to htmlgraph serve command.
+
+Problem:
+Currently, index.html can become out of sync with src/python/htmlgraph/dashboard.html.
+The sync only happens during deployment (deploy-all.sh), not when running serve.
+
+Expected Behavior:
+When running htmlgraph serve, automatically:
+1. Check if index.html is out of sync with dashboard.html
+2. If out of sync, copy dashboard.html to index.html
+3. Notify user of the sync
+4. Start server normally
+
+Implementation:
+1. Add sync check to server.py serve() function
+2. Compare dashboard.html vs index.html
+3. Auto-copy if different
+4. Log sync action to console
+
+User Experience:
+When starting serve, user sees sync notification if files were out of sync.
+        </section>
+    </article>
+</body>
+</html>

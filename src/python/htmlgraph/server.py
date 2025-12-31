@@ -1122,6 +1122,51 @@ def check_port_in_use(port: int, host: str = "localhost") -> bool:
         return True
 
 
+def sync_dashboard_files(
+    static_dir: Path = Path("."),
+) -> bool:
+    """
+    Sync dashboard.html to index.html if they differ.
+
+    Args:
+        static_dir: Directory containing index.html
+
+    Returns:
+        True if sync was performed, False if already in sync
+
+    Raises:
+        PermissionError: If unable to write to index.html
+        OSError: If file operations fail
+    """
+    dashboard_file = Path(__file__).parent / "dashboard.html"
+    index_file = static_dir / "index.html"
+
+    # Dashboard file must exist (packaged with htmlgraph)
+    if not dashboard_file.exists():
+        return False
+
+    # If index.html doesn't exist, or content differs, sync
+    if not index_file.exists():
+        # Create new index.html
+        import shutil
+
+        shutil.copy2(dashboard_file, index_file)
+        return True
+
+    # Check if files differ (compare content, not just timestamps)
+    import filecmp
+
+    if not filecmp.cmp(dashboard_file, index_file, shallow=False):
+        # Files differ, sync them
+        import shutil
+
+        shutil.copy2(dashboard_file, index_file)
+        return True
+
+    # Already in sync
+    return False
+
+
 def serve(
     port: int = 8080,
     graph_dir: str | Path = ".htmlgraph",
@@ -1132,6 +1177,7 @@ def serve(
 ) -> None:
     """
     Start the HtmlGraph server.
+    Auto-syncs dashboard.html to index.html before starting.
 
     Args:
         port: Port to listen on
@@ -1150,20 +1196,18 @@ def serve(
         port = find_available_port(port + 1)
         print(f"⚠️  Port {original_port} is in use, using {port} instead\n")
 
-    # Check if root index.html is in sync with packaged dashboard
-    root_index = static_dir / "index.html"
-    packaged_dashboard = Path(__file__).parent / "dashboard.html"
-
-    if root_index.exists() and packaged_dashboard.exists():
-        root_content = root_index.read_text(encoding="utf-8")
-        packaged_content = packaged_dashboard.read_text(encoding="utf-8")
-
-        if root_content != packaged_content:
-            print("⚠️  Warning: index.html is out of sync with dashboard.html")
-            print(f"   Root: {root_index}")
-            print(f"   Package: {packaged_dashboard}")
-            print("   Run: cp src/python/htmlgraph/dashboard.html index.html")
-            print()
+    # Auto-sync dashboard files
+    try:
+        if sync_dashboard_files(static_dir):
+            print("⚠️  Dashboard files out of sync")
+            print("✅ Synced dashboard.html → index.html\n")
+    except PermissionError as e:
+        print(f"⚠️  Warning: Unable to sync dashboard files: {e}")
+        print(
+            f"   Run: cp src/python/htmlgraph/dashboard.html {static_dir / 'index.html'}\n"
+        )
+    except Exception as e:
+        print(f"⚠️  Warning: Error during dashboard sync: {e}\n")
 
     # Create graph directory structure
     graph_dir.mkdir(parents=True, exist_ok=True)
