@@ -2539,6 +2539,52 @@ def cmd_feature_auto_release(args: argparse.Namespace) -> None:
                 print(f"  - {node_id}")
 
 
+def cmd_orchestrator_enable(args: argparse.Namespace) -> None:
+    """Enable orchestrator mode."""
+    from typing import Literal
+
+    from htmlgraph.orchestrator_mode import OrchestratorModeManager
+
+    manager = OrchestratorModeManager(args.graph_dir)
+    level: Literal["strict", "guidance"] = (
+        args.level if hasattr(args, "level") and args.level else "strict"
+    )
+    manager.enable(level=level)
+
+    level_text = "strict enforcement" if level == "strict" else "guidance mode"
+    print(f"✓ Orchestrator mode enabled ({level_text})")
+
+
+def cmd_orchestrator_disable(args: argparse.Namespace) -> None:
+    """Disable orchestrator mode."""
+    from htmlgraph.orchestrator_mode import OrchestratorModeManager
+
+    manager = OrchestratorModeManager(args.graph_dir)
+    manager.disable(by_user=True)
+    print("✓ Orchestrator mode disabled")
+
+
+def cmd_orchestrator_status(args: argparse.Namespace) -> None:
+    """Show orchestrator mode status."""
+    from htmlgraph.orchestrator_mode import OrchestratorModeManager
+
+    manager = OrchestratorModeManager(args.graph_dir)
+    status = manager.status()
+
+    if status["enabled"]:
+        level = status["enforcement_level"]
+        level_text = "strict enforcement" if level == "strict" else "guidance mode"
+        print(f"Orchestrator mode: enabled ({level_text})")
+        if status["activated_at"]:
+            print(f"Activated at: {status['activated_at']}")
+        if status["auto_activated"]:
+            print("Auto-activated: yes")
+    else:
+        print("Orchestrator mode: disabled")
+        if status["disabled_by_user"]:
+            print("Disabled by user (auto-activation prevented)")
+
+
 def cmd_publish(args: argparse.Namespace) -> None:
     """Build and publish the package to PyPI (Interoperable)."""
     import shutil
@@ -4167,6 +4213,45 @@ curl Examples:
         "--skip-plugins", action="store_true", help="Skip plugin updates"
     )
 
+    # orchestrator (with subcommands)
+    orchestrator_parser = subparsers.add_parser(
+        "orchestrator", help="Orchestrator mode management"
+    )
+    orchestrator_subparsers = orchestrator_parser.add_subparsers(
+        dest="orchestrator_command", help="Orchestrator command"
+    )
+
+    # orchestrator enable
+    orchestrator_enable = orchestrator_subparsers.add_parser(
+        "enable", help="Enable orchestrator mode"
+    )
+    orchestrator_enable.add_argument(
+        "--level",
+        "-l",
+        default="strict",
+        choices=["strict", "guidance"],
+        help="Enforcement level (default: strict)",
+    )
+    orchestrator_enable.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+
+    # orchestrator disable
+    orchestrator_disable = orchestrator_subparsers.add_parser(
+        "disable", help="Disable orchestrator mode"
+    )
+    orchestrator_disable.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+
+    # orchestrator status
+    orchestrator_status = orchestrator_subparsers.add_parser(
+        "status", help="Show orchestrator mode status"
+    )
+    orchestrator_status.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+
     # install-gemini-extension
     subparsers.add_parser(
         "install-gemini-extension",
@@ -4360,6 +4445,16 @@ curl Examples:
             cmd_deploy_run(args)
         else:
             deploy_parser.print_help()
+            sys.exit(1)
+    elif args.command == "orchestrator":
+        if args.orchestrator_command == "enable":
+            cmd_orchestrator_enable(args)
+        elif args.orchestrator_command == "disable":
+            cmd_orchestrator_disable(args)
+        elif args.orchestrator_command == "status":
+            cmd_orchestrator_status(args)
+        else:
+            orchestrator_parser.print_help()
             sys.exit(1)
     elif args.command == "install-gemini-extension":
         cmd_install_gemini_extension(args)

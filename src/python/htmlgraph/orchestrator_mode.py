@@ -1,0 +1,217 @@
+"""
+Orchestrator Mode State Management
+
+Manages orchestrator mode state for enforcement hooks.
+State is persisted in .htmlgraph/orchestrator-mode.json
+"""
+
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Literal
+
+from pydantic import BaseModel
+
+
+class OrchestratorMode(BaseModel):
+    """Orchestrator mode state."""
+
+    enabled: bool = False
+    """Whether orchestrator mode is currently active."""
+
+    activated_at: datetime | None = None
+    """When orchestrator mode was last activated."""
+
+    session_id: str | None = None
+    """Session ID that activated orchestrator mode."""
+
+    enforcement_level: Literal["strict", "guidance"] = "strict"
+    """Enforcement level: 'strict' blocks operations, 'guidance' warns only."""
+
+    auto_activated: bool = False
+    """Whether mode was auto-activated (vs manually activated)."""
+
+    disabled_by_user: bool = False
+    """Whether user explicitly disabled mode (prevents auto-reactivation)."""
+
+    def to_dict(self) -> dict:
+        """Convert to dict for JSON serialization."""
+        return {
+            "enabled": self.enabled,
+            "activated_at": (
+                self.activated_at.isoformat() if self.activated_at else None
+            ),
+            "session_id": self.session_id,
+            "enforcement_level": self.enforcement_level,
+            "auto_activated": self.auto_activated,
+            "disabled_by_user": self.disabled_by_user,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "OrchestratorMode":
+        """Create from dict loaded from JSON."""
+        activated_at = data.get("activated_at")
+        if activated_at:
+            # Handle both 'Z' suffix and '+00:00' timezone format
+            if activated_at.endswith("Z"):
+                activated_at = activated_at[:-1] + "+00:00"
+            activated_at = datetime.fromisoformat(activated_at)
+
+        return cls(
+            enabled=data.get("enabled", False),
+            activated_at=activated_at,
+            session_id=data.get("session_id"),
+            enforcement_level=data.get("enforcement_level", "strict"),
+            auto_activated=data.get("auto_activated", False),
+            disabled_by_user=data.get("disabled_by_user", False),
+        )
+
+
+class OrchestratorModeManager:
+    """Manages orchestrator mode state with persistence."""
+
+    def __init__(self, graph_dir: Path | str | None = None):
+        """
+        Initialize mode manager.
+
+        Args:
+            graph_dir: Path to .htmlgraph directory. If None, uses current directory's .htmlgraph
+        """
+        if graph_dir is None:
+            graph_dir = Path.cwd() / ".htmlgraph"
+        else:
+            graph_dir = Path(graph_dir)
+
+        self.graph_dir = graph_dir
+        self.state_file = graph_dir / "orchestrator-mode.json"
+
+    def load(self) -> OrchestratorMode:
+        """
+        Load orchestrator mode state from disk.
+
+        Returns:
+            OrchestratorMode with current state, or default (disabled) if file doesn't exist
+        """
+        if not self.state_file.exists():
+            return OrchestratorMode()
+
+        try:
+            data = json.loads(self.state_file.read_text())
+            return OrchestratorMode.from_dict(data)
+        except Exception:
+            # If file is corrupted, return default state
+            return OrchestratorMode()
+
+    def save(self, mode: OrchestratorMode) -> None:
+        """
+        Save orchestrator mode state to disk.
+
+        Args:
+            mode: OrchestratorMode to persist
+        """
+        # Ensure directory exists
+        self.graph_dir.mkdir(parents=True, exist_ok=True)
+
+        # Write state
+        self.state_file.write_text(json.dumps(mode.to_dict(), indent=2))
+
+    def is_enabled(self) -> bool:
+        """Check if orchestrator mode is currently enabled."""
+        mode = self.load()
+        return mode.enabled
+
+    def get_enforcement_level(self) -> Literal["strict", "guidance"]:
+        """Get current enforcement level."""
+        mode = self.load()
+        return mode.enforcement_level
+
+    def enable(
+        self,
+        session_id: str | None = None,
+        level: Literal["strict", "guidance"] = "strict",
+        auto: bool = False,
+    ) -> OrchestratorMode:
+        """
+        Enable orchestrator mode.
+
+        Args:
+            session_id: Session ID enabling the mode
+            level: Enforcement level ('strict' or 'guidance')
+            auto: Whether this is an auto-activation
+
+        Returns:
+            Updated OrchestratorMode
+        """
+        mode = self.load()
+        mode.enabled = True
+        mode.activated_at = datetime.now(timezone.utc)
+        mode.session_id = session_id
+        mode.enforcement_level = level
+        mode.auto_activated = auto
+        mode.disabled_by_user = False
+        self.save(mode)
+        return mode
+
+    def disable(self, by_user: bool = False) -> OrchestratorMode:
+        """
+        Disable orchestrator mode.
+
+        Args:
+            by_user: Whether user explicitly disabled (prevents auto-reactivation)
+
+        Returns:
+            Updated OrchestratorMode
+        """
+        mode = self.load()
+        mode.enabled = False
+        if by_user:
+            mode.disabled_by_user = True
+        self.save(mode)
+        return mode
+
+    def set_level(self, level: Literal["strict", "guidance"]) -> OrchestratorMode:
+        """
+        Change enforcement level without enabling/disabling.
+
+        Args:
+            level: New enforcement level
+
+        Returns:
+            Updated OrchestratorMode
+        """
+        mode = self.load()
+        mode.enforcement_level = level
+        self.save(mode)
+        return mode
+
+    def can_auto_activate(self) -> bool:
+        """
+        Check if auto-activation is allowed.
+
+        Auto-activation is blocked if user explicitly disabled mode.
+
+        Returns:
+            True if auto-activation is allowed
+        """
+        mode = self.load()
+        return not mode.disabled_by_user
+
+    def status(self) -> dict:
+        """
+        Get human-readable status.
+
+        Returns:
+            Dict with status information
+        """
+        mode = self.load()
+        return {
+            "enabled": mode.enabled,
+            "enforcement_level": mode.enforcement_level,
+            "activated_at": (
+                mode.activated_at.strftime("%Y-%m-%d %H:%M:%S")
+                if mode.activated_at
+                else None
+            ),
+            "auto_activated": mode.auto_activated,
+            "disabled_by_user": mode.disabled_by_user,
+        }
