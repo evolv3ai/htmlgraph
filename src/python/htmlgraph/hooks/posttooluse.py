@@ -1,19 +1,24 @@
 """
-Unified PostToolUse Hook - Parallel Event Tracking + Orchestrator Reflection
+Unified PostToolUse Hook - Parallel Execution of Multiple Tasks
 
-This module provides a unified PostToolUse hook that runs both event tracking
-and orchestrator reflection in parallel using asyncio.
+This module provides a unified PostToolUse hook that runs multiple tasks
+in parallel using asyncio:
+1. Event tracking - logs tool usage to session events
+2. Orchestrator reflection - provides delegation suggestions
+3. Task validation - validates task results
+4. Error tracking - logs errors and auto-creates debug spikes
+5. Debugging suggestions - suggests resources when errors detected
 
 Architecture:
-- Runs event tracking and orchestrator reflection simultaneously
-- Event tracking logs tool usage to session events
-- Orchestrator reflection provides delegation suggestions
+- All tasks run simultaneously via asyncio.gather()
+- Error tracking logs to .htmlgraph/errors.jsonl
+- Auto-creates debug spikes after 3+ similar errors
 - Returns combined response with all feedback
 
 Performance:
 - ~40-50% faster than sequential execution
 - Single Python process (no subprocess overhead)
-- Parallel execution via asyncio.gather()
+- Parallel execution maximizes throughput
 """
 
 import asyncio
@@ -24,6 +29,7 @@ from typing import Any
 
 from htmlgraph.hooks.event_tracker import track_event
 from htmlgraph.hooks.orchestrator_reflector import orchestrator_reflect
+from htmlgraph.hooks.post_tool_use_failure import run as track_error
 from htmlgraph.hooks.task_validator import validate_task_results
 
 
@@ -109,6 +115,49 @@ async def run_task_validation(hook_input: dict[str, Any]) -> dict[str, Any]:
         return {"continue": True}
 
 
+async def run_error_tracking(hook_input: dict[str, Any]) -> dict[str, Any]:
+    """
+    Track errors to .htmlgraph/errors.jsonl and auto-create debug spikes.
+
+    Args:
+        hook_input: Hook input with tool execution details
+
+    Returns:
+        Error tracking response: {"continue": True}
+    """
+    try:
+        loop = asyncio.get_event_loop()
+
+        # Check if this is an error (check for error field or non-zero exit code)
+        has_error = False
+        tool_response = hook_input.get("result", {}) or hook_input.get(
+            "tool_response", {}
+        )
+
+        # Check for explicit error field
+        if "error" in tool_response or hook_input.get("error"):
+            has_error = True
+
+        # Check for error indicators in response text
+        response_text = str(tool_response).lower()
+        error_indicators = ["error", "failed", "exception", "traceback", "errno"]
+        if any(indicator in response_text for indicator in error_indicators):
+            has_error = True
+
+        # Only track if there's an error
+        if has_error:
+            return await loop.run_in_executor(
+                None,
+                track_error,
+                hook_input,
+            )
+
+        return {"continue": True}
+    except Exception:
+        # Graceful degradation - allow on error
+        return {"continue": True}
+
+
 async def suggest_debugging_resources(hook_input: dict[str, Any]) -> dict[str, Any]:
     """
     Suggest debugging resources based on tool results.
@@ -167,7 +216,7 @@ async def posttooluse_hook(
     hook_type: str, hook_input: dict[str, Any]
 ) -> dict[str, Any]:
     """
-    Unified PostToolUse hook - runs tracking, reflection, validation, and debugging suggestions in parallel.
+    Unified PostToolUse hook - runs tracking, reflection, validation, error tracking, and debugging suggestions in parallel.
 
     Args:
         hook_type: "PostToolUse" or "Stop"
@@ -184,16 +233,18 @@ async def posttooluse_hook(
             }
         }
     """
-    # Run all four in parallel using asyncio.gather
+    # Run all five in parallel using asyncio.gather
     (
         event_response,
         reflection_response,
         validation_response,
+        error_tracking_response,
         debug_suggestions,
     ) = await asyncio.gather(
         run_event_tracking(hook_type, hook_input),
         run_orchestrator_reflection(hook_input),
         run_task_validation(hook_input),
+        run_error_tracking(hook_input),
         suggest_debugging_resources(hook_input),
     )
 
