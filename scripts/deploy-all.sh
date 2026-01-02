@@ -233,6 +233,24 @@ with open('packages/opencode-extension/opencode-extension.json', 'w') as f:
         fi
     fi
 
+    # Update OpenCode extension npm package.json
+    if [ -f "packages/opencode-extension/package.json" ]; then
+        if [ "$DRY_RUN" = true ]; then
+            log_info "[DRY-RUN] Would update opencode-extension package.json version to $version"
+        else
+            uv run python -c "
+import json
+with open('packages/opencode-extension/package.json', 'r') as f:
+    data = json.load(f)
+data['version'] = '$version'
+with open('packages/opencode-extension/package.json', 'w') as f:
+    json.dump(data, f, indent=2)
+"
+            log_success "Updated opencode-extension package.json"
+        fi
+    fi
+    fi
+
     # Update marketplace.json
     if [ -f ".claude-plugin/marketplace.json" ]; then
         if [ "$DRY_RUN" = true ]; then
@@ -557,6 +575,48 @@ else
 fi
 
 # ============================================================================
+# STEP 3.5: Publish OpenCode Extension to npm
+# ============================================================================
+if [ "$SKIP_PYPI" != true ]; then
+    log_section "Step 3.5: Publishing OpenCode Extension to npm"
+
+    OPENCODE_EXTENSION_DIR="packages/opencode-extension"
+    if [ -f "$OPENCODE_EXTENSION_DIR/package.json" ]; then
+        log_info "Publishing @htmlgraph/opencode-extension@$VERSION to npm..."
+
+        # Change to extension directory
+        cd "$OPENCODE_EXTENSION_DIR"
+
+        if [ -n "$NPM_TOKEN" ]; then
+            # Use npm token from environment
+            if run_command npm publish --access public --tag latest; then
+                log_success "Published to npm"
+            else
+                log_error "npm publish failed"
+                [ "$DRY_RUN" != true ] && exit 1
+            fi
+        else
+            log_warning "No NPM_TOKEN found, skipping npm publish"
+            log_info "You can publish manually with:"
+            log_info "  cd packages/opencode-extension && npm publish --access public"
+        fi
+
+        # Go back to project root
+        cd "$SCRIPT_DIR"
+
+        # Wait a bit for npm to process
+        if [ "$DRY_RUN" != true ]; then
+            log_info "Waiting 10 seconds for npm to process..."
+            sleep 10
+        fi
+    else
+        log_warning "OpenCode extension package.json not found, skipping npm publish"
+    fi
+else
+    log_info "⏭️  Skipping npm Publish"
+fi
+
+# ============================================================================
 # STEP 4: Install Latest Version Locally
 # ============================================================================
 if [ "$SKIP_INSTALL" != true ]; then
@@ -830,6 +890,7 @@ echo "--------"
 echo "✅ Git push: Complete"
 echo "✅ Package build: htmlgraph-$VERSION"
 echo "✅ PyPI publish: https://pypi.org/project/htmlgraph/$VERSION/"
+echo "✅ npm publish: https://www.npmjs.com/package/@htmlgraph/opencode-extension/v/$VERSION"
 echo "✅ GitHub release: https://github.com/Shakes-tzd/htmlgraph/releases/tag/v$VERSION"
 echo "✅ Local install: $INSTALLED_VERSION"
 echo "✅ Claude plugin: Updated"
@@ -839,6 +900,7 @@ log_success "All deployment steps completed successfully!"
 echo ""
 echo "Verify deployment:"
 echo "  - PyPI: https://pypi.org/project/htmlgraph/$VERSION/"
+echo "  - npm: https://www.npmjs.com/package/@htmlgraph/opencode-extension/v/$VERSION"
 echo "  - GitHub Release: https://github.com/Shakes-tzd/htmlgraph/releases/tag/v$VERSION"
 echo "  - GitHub Repo: https://github.com/Shakes-tzd/htmlgraph"
 echo "  - Local: uv run python -c 'import htmlgraph; print(htmlgraph.__version__)'"
