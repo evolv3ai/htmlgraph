@@ -1592,10 +1592,213 @@ project/
 
 ---
 
+## Git-Based Continuity Spine
+
+### Overview
+
+HtmlGraph uses Git as a universal continuity spine that enables agent-agnostic session tracking. This means HtmlGraph works with ANY coding agent (Claude, Codex, Cursor, vim), not just those with native integrations.
+
+**Core Principle**: Git commits are universal continuity points that work regardless of which agent wrote the code.
+
+### Quick Start
+
+**Install Git hooks**:
+```bash
+htmlgraph install-hooks
+```
+
+**What this does**:
+- Installs hooks in `.git/hooks/` (symlinked to `.htmlgraph/hooks/`)
+- Tracks commits, checkouts, merges, pushes automatically
+- Links sessions across agents via commit graph
+- Works offline (Git is local)
+
+### How It Works
+
+**Git hooks log events** to `.htmlgraph/events/`:
+
+```
+Session S1 (Claude)          Session S2 (Codex)         Session S3 (Claude)
+─────────────────────       ─────────────────────      ─────────────────────
+start_commit: abc1          start_commit: abc3         start_commit: abc5
+continued_from: None        continued_from: S1         continued_from: S2
+
+Events:                     Events:                    Events:
+  - Edit file               - Edit file                - Edit file
+  - GitCommit abc1          - GitCommit abc3           - GitCommit abc5
+  - GitCommit abc2          - GitCommit abc4           - GitCommit abc6
+
+Git Commit Graph:
+abc1 → abc2 → abc3 → abc4 → abc5 → abc6
+ │             │             │
+S1            S2            S3
+```
+
+**Session continuity survives crashes** - Git history is durable.
+
+### Commit Message Convention
+
+Include feature references for better attribution:
+
+```bash
+# Good - explicit feature reference
+git commit -m "feat: add login endpoint (feature-auth-001)"
+
+# Better - structured format
+git commit -m "feat: add login endpoint
+
+Implements: feature-auth-001
+Related: feature-session-002
+"
+```
+
+### Feature File Patterns
+
+Add file patterns to features for automatic commit attribution:
+
+```python
+feature = sdk.features.create("User Authentication") \
+    .set_file_patterns([
+        "src/auth/**/*.py",
+        "tests/auth/**/*.py"
+    ]) \
+    .save()
+
+# Now commits touching these files auto-attribute to this feature
+```
+
+### Cross-Agent Collaboration
+
+**Example: Work starts in Claude, continues in Codex**:
+
+```python
+# Day 1 (Claude)
+session_s1 = sdk.sessions.start(agent="claude")
+# ... work ...
+git commit -m "feat: start auth (feature-auth-001)"  # → abc123
+sdk.sessions.end(session_s1.id)
+
+# Day 2 (Codex - different agent!)
+session_s2 = sdk.sessions.start(
+    agent="codex",
+    continued_from=session_s1.id  # Optional but helpful
+)
+# ... work ...
+git commit -m "feat: continue auth (feature-auth-001)"  # → def456
+
+# Query for full history (works across agents)
+sessions = sdk.get_feature_sessions("feature-auth-001")
+# → [Session(agent="claude"), Session(agent="codex")]
+```
+
+### Event Types
+
+**GitCommit** - Primary continuity anchor:
+```json
+{
+  "type": "GitCommit",
+  "commit_hash": "abc123",
+  "branch": "main",
+  "author": "alice@example.com",
+  "message": "feat: add user authentication",
+  "files_changed": ["src/auth/login.py"],
+  "insertions": 145,
+  "deletions": 23,
+  "features": ["feature-auth-001"]
+}
+```
+
+**GitCheckout** - Branch continuity:
+```json
+{
+  "type": "GitCheckout",
+  "from_branch": "main",
+  "to_branch": "feature/auth"
+}
+```
+
+**GitMerge** - Integration events:
+```json
+{
+  "type": "GitMerge",
+  "orig_head": "abc123",
+  "new_head": "def456"
+}
+```
+
+**GitPush** - Team boundaries:
+```json
+{
+  "type": "GitPush",
+  "remote_name": "origin",
+  "updates": [...]
+}
+```
+
+### Agent Compatibility
+
+| Agent | Git Hooks | Session Tracking | Notes |
+|-------|-----------|------------------|-------|
+| Claude Code | ✅ | ✅ | Full integration via plugin |
+| GitHub Codex | ✅ | ✅ | Git hooks + SDK |
+| Google Gemini | ✅ | ✅ | Git hooks + SDK |
+| Cursor | ✅ | ✅ | Git hooks + SDK |
+| vim/emacs | ✅ | ⚠️ | Manual session start |
+| Any CLI tool | ✅ | ❌ | Commits tracked only |
+
+### Benefits
+
+- ✅ **Agent agnostic** - Works with ANY agent
+- ✅ **Survives crashes** - Git history is durable
+- ✅ **Team collaboration** - Multi-agent tracking
+- ✅ **Offline-first** - Git is local
+- ✅ **Simple** - Just Git hooks, no complex setup
+
+### Advanced: Session Reconstruction
+
+HtmlGraph can reconstruct session continuity using multiple signals:
+
+**1. Explicit continuation**:
+```python
+session = sdk.sessions.start(continued_from="session-s1")
+```
+
+**2. Commit graph analysis**:
+```python
+# Find sessions between two commits
+sessions = sdk.find_sessions_between("abc123", "def456")
+```
+
+**3. Feature-based linking**:
+```python
+# All sessions that worked on a feature
+sessions = sdk.get_feature_sessions("feature-auth-001")
+```
+
+**4. Time-based proximity**:
+```python
+# Sessions within time window
+sessions = sdk.find_proximate_sessions(
+    datetime.now(),
+    window_minutes=60
+)
+```
+
+### Documentation
+
+For complete details, see:
+- [Git Continuity Architecture](./docs/GIT_CONTINUITY_ARCHITECTURE.md) - Technical deep-dive
+- [Migration Guide](./docs/MIGRATION_GUIDE.md) - Migrating from old tracking
+- [Git Hooks Guide](./docs/GIT_HOOKS.md) - Hook installation and config
+
+---
+
 ## Related Files
 
 - `src/python/htmlgraph/sdk.py` - SDK implementation
 - `src/python/htmlgraph/graph.py` - Low-level graph operations
 - `src/python/htmlgraph/agents.py` - Agent interface (wrapped by SDK)
+- `src/python/htmlgraph/git_events.py` - Git event logging
+- `src/python/htmlgraph/event_log.py` - Event log storage
 - `examples/sdk_demo.py` - Complete examples
 - `scripts/deploy-all.sh` - Deployment automation script

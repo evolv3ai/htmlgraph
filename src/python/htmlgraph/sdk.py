@@ -44,7 +44,7 @@ from typing import Any
 
 from htmlgraph.agent_detection import detect_agent_name
 from htmlgraph.agents import AgentInterface
-from htmlgraph.analytics import Analytics, DependencyAnalytics
+from htmlgraph.analytics import Analytics, CrossSessionAnalytics, DependencyAnalytics
 from htmlgraph.collections import (
     BaseCollection,
     BugCollection,
@@ -241,6 +241,9 @@ class SDK:
 
         # Dependency analytics interface (Advanced graph analytics)
         self.dep_analytics = DependencyAnalytics(self._graph)
+
+        # Cross-session analytics interface (Git commit-based analytics)
+        self.cross_session_analytics = CrossSessionAnalytics(self)
 
         # Context analytics interface (Context usage tracking)
         self.context = ContextAnalytics(self)
