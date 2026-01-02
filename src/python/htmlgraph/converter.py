@@ -12,7 +12,16 @@ import logging
 from pathlib import Path
 from typing import Any, cast
 
-from htmlgraph.models import ActivityEntry, Chore, Edge, Node, Session, Spike, Step
+from htmlgraph.models import (
+    ActivityEntry,
+    Chore,
+    Edge,
+    Node,
+    Pattern,
+    Session,
+    Spike,
+    Step,
+)
 from htmlgraph.parser import HtmlParser
 
 logger = logging.getLogger(__name__)
@@ -74,6 +83,7 @@ def html_to_node(filepath: Path | str) -> Node:
     model_classes: dict[str, type[Node]] = {
         "spike": Spike,
         "chore": Chore,
+        "pattern": Pattern,
         "node": Node,
     }
 

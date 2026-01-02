@@ -2724,10 +2724,51 @@ def cmd_orchestrator_status(args: argparse.Namespace) -> None:
             print(f"Activated at: {status['activated_at']}")
         if status["auto_activated"]:
             print("Auto-activated: yes")
+
+        # Show violation tracking info
+        violations = status.get("violations", 0)
+        circuit_breaker = status.get("circuit_breaker_triggered", False)
+        if violations > 0:
+            print(f"Violations: {violations}/3")
+            if circuit_breaker:
+                print("⚠️  Circuit breaker: TRIGGERED")
     else:
         print("Orchestrator mode: disabled")
         if status["disabled_by_user"]:
             print("Disabled by user (auto-activation prevented)")
+
+
+def cmd_orchestrator_set_level(args: argparse.Namespace) -> None:
+    """Set orchestrator mode enforcement level."""
+    from typing import Literal
+
+    from htmlgraph.orchestrator_mode import OrchestratorModeManager
+
+    manager = OrchestratorModeManager(args.graph_dir)
+    level: Literal["strict", "guidance"] = args.level
+    manager.set_level(level)
+
+    level_text = "strict enforcement" if level == "strict" else "guidance mode"
+    print(f"✓ Orchestrator enforcement level set to: {level_text}")
+
+
+def cmd_orchestrator_reset_violations(args: argparse.Namespace) -> None:
+    """Reset orchestrator mode violation counter."""
+    from htmlgraph.orchestrator_mode import OrchestratorModeManager
+
+    manager = OrchestratorModeManager(args.graph_dir)
+
+    # Check if mode is enabled
+    if not manager.is_enabled():
+        print("⚠️  Orchestrator mode is not enabled")
+        return
+
+    # Reset violations
+    manager.reset_violations()
+
+    print("✓ Violation counter reset")
+    print("Circuit breaker: cleared")
+    print("You can now continue with delegation workflow")
 
 
 def cmd_publish(args: argparse.Namespace) -> None:
@@ -3198,6 +3239,64 @@ def cmd_track_plan(args: argparse.Namespace) -> None:
         print(f"  Status: {plan.status}")
         print(f"  Path: {args.graph_dir}/tracks/{args.track_id}/plan.html")
         print(f"\nView plan: open {args.graph_dir}/tracks/{args.track_id}/plan.html")
+
+
+def cmd_track_show(args: argparse.Namespace) -> None:
+    """Show details of a track."""
+    import json
+    from pathlib import Path
+
+    from htmlgraph.track_manager import TrackManager
+
+    manager = TrackManager(args.graph_dir)
+
+    # Load the track
+    track = manager.load_track(args.track_id)
+    if not track:
+        print(f"Error: Track '{args.track_id}' not found", file=sys.stderr)
+        sys.exit(1)
+
+    if args.format == "json":
+        data = {
+            "id": track.id,
+            "title": track.title,
+            "description": track.description,
+            "status": track.status,
+            "priority": track.priority,
+            "has_spec": track.has_spec,
+            "has_plan": track.has_plan,
+            "created": track.created.isoformat(),
+            "updated": track.updated.isoformat(),
+            "features": track.features,
+            "sessions": track.sessions,
+        }
+        print(json.dumps(data, indent=2))
+    else:
+        # Determine if consolidated or directory-based
+        is_consolidated = manager.is_consolidated(args.track_id)
+        if is_consolidated:
+            track_file = Path(args.graph_dir) / "tracks" / f"{args.track_id}.html"
+            file_type = "single file (consolidated)"
+        else:
+            track_file = Path(args.graph_dir) / "tracks" / args.track_id / "index.html"
+            file_type = "directory-based"
+
+        print(f"Track: {track.id}")
+        print(f"  Title: {track.title}")
+        print(f"  Description: {track.description}")
+        print(f"  Status: {track.status}")
+        print(f"  Priority: {track.priority}")
+        print(f"  Format: {file_type}")
+        print(f"  Has Spec: {'Yes' if track.has_spec else 'No'}")
+        print(f"  Has Plan: {'Yes' if track.has_plan else 'No'}")
+        print(f"  Created: {track.created.strftime('%Y-%m-%d %H:%M')}")
+        print(f"  Updated: {track.updated.strftime('%Y-%m-%d %H:%M')}")
+        if track.features:
+            print(f"  Features: {', '.join(track.features)}")
+        if track.sessions:
+            print(f"  Sessions: {', '.join(track.sessions)}")
+        print(f"\nPath: {track_file}")
+        print(f"View: open {track_file}")
 
 
 def cmd_track_delete(args: argparse.Namespace) -> None:
@@ -4207,6 +4306,16 @@ For more help: https://github.com/Shakes-tzd/htmlgraph
         "--format", "-f", choices=["text", "json"], default="text", help="Output format"
     )
 
+    # track show
+    track_show = track_subparsers.add_parser("show", help="Show track details")
+    track_show.add_argument("track_id", help="Track ID to display")
+    track_show.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    track_show.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
+
     # track delete
     track_delete = track_subparsers.add_parser("delete", help="Delete a track")
     track_delete.add_argument("track_id", help="Track ID to delete")
@@ -4475,6 +4584,27 @@ For more help: https://github.com/Shakes-tzd/htmlgraph
         "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
     )
 
+    # orchestrator set-level
+    orchestrator_set_level = orchestrator_subparsers.add_parser(
+        "set-level", help="Set enforcement level"
+    )
+    orchestrator_set_level.add_argument(
+        "level",
+        choices=["strict", "guidance"],
+        help="Enforcement level to set",
+    )
+    orchestrator_set_level.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+
+    # orchestrator reset-violations
+    orchestrator_reset_violations = orchestrator_subparsers.add_parser(
+        "reset-violations", help="Reset violation counter and circuit breaker"
+    )
+    orchestrator_reset_violations.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+
     # install-gemini-extension
     subparsers.add_parser(
         "install-gemini-extension",
@@ -4563,6 +4693,8 @@ For more help: https://github.com/Shakes-tzd/htmlgraph
             cmd_track_spec(args)
         elif args.track_command == "plan":
             cmd_track_plan(args)
+        elif args.track_command == "show":
+            cmd_track_show(args)
         elif args.track_command == "delete":
             cmd_track_delete(args)
         else:
@@ -4609,7 +4741,7 @@ For more help: https://github.com/Shakes-tzd/htmlgraph
             feature_parser.print_help()
             sys.exit(1)
     elif args.command == "analytics":
-        from htmlgraph.cli_analytics import cmd_analytics
+        from htmlgraph.analytics.cli import cmd_analytics
 
         cmd_analytics(args)
     elif args.command == "events":
@@ -4678,6 +4810,10 @@ For more help: https://github.com/Shakes-tzd/htmlgraph
             cmd_orchestrator_disable(args)
         elif args.orchestrator_command == "status":
             cmd_orchestrator_status(args)
+        elif args.orchestrator_command == "set-level":
+            cmd_orchestrator_set_level(args)
+        elif args.orchestrator_command == "reset-violations":
+            cmd_orchestrator_reset_violations(args)
         else:
             orchestrator_parser.print_help()
             sys.exit(1)

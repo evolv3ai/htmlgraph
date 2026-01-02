@@ -152,6 +152,17 @@ class HtmlParser:
         if auto_generated:
             metadata["auto_generated"] = auto_generated.lower() == "true"
 
+        # Pattern sequence (for pattern nodes)
+        sequence_attr = self.get_data_attribute(article, "sequence")
+        if sequence_attr:
+            try:
+                import json
+
+                metadata["sequence"] = json.loads(sequence_attr)
+            except (json.JSONDecodeError, ValueError):
+                # Invalid JSON, skip
+                pass
+
         # Timestamps (with fallbacks for session-specific attributes)
         claimed_at = self.get_data_attribute(article, "claimed-at")
         if claimed_at:

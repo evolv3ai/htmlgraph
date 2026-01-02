@@ -329,17 +329,17 @@ class LearningPersistence:
         if is_parallel:
             # Parallel Task delegation is optimal (orchestrator pattern)
             if all(tool == "Task" for tool in sequence) and len(sequence) >= 2:
-                return "orchestrator-optimal"
+                return "optimal"
             # Mixed parallel operations can also be optimal
             if "Task" in sequence:
-                return "orchestrator-optimal"
+                return "optimal"
             # Other parallel patterns are neutral
             return "neutral"
 
         # Sequential anti-patterns for orchestrators
         # Multiple sequential Tasks without parallelism is an anti-pattern
         if seq == ("Task", "Task", "Task"):
-            return "orchestrator-anti-pattern"
+            return "anti-pattern"
 
         # Known optimal patterns (sequential)
         optimal = [

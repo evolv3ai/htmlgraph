@@ -338,6 +338,44 @@ class TrackManager:
             track_id=track_id,
         )
 
+    def load_track(self, track_id: str) -> Track | None:
+        """
+        Load a track from disk.
+
+        Supports both consolidated (single .html file) and directory-based tracks.
+
+        Args:
+            track_id: Track ID
+
+        Returns:
+            Track instance or None if not found
+        """
+        track_path = self.get_track_path(track_id)
+        if track_path is None:
+            return None
+
+        # For now, return a basic Track instance
+        # TODO: Parse HTML back to Track using justhtml
+        if track_path.is_file():
+            # Consolidated format - single file
+            return Track(
+                id=track_id,
+                title=f"Track {track_id}",
+                description="Loaded from consolidated format",
+            )
+        else:
+            # Directory format - check for spec and plan
+            spec_exists = (track_path / "spec.html").exists()
+            plan_exists = (track_path / "plan.html").exists()
+
+            return Track(
+                id=track_id,
+                title=f"Track {track_id}",
+                description="Loaded from directory format",
+                has_spec=spec_exists,
+                has_plan=plan_exists,
+            )
+
     def list_tracks(self) -> list[str]:
         """
         List all track IDs.

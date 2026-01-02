@@ -358,6 +358,31 @@ def enforce_orchestrator_mode(tool: str, params: dict) -> dict:
             },
         }
 
+    # Check if circuit breaker is triggered in strict mode
+    if enforcement_level == "strict" and manager.is_circuit_breaker_triggered():
+        # Circuit breaker triggered - block all non-core operations
+        if tool not in ["Task", "AskUserQuestion", "TodoWrite"]:
+            circuit_breaker_message = (
+                "🚨 ORCHESTRATOR CIRCUIT BREAKER TRIGGERED\n\n"
+                f"You have violated delegation rules {manager.get_violation_count()} times this session.\n\n"
+                "Violations detected:\n"
+                "- Direct execution instead of delegation\n"
+                "- Context waste on tactical operations\n\n"
+                "Options:\n"
+                "1. Disable orchestrator mode: uv run htmlgraph orchestrator disable\n"
+                "2. Change to guidance mode: uv run htmlgraph orchestrator set-level guidance\n"
+                "3. Reset counter (acknowledge violations): uv run htmlgraph orchestrator reset-violations\n\n"
+                "To proceed, choose an option above."
+            )
+
+            return {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "deny",
+                    "permissionDecisionReason": circuit_breaker_message,
+                },
+            }
+
     # Check if operation is allowed
     is_allowed, reason, category = is_allowed_orchestrator_operation(tool, params)
 
@@ -386,19 +411,35 @@ def enforce_orchestrator_mode(tool: str, params: dict) -> dict:
             },
         }
 
-    # Operation not allowed - provide strong warnings
-    # NOTE: {"continue": False} doesn't work in Claude Code, so we use advisory warnings only
+    # Operation not allowed - track violation and provide warnings
+    if enforcement_level == "strict":
+        # Increment violation counter
+        mode = manager.increment_violation()
+        violations = mode.violations
+
     suggestion = create_task_suggestion(tool, params)
 
     if enforcement_level == "strict":
-        # STRICT mode - loud warning but allow (blocking doesn't work)
+        # STRICT mode - loud warning with violation count
         error_message = (
-            f"🚫 ORCHESTRATOR MODE VIOLATION: {reason}\n\n"
+            f"🚫 ORCHESTRATOR MODE VIOLATION ({violations}/3): {reason}\n\n"
             f"⚠️  WARNING: Direct operations waste context and break delegation pattern!\n\n"
             f"Suggested delegation:\n"
             f"{suggestion}\n\n"
-            f"See ORCHESTRATOR_DIRECTIVES in session context for HtmlGraph delegation pattern.\n"
-            f"To disable orchestrator mode: uv run htmlgraph orchestrator disable"
+        )
+
+        # Add circuit breaker warning if approaching threshold
+        if violations >= 3:
+            error_message += (
+                "🚨 CIRCUIT BREAKER TRIGGERED - Further violations will be blocked!\n\n"
+                "Reset with: uv run htmlgraph orchestrator reset-violations\n"
+            )
+        elif violations == 2:
+            error_message += "⚠️  Next violation will trigger circuit breaker!\n\n"
+
+        error_message += (
+            "See ORCHESTRATOR_DIRECTIVES in session context for HtmlGraph delegation pattern.\n"
+            "To disable orchestrator mode: uv run htmlgraph orchestrator disable"
         )
 
         return {

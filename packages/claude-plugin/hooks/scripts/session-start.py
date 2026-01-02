@@ -139,7 +139,7 @@ def install_git_hooks(project_dir: str) -> bool:
 
 try:
     from htmlgraph import SDK, generate_id
-    from htmlgraph.converter import node_to_dict
+    from htmlgraph.converter import node_to_dict  # type: ignore[import]
     from htmlgraph.graph import HtmlGraph
     from htmlgraph.orchestrator_mode import OrchestratorModeManager
     from htmlgraph.session_manager import SessionManager
@@ -207,7 +207,10 @@ def get_sessions(graph_dir: Path) -> list[dict]:
     sessions_dir = graph_dir / "sessions"
     if not sessions_dir.exists():
         return []
-    from htmlgraph.converter import SessionConverter, session_to_dict
+    from htmlgraph.converter import (  # type: ignore[import]
+        SessionConverter,
+        session_to_dict,
+    )
 
     converter = SessionConverter(sessions_dir)
     sessions = converter.load_all()
@@ -265,12 +268,6 @@ uv pip install --upgrade htmlgraph
 
 HTMLGRAPH_PROCESS_NOTICE = """## HTMLGRAPH DEVELOPMENT PROCESS ACTIVE
 
-**IMPORTANT: Activate the `htmlgraph-tracker` skill now using the Skill tool.**
-
-This skill ensures proper activity attribution, documentation, and provides the Feature Creation Decision Framework throughout the session.
-
----
-
 **HtmlGraph is tracking this session. All activity is logged to HTML files.**
 
 ### Feature Creation Decision Framework
@@ -293,8 +290,6 @@ Implement **DIRECTLY** if ALL apply:
 - No tests needed
 
 **When in doubt, CREATE A FEATURE.** Over-tracking is better than losing attribution.
-
-See the `htmlgraph-tracker` skill for complete framework details.
 
 ---
 
@@ -701,7 +696,7 @@ def get_active_agents(graph_dir: Path) -> list[dict]:
         if not sessions_dir.exists():
             return []
 
-        from htmlgraph.converter import SessionConverter
+        from htmlgraph.converter import SessionConverter  # type: ignore[import]
 
         converter = SessionConverter(sessions_dir)
         all_sessions = converter.load_all()
@@ -880,7 +875,7 @@ def main():
         if is_new_conversation:
             try:
                 # Close any open auto-spikes from previous conversation
-                from htmlgraph.converter import NodeConverter
+                from htmlgraph.converter import NodeConverter  # type: ignore[import]
 
                 spike_converter = NodeConverter(graph_dir / "spikes")
                 all_spikes = spike_converter.load_all()
@@ -904,7 +899,7 @@ def main():
                     else generate_id("spike", "conversation")
                 )
 
-                from htmlgraph.models import Node
+                from htmlgraph.models import Node  # type: ignore[import]
 
                 conversation_spike = Node(
                     id=spike_id,

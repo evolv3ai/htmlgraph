@@ -34,6 +34,15 @@ class OrchestratorMode(BaseModel):
     disabled_by_user: bool = False
     """Whether user explicitly disabled mode (prevents auto-reactivation)."""
 
+    violations: int = 0
+    """Count of delegation violations in current session."""
+
+    last_violation_at: datetime | None = None
+    """Timestamp of most recent violation."""
+
+    circuit_breaker_triggered: bool = False
+    """Whether circuit breaker has been triggered (3+ violations)."""
+
     def to_dict(self) -> dict:
         """Convert to dict for JSON serialization."""
         return {
@@ -45,6 +54,11 @@ class OrchestratorMode(BaseModel):
             "enforcement_level": self.enforcement_level,
             "auto_activated": self.auto_activated,
             "disabled_by_user": self.disabled_by_user,
+            "violations": self.violations,
+            "last_violation_at": (
+                self.last_violation_at.isoformat() if self.last_violation_at else None
+            ),
+            "circuit_breaker_triggered": self.circuit_breaker_triggered,
         }
 
     @classmethod
@@ -57,6 +71,13 @@ class OrchestratorMode(BaseModel):
                 activated_at = activated_at[:-1] + "+00:00"
             activated_at = datetime.fromisoformat(activated_at)
 
+        last_violation_at = data.get("last_violation_at")
+        if last_violation_at:
+            # Handle both 'Z' suffix and '+00:00' timezone format
+            if last_violation_at.endswith("Z"):
+                last_violation_at = last_violation_at[:-1] + "+00:00"
+            last_violation_at = datetime.fromisoformat(last_violation_at)
+
         return cls(
             enabled=data.get("enabled", False),
             activated_at=activated_at,
@@ -64,6 +85,9 @@ class OrchestratorMode(BaseModel):
             enforcement_level=data.get("enforcement_level", "strict"),
             auto_activated=data.get("auto_activated", False),
             disabled_by_user=data.get("disabled_by_user", False),
+            violations=data.get("violations", 0),
+            last_violation_at=last_violation_at,
+            circuit_breaker_triggered=data.get("circuit_breaker_triggered", False),
         )
 
 
@@ -214,4 +238,58 @@ class OrchestratorModeManager:
             ),
             "auto_activated": mode.auto_activated,
             "disabled_by_user": mode.disabled_by_user,
+            "violations": mode.violations,
+            "circuit_breaker_triggered": mode.circuit_breaker_triggered,
         }
+
+    def increment_violation(self) -> OrchestratorMode:
+        """
+        Increment violation counter and update timestamp.
+
+        Returns:
+            Updated OrchestratorMode with incremented violations
+        """
+        mode = self.load()
+        mode.violations += 1
+        mode.last_violation_at = datetime.now(timezone.utc)
+
+        # Trigger circuit breaker if threshold reached
+        if mode.violations >= 3:
+            mode.circuit_breaker_triggered = True
+
+        self.save(mode)
+        return mode
+
+    def reset_violations(self) -> OrchestratorMode:
+        """
+        Reset violation counter and circuit breaker.
+
+        Returns:
+            Updated OrchestratorMode with reset violations
+        """
+        mode = self.load()
+        mode.violations = 0
+        mode.last_violation_at = None
+        mode.circuit_breaker_triggered = False
+        self.save(mode)
+        return mode
+
+    def is_circuit_breaker_triggered(self) -> bool:
+        """
+        Check if circuit breaker is currently triggered.
+
+        Returns:
+            True if circuit breaker is active
+        """
+        mode = self.load()
+        return mode.circuit_breaker_triggered
+
+    def get_violation_count(self) -> int:
+        """
+        Get current violation count.
+
+        Returns:
+            Number of violations in current session
+        """
+        mode = self.load()
+        return mode.violations

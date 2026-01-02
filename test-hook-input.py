@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Minimal test hook to capture exact stdin input from Claude Code."""
+
 import json
 import sys
 from datetime import datetime
@@ -16,11 +17,16 @@ log_file = Path(".htmlgraph/raw-hook-input.jsonl")
 log_file.parent.mkdir(parents=True, exist_ok=True)
 
 with open(log_file, "a") as f:
-    f.write(json.dumps({
-        "timestamp": datetime.now().isoformat(),
-        "keys": list(data.keys()) if isinstance(data, dict) else "not_dict",
-        "full_data": data
-    }) + "\n")
+    f.write(
+        json.dumps(
+            {
+                "timestamp": datetime.now().isoformat(),
+                "keys": list(data.keys()) if isinstance(data, dict) else "not_dict",
+                "full_data": data,
+            }
+        )
+        + "\n"
+    )
 
 # Return success
 print(json.dumps({"continue": True}))
