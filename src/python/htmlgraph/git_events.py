@@ -168,9 +168,19 @@ def parse_feature_refs(message: str) -> list[str]:
     Parse feature IDs from commit message.
 
     Looks for patterns like:
-    - Implements: feature-xyz
+    - Implements: feat-xyz
     - Fixes: bug-abc
-    - feature-xyz
+    - [feat-123abc]
+    - feat-xyz
+
+    Supports HtmlGraph ID formats:
+    - feat-XXXXXXXX (features)
+    - feature-XXXXXXXX (legacy features)
+    - bug-XXXXXXXX (bugs)
+    - spk-XXXXXXXX (spikes)
+    - spike-XXXXXXXX (legacy spikes)
+    - chr-XXXXXXXX (chores)
+    - trk-XXXXXXXX (tracks)
 
     Args:
         message: Commit message
@@ -180,13 +190,20 @@ def parse_feature_refs(message: str) -> list[str]:
     """
     features = []
 
-    # Pattern: Implements: feature-xyz
-    pattern1 = r"(?:Implements|Fixes|Closes|Refs):\s*(feature-[\w-]+|bug-[\w-]+)"
+    # All HtmlGraph ID prefixes (current + legacy)
+    id_prefixes = r"(?:feat|feature|bug|spk|spike|chr|chore|trk|track|todo)"
+
+    # Pattern 1: Explicit tags (Implements: feat-xyz)
+    pattern1 = rf"(?:Implements|Fixes|Closes|Refs):\s*({id_prefixes}-[\w-]+)"
     features.extend(re.findall(pattern1, message, re.IGNORECASE))
 
-    # Pattern: feature-xyz (anywhere in message)
-    pattern2 = r"\b(feature-[\w-]+|bug-[\w-]+)\b"
+    # Pattern 2: Square brackets [feat-xyz] (common in commit messages)
+    pattern2 = rf"\[({id_prefixes}-[\w-]+)\]"
     features.extend(re.findall(pattern2, message, re.IGNORECASE))
+
+    # Pattern 3: Anywhere in message as word boundary
+    pattern3 = rf"\b({id_prefixes}-[\w-]+)\b"
+    features.extend(re.findall(pattern3, message, re.IGNORECASE))
 
     # Remove duplicates while preserving order
     seen = set()
@@ -288,7 +305,44 @@ def _determine_context(graph_dir: Path, commit_message: str | None = None) -> di
         if f and f not in all_features:
             all_features.append(f)
 
-    session = get_active_session(graph_dir)
+    # Try to find the right session based on feature IDs in commit message
+    # This handles multi-agent scenarios where multiple sessions are active
+    session = None
+    if message_features:
+        # If commit mentions specific features, find the session working on them
+        manager = _get_session_manager(graph_dir)
+        if manager:
+            try:
+                # Try to find a session that has any of the message features as active
+                for feature_id in message_features:
+                    # Get the feature to check which agent is working on it
+                    try:
+                        # Try features graph first
+                        feature = manager.features_graph.get(feature_id)
+                        if not feature:
+                            # Try bugs graph
+                            feature = manager.bugs_graph.get(feature_id)
+
+                        if (
+                            feature
+                            and hasattr(feature, "agent_assigned")
+                            and feature.agent_assigned
+                        ):
+                            # Find active session for this agent
+                            session = manager.get_active_session(
+                                agent=feature.agent_assigned
+                            )
+                            if session:
+                                break
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+    # Fallback to any active session if we couldn't match by feature
+    if not session:
+        session = get_active_session(graph_dir)
+
     if session:
         return {
             "session_id": session.id,
