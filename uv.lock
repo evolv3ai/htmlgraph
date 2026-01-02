@@ -356,9 +356,10 @@ wheels = [
 
 [[package]]
 name = "htmlgraph"
-version = "0.21.0"
+version = "0.22.0"
 source = { editable = "." }
 dependencies = [
+    { name = "jinja2" },
     { name = "justhtml" },
     { name = "pydantic" },
     { name = "rich" },
@@ -395,6 +396,7 @@ requires-dist = [
     { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
     { name = "invoke", marker = "extra == 'deploy'", specifier = ">=2.2.0" },
     { name = "invoke", marker = "extra == 'dev'", specifier = ">=2.2.0" },
+    { name = "jinja2", specifier = ">=3.1.0" },
     { name = "justhtml", specifier = ">=0.6.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0.0" },
     { name = "pdoc", marker = "extra == 'dev'", specifier = ">=14.0.0" },

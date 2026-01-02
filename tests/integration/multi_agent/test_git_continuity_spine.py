@@ -448,12 +448,8 @@ class TestCrossAgentContinuity:
         manager = SessionManager(graph_dir)
 
         # Start three sessions
-        manager.start_session(
-            session_id="claude-parallel", agent="claude-code"
-        )
-        manager.start_session(
-            session_id="gemini-parallel", agent="gemini-pro"
-        )
+        manager.start_session(session_id="claude-parallel", agent="claude-code")
+        manager.start_session(session_id="gemini-parallel", agent="gemini-pro")
 
         # Create features
         feat_claude = manager.create_feature("Claude Feature", agent="claude-code")

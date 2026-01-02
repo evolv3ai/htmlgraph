@@ -2,12 +2,10 @@
 Tests for documentation version tracking and migration system.
 """
 
-import shutil
 from datetime import datetime
 from pathlib import Path
 
 import pytest
-
 from htmlgraph.docs import (
     DOC_VERSIONS,
     check_docs_version,
@@ -82,7 +80,9 @@ class TestDocsMetadata:
     def test_save_and_load_metadata(self, temp_htmlgraph_dir: Path):
         """Test saving and loading metadata."""
         metadata = DocsMetadata(
-            schema_version=2, customizations=["custom_workflows"], base_version_on_last_update="0.21.0"
+            schema_version=2,
+            customizations=["custom_workflows"],
+            base_version_on_last_update="0.21.0",
         )
         metadata.save(temp_htmlgraph_dir)
 
@@ -200,7 +200,9 @@ Another custom section
         assert "custom_workflows" in customizations
         assert "project_conventions" in customizations
 
-    def test_backup_docs_creates_backup(self, temp_htmlgraph_dir: Path, backup_dir: Path):
+    def test_backup_docs_creates_backup(
+        self, temp_htmlgraph_dir: Path, backup_dir: Path
+    ):
         """Test that backup creates timestamped backup directory."""
         migration = V1toV2Migration()
 
@@ -238,7 +240,9 @@ Another custom section
         updated_metadata = DocsMetadata.load(temp_htmlgraph_dir)
         assert updated_metadata.schema_version == 2
 
-    def test_migrate_preserves_customizations(self, temp_htmlgraph_dir: Path, backup_dir: Path):
+    def test_migrate_preserves_customizations(
+        self, temp_htmlgraph_dir: Path, backup_dir: Path
+    ):
         """Test migration preserves user customizations."""
         migration = V1toV2Migration()
 
@@ -283,13 +287,17 @@ Custom workflow content
 
         # Check v1 restored
         assert (temp_htmlgraph_dir / "AGENTS.md").exists()
-        assert (temp_htmlgraph_dir / "AGENTS.md").read_text() == "# Original v1 AGENTS.md"
+        assert (
+            temp_htmlgraph_dir / "AGENTS.md"
+        ).read_text() == "# Original v1 AGENTS.md"
 
         # Check metadata updated
         updated_metadata = DocsMetadata.load(temp_htmlgraph_dir)
         assert updated_metadata.schema_version == 1
 
-    def test_rollback_fails_without_backup(self, temp_htmlgraph_dir: Path, backup_dir: Path):
+    def test_rollback_fails_without_backup(
+        self, temp_htmlgraph_dir: Path, backup_dir: Path
+    ):
         """Test rollback raises error when no backup exists."""
         migration = V1toV2Migration()
 

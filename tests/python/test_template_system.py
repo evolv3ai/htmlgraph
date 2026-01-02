@@ -1,9 +1,9 @@
 """Tests for Jinja2-based template system with user customization."""
 
+
 import pytest
-from pathlib import Path
-from htmlgraph.docs.template_engine import DocTemplateEngine
 from htmlgraph.docs import get_agents_md, sync_docs_to_file
+from htmlgraph.docs.template_engine import DocTemplateEngine
 
 
 @pytest.fixture
@@ -88,9 +88,7 @@ def test_user_override_header(user_templates_dir, tmp_htmlgraph_dir):
     assert "HtmlGraph Agent Documentation" not in result
 
 
-def test_user_override_preserves_base_sections(
-    user_templates_dir, tmp_htmlgraph_dir
-):
+def test_user_override_preserves_base_sections(user_templates_dir, tmp_htmlgraph_dir):
     """Test that user override preserves base sections."""
     # User overrides only header
     user_template = user_templates_dir / "agents.md.j2"
@@ -271,9 +269,7 @@ def test_section_templates_are_included(tmp_htmlgraph_dir):
     assert "Installation" in result  # from cli_reference.md.j2
 
 
-def test_user_can_override_section_template(
-    user_templates_dir, tmp_htmlgraph_dir
-):
+def test_user_can_override_section_template(user_templates_dir, tmp_htmlgraph_dir):
     """Test that user can override section templates."""
     # Create user override for core concepts
     sections_dir = user_templates_dir / "_sections"
