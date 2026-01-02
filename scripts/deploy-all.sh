@@ -365,22 +365,23 @@ fi
 # ============================================================================
 # PRE-FLIGHT: Verify Plugin Sync
 # ============================================================================
-if [ "$BUILD_ONLY" != true ] && [ "$DOCS_ONLY" != true ]; then
-    log_section "Pre-flight: Verifying Plugin Sync"
-
-    if [ "$DRY_RUN" = true ]; then
-        log_info "[DRY-RUN] Would check plugin sync status"
-    else
-        log_info "Checking if packages/claude-plugin/ and .claude/ are in sync..."
-        if uv run python scripts/sync_plugin_to_local.py --check; then
-            log_success "Plugin and .claude are in sync"
-        else
-            log_error "Plugin and .claude are out of sync!"
-            log_info "Run: uv run python scripts/sync_plugin_to_local.py"
-            exit 1
-        fi
-    fi
-fi
+# REMOVED: No longer syncing to .claude/ - plugin skills only
+# if [ "$BUILD_ONLY" != true ] && [ "$DOCS_ONLY" != true ]; then
+#     log_section "Pre-flight: Verifying Plugin Sync"
+#
+#     if [ "$DRY_RUN" = true ]; then
+#         log_info "[DRY-RUN] Would check plugin sync status"
+#     else
+#         log_info "Checking if packages/claude-plugin/ and .claude/ are in sync..."
+#         if uv run python scripts/sync_plugin_to_local.py --check; then
+#             log_success "Plugin and .claude are in sync"
+#         else
+#             log_error "Plugin and .claude are out of sync!"
+#             log_info "Run: uv run python scripts/sync_plugin_to_local.py"
+#             exit 1
+#         fi
+#     fi
+# fi
 
 # ============================================================================
 # STEP 0: Update Version Numbers (if version provided)
@@ -575,17 +576,18 @@ fi
 if [ "$SKIP_PLUGINS" != true ]; then
     log_section "Step 5: Updating Claude Plugin"
 
+    # REMOVED: No longer syncing to .claude/ - plugin skills only
     # Sync plugin to .claude for local dogfooding
-    log_info "Syncing plugin to .claude directory..."
-    if [ "$DRY_RUN" = true ]; then
-        log_info "[DRY-RUN] Would sync packages/claude-plugin → .claude"
-    else
-        if uv run python scripts/sync_plugin_to_local.py; then
-            log_success "Plugin synced to .claude directory"
-        else
-            log_warning "Plugin sync failed - check scripts/sync_plugin_to_local.py"
-        fi
-    fi
+    # log_info "Syncing plugin to .claude directory..."
+    # if [ "$DRY_RUN" = true ]; then
+    #     log_info "[DRY-RUN] Would sync packages/claude-plugin → .claude"
+    # else
+    #     if uv run python scripts/sync_plugin_to_local.py; then
+    #         log_success "Plugin synced to .claude directory"
+    #     else
+    #         log_warning "Plugin sync failed - check scripts/sync_plugin_to_local.py"
+    #     fi
+    # fi
 
     # Update plugin from marketplace
     if command -v claude &> /dev/null; then

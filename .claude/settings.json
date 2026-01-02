@@ -3,5 +3,8 @@
     "type": "command",
     "command": "/Users/shakes/.claude/omp-claude-wrapper.sh",
     "padding": 0
+  },
+  "enabledPlugins": {
+    "hookify@claude-plugins-official": true
   }
 }

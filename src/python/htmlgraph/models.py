@@ -937,6 +937,21 @@ class Session(BaseModel):
     transcript_synced_at: datetime | None = None  # Last sync timestamp
     transcript_git_branch: str | None = None  # Git branch from transcript
 
+    # Pattern detection (inline storage to avoid file bloat)
+    detected_patterns: list[dict[str, Any]] = Field(default_factory=list)
+    """
+    Patterns detected during this session.
+
+    Format:
+    {
+        "sequence": ["Bash", "Read", "Edit"],
+        "pattern_type": "neutral",  # or "optimal", "anti_pattern"
+        "detection_count": 3,
+        "first_detected": "2026-01-02T10:00:00",
+        "last_detected": "2026-01-02T10:30:00"
+    }
+    """
+
     def add_activity(self, entry: ActivityEntry) -> None:
         """Add an activity entry to the log."""
         self.activity_log.append(entry)
@@ -1378,6 +1393,43 @@ class Session(BaseModel):
             </dl>
         </section>"""
 
+        # Build detected patterns section
+        patterns_html = ""
+        if self.detected_patterns:
+            patterns_html = f"""
+        <section data-detected-patterns>
+            <h3>Detected Patterns ({len(self.detected_patterns)})</h3>
+            <table class="patterns-table">
+                <thead>
+                    <tr>
+                        <th>Sequence</th>
+                        <th>Type</th>
+                        <th>Count</th>
+                        <th>First/Last Detected</th>
+                    </tr>
+                </thead>
+                <tbody>"""
+
+            for pattern in self.detected_patterns:
+                seq_str = " → ".join(pattern.get("sequence", []))
+                pattern_type = pattern.get("pattern_type", "neutral")
+                count = pattern.get("detection_count", 0)
+                first = pattern.get("first_detected", "")
+                last = pattern.get("last_detected", "")
+
+                patterns_html += f"""
+                    <tr data-pattern-type="{pattern_type}">
+                        <td class="sequence">{seq_str}</td>
+                        <td><span class="badge pattern-{pattern_type}">{pattern_type}</span></td>
+                        <td>{count}</td>
+                        <td>{first} / {last}</td>
+                    </tr>"""
+
+            patterns_html += """
+                </tbody>
+            </table>
+        </section>"""
+
         title = self.title or f"Session {self.id}"
 
         return f'''<!DOCTYPE html>
@@ -1406,7 +1458,7 @@ class Session(BaseModel):
                 <span class="badge">{self.event_count} events</span>
             </div>
         </header>
-{edges_html}{handoff_html}{context_html}{activity_html}
+{edges_html}{handoff_html}{context_html}{patterns_html}{activity_html}
     </article>
 </body>
 </html>

@@ -2165,6 +2165,173 @@ def cmd_track(args: argparse.Namespace) -> None:
 
 
 # =============================================================================
+# Documentation Version Management Commands
+# =============================================================================
+
+
+def cmd_docs_version(args: argparse.Namespace) -> None:
+    """Check documentation version compatibility."""
+    from htmlgraph.docs import check_docs_version
+
+    htmlgraph_dir = Path(args.graph_dir)
+
+    if not htmlgraph_dir.exists():
+        print(f"❌ Directory not found: {htmlgraph_dir}")
+        print("   Run `htmlgraph init` first")
+        sys.exit(1)
+
+    compatible, message = check_docs_version(htmlgraph_dir)
+
+    if compatible and not message:
+        print("✅ Documentation is up to date")
+    elif compatible and message:
+        print(message)
+        print("\n💡 Run `htmlgraph docs upgrade` to update to latest version")
+    else:
+        print(message)
+        print("\n❌ Documentation version is incompatible")
+        print("   Run `htmlgraph docs upgrade` to migrate")
+        sys.exit(1)
+
+
+def cmd_docs_upgrade(args: argparse.Namespace) -> None:
+    """Upgrade documentation to latest version."""
+    from htmlgraph.docs import upgrade_docs_interactive
+    from htmlgraph.docs.docs_version import get_current_doc_version
+    from htmlgraph.docs.metadata import DocsMetadata
+    from htmlgraph.docs.migrations import get_migration
+
+    htmlgraph_dir = Path(args.graph_dir)
+
+    if not htmlgraph_dir.exists():
+        print(f"❌ Directory not found: {htmlgraph_dir}")
+        print("   Run `htmlgraph init` first")
+        sys.exit(1)
+
+    if args.auto:
+        # Auto-migrate without prompts
+        metadata = DocsMetadata.load(htmlgraph_dir)
+        current_version = get_current_doc_version()
+
+        if metadata.schema_version == current_version:
+            print("✅ Documentation is already up to date")
+            return
+
+        migration = get_migration(metadata.schema_version, current_version)
+        if not migration:
+            print(
+                f"❌ No migration available from v{metadata.schema_version} to v{current_version}"
+            )
+            sys.exit(1)
+
+        backup_dir = htmlgraph_dir / ".docs-backups"
+        backup_dir.mkdir(exist_ok=True)
+
+        print("🚀 Starting auto-migration...")
+        success = migration.migrate(htmlgraph_dir, backup_dir)
+
+        if success:
+            print("✅ Migration complete!")
+            print(f"📦 Backup saved to {backup_dir}")
+        else:
+            print("❌ Migration failed")
+            sys.exit(1)
+    else:
+        # Interactive upgrade
+        upgrade_docs_interactive(htmlgraph_dir)
+
+
+def cmd_docs_diff(args: argparse.Namespace) -> None:
+    """Show migration diff preview."""
+    htmlgraph_dir = Path(args.graph_dir)
+
+    if not htmlgraph_dir.exists():
+        print(f"❌ Directory not found: {htmlgraph_dir}")
+        print("   Run `htmlgraph init` first")
+        sys.exit(1)
+
+    print("📊 Showing migration preview...")
+    print("⚠️  Diff preview not yet implemented")
+    print("    Use `htmlgraph docs upgrade` instead")
+
+
+def cmd_docs_rollback(args: argparse.Namespace) -> None:
+    """Rollback to previous documentation version."""
+    from htmlgraph.docs.metadata import DocsMetadata
+    from htmlgraph.docs.migrations import get_migration
+
+    htmlgraph_dir = Path(args.graph_dir)
+
+    if not htmlgraph_dir.exists():
+        print(f"❌ Directory not found: {htmlgraph_dir}")
+        print("   Run `htmlgraph init` first")
+        sys.exit(1)
+
+    backup_dir = htmlgraph_dir / ".docs-backups"
+    if not backup_dir.exists() or not list(backup_dir.glob("v*")):
+        print("❌ No backups found")
+        print("   Nothing to rollback to")
+        sys.exit(1)
+
+    # Get target version
+    metadata = DocsMetadata.load(htmlgraph_dir)
+    target_version = int(args.version) if args.version else metadata.schema_version - 1
+
+    if target_version < 1:
+        print("❌ Invalid version")
+        sys.exit(1)
+
+    # Get migration script
+    migration = get_migration(target_version, metadata.schema_version)
+    if not migration:
+        print(
+            f"❌ Cannot rollback from v{metadata.schema_version} to v{target_version}"
+        )
+        sys.exit(1)
+
+    print(f"🔄 Rolling back to v{target_version}...")
+    try:
+        migration.rollback(htmlgraph_dir, backup_dir)
+        print("✅ Rollback complete")
+    except Exception as e:
+        print(f"❌ Rollback failed: {e}")
+        sys.exit(1)
+
+
+def cmd_docs_generate(args: argparse.Namespace) -> None:
+    """Generate documentation from templates with user customizations."""
+    from htmlgraph.docs import sync_docs_to_file
+
+    htmlgraph_dir = Path(args.graph_dir)
+    output_file = Path(args.output) if args.output else Path("AGENTS.md")
+    platform = args.platform
+
+    if not htmlgraph_dir.exists():
+        print(f"❌ Directory not found: {htmlgraph_dir}")
+        print("   Run `htmlgraph init` first")
+        sys.exit(1)
+
+    try:
+        print(f"📝 Generating documentation for platform: {platform}")
+        print(f"   Output: {output_file}")
+
+        result_path = sync_docs_to_file(htmlgraph_dir, output_file, platform)
+
+        print(f"✅ Documentation generated: {result_path}")
+        print("\n💡 To customize:")
+        print(f"   1. Create {htmlgraph_dir}/docs/templates/agents.md.j2")
+        print("   2. Extend base template: {% extends 'base_agents.md.j2' %}")
+        print("   3. Override blocks: header, introduction, custom_workflows, etc.")
+
+    except Exception as e:
+        print(f"❌ Generation failed: {e}")
+        import traceback
+
+        traceback.print_exc()
+        sys.exit(1)
+
+
+# =============================================================================
 # Events & Index Commands
 # =============================================================================
 
@@ -4429,6 +4596,64 @@ For more help: https://github.com/Shakes-tzd/htmlgraph
     )
 
     # =========================================================================
+    # Documentation Version Management
+    # =========================================================================
+
+    docs_parser = subparsers.add_parser("docs", help="Documentation version management")
+    docs_subparsers = docs_parser.add_subparsers(
+        dest="docs_command", help="Docs command"
+    )
+
+    docs_version = docs_subparsers.add_parser(
+        "version", help="Check documentation version compatibility"
+    )
+    docs_version.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+
+    docs_upgrade = docs_subparsers.add_parser(
+        "upgrade", help="Upgrade documentation to latest version"
+    )
+    docs_upgrade.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    docs_upgrade.add_argument(
+        "--auto", action="store_true", help="Auto-migrate without prompts"
+    )
+
+    docs_diff = docs_subparsers.add_parser("diff", help="Show migration diff preview")
+    docs_diff.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+
+    docs_rollback = docs_subparsers.add_parser(
+        "rollback", help="Rollback to previous version"
+    )
+    docs_rollback.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    docs_rollback.add_argument(
+        "version", nargs="?", help="Version to rollback to (default: latest backup)"
+    )
+
+    docs_generate = docs_subparsers.add_parser(
+        "generate", help="Generate documentation from templates"
+    )
+    docs_generate.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    docs_generate.add_argument(
+        "--platform",
+        "-p",
+        default="claude",
+        choices=["claude", "gemini", "api", "cli"],
+        help="Platform to generate docs for",
+    )
+    docs_generate.add_argument(
+        "--output", "-o", help="Output file (default: AGENTS.md)"
+    )
+
+    # =========================================================================
     # Events & Analytics Index
     # =========================================================================
 
@@ -4840,6 +5065,20 @@ For more help: https://github.com/Shakes-tzd/htmlgraph
         from htmlgraph.analytics.cli import cmd_analytics
 
         cmd_analytics(args)
+    elif args.command == "docs":
+        if args.docs_command == "version":
+            cmd_docs_version(args)
+        elif args.docs_command == "upgrade":
+            cmd_docs_upgrade(args)
+        elif args.docs_command == "diff":
+            cmd_docs_diff(args)
+        elif args.docs_command == "rollback":
+            cmd_docs_rollback(args)
+        elif args.docs_command == "generate":
+            cmd_docs_generate(args)
+        else:
+            docs_parser.print_help()
+            sys.exit(1)
     elif args.command == "events":
         if args.events_command == "export-sessions":
             cmd_events_export(args)

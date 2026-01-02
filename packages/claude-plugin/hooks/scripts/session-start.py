@@ -1153,7 +1153,7 @@ htmlgraph feature start <feature-id>
 Before reading ANYTHING else, execute this EXACT command:
 
 ```python
-Skill(skill="htmlgraph-orchestrator")
+Skill(skill="htmlgraph")
 ```
 
 This is NON-NEGOTIABLE. The skill provides:
