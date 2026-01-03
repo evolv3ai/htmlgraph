@@ -1,7 +1,6 @@
 """Tests for HeadlessSpawner."""
 
 import pytest
-
 from htmlgraph.orchestration import AIResult, HeadlessSpawner
 
 
@@ -62,7 +61,9 @@ class TestHeadlessSpawner:
         # Should either succeed quickly or timeout
         assert isinstance(result, AIResult)
         if not result.success:
-            assert "timeout" in result.error.lower() or "timed out" in result.error.lower()
+            assert (
+                "timeout" in result.error.lower() or "timed out" in result.error.lower()
+            )
 
     def test_spawn_gemini_complex_prompt(self):
         """Test Gemini spawn with complex multi-line prompt."""
@@ -295,11 +296,13 @@ class TestHeadlessSpawner:
 
 # Conditional tests that require Gemini CLI to be installed
 @pytest.mark.skipif(
-    not pytest.importorskip("subprocess").run(
+    not pytest.importorskip("subprocess")
+    .run(
         ["which", "gemini"],
         capture_output=True,
         text=True,
-    ).returncode
+    )
+    .returncode
     == 0,
     reason="Gemini CLI not installed",
 )
@@ -310,7 +313,5 @@ class TestHeadlessSpawnerIntegration:
         """Verify Gemini CLI is available for integration tests."""
         import subprocess
 
-        result = subprocess.run(
-            ["which", "gemini"], capture_output=True, text=True
-        )
+        result = subprocess.run(["which", "gemini"], capture_output=True, text=True)
         assert result.returncode == 0, "Gemini CLI not found in PATH"

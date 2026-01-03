@@ -159,6 +159,7 @@ HtmlGraph nodes are standard HTML files:
 - **Agent Handoff** - Context-preserving task transfers between agents
 - **Capability Routing** - Automatic task assignment based on agent skills
 - **Deployment Automation** - One-command releases with version management
+- **Unified Backend** - Operations layer shared by CLI and SDK for consistency
 
 ## Comparison
 

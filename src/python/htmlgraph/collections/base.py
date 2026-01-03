@@ -91,6 +91,48 @@ class BaseCollection(Generic[CollectionT]):
 
         return self._graph
 
+    def __getattribute__(self, name: str) -> Any:
+        """Override to provide helpful error messages for missing attributes."""
+        try:
+            return object.__getattribute__(self, name)
+        except AttributeError as e:
+            # Get available methods
+            available = [m for m in dir(self) if not m.startswith("_")]
+
+            # Common mistakes mapping
+            common_mistakes = {
+                "mark_complete": "mark_done",
+                "complete": "Use complete(node_id) for single item or mark_done([ids]) for batch",
+                "finish": "mark_done",
+                "end": "mark_done",
+                "update_status": "edit() context manager or batch_update()",
+                "mark_as_done": "mark_done",
+                "set_done": "mark_done",
+                "complete_all": "mark_done",
+            }
+
+            suggestions = []
+            if name in common_mistakes:
+                suggestions.append(f"Did you mean: {common_mistakes[name]}")
+
+            # Find similar method names
+            similar = [
+                m
+                for m in available
+                if name.lower() in m.lower() or m.lower() in name.lower()
+            ]
+            if similar:
+                suggestions.append(f"Similar methods: {', '.join(similar[:5])}")
+
+            # Build helpful error message
+            error_msg = f"'{type(self).__name__}' has no attribute '{name}'."
+            if suggestions:
+                error_msg += "\n\n" + "\n".join(suggestions)
+            error_msg += f"\n\nAvailable methods: {', '.join(available[:15])}"
+            error_msg += "\n\nTip: Use sdk.help() to see all available operations."
+
+            raise AttributeError(error_msg) from e
+
     def __dir__(self) -> list[str]:
         """Return attributes with most useful ones first for discoverability."""
         priority = [
@@ -418,7 +460,7 @@ class BaseCollection(Generic[CollectionT]):
 
         return count
 
-    def mark_done(self, node_ids: list[str]) -> int:
+    def mark_done(self, node_ids: list[str]) -> dict[str, Any]:
         """
         Batch mark nodes as done.
 
@@ -426,12 +468,34 @@ class BaseCollection(Generic[CollectionT]):
             node_ids: List of node IDs to mark as done
 
         Returns:
-            Number of nodes updated
+            Dict with 'success_count', 'failed_ids', and 'warnings'
 
         Example:
-            >>> sdk.features.mark_done(["feat-001", "feat-002"])
+            >>> result = sdk.features.mark_done(["feat-001", "feat-002"])
+            >>> print(f"Completed {result['success_count']} of {len(node_ids)}")
+            >>> if result['failed_ids']:
+            ...     print(f"Failed: {result['failed_ids']}")
         """
-        return self.batch_update(node_ids, {"status": "done"})
+        graph = self._ensure_graph()
+        results: dict[str, Any] = {"success_count": 0, "failed_ids": [], "warnings": []}
+
+        for node_id in node_ids:
+            try:
+                node = graph.get(node_id)
+                if not node:
+                    results["failed_ids"].append(node_id)
+                    results["warnings"].append(f"Node {node_id} not found")
+                    continue
+
+                node.status = "done"
+                node.updated = datetime.now()
+                graph.update(node)
+                results["success_count"] += 1
+            except Exception as e:
+                results["failed_ids"].append(node_id)
+                results["warnings"].append(f"Failed to mark {node_id}: {str(e)}")
+
+        return results
 
     def assign(self, node_ids: list[str], agent: str) -> int:
         """

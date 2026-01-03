@@ -2,7 +2,8 @@
 
 from datetime import datetime
 
-from htmlgraph.models import Edge, Graph, Node, Step
+from htmlgraph.models import Edge, Graph, Node, Spike, Step
+from htmlgraph.parser import HtmlParser
 
 
 class TestStep:
@@ -302,3 +303,95 @@ class TestGraph:
         assert "n2" in context
         assert "Node 1" in context
         assert "Node 2" in context
+
+
+class TestSpikeFindings:
+    """Tests for Spike findings and decision parsing."""
+
+    def test_spike_html_generation_with_findings(self, tmp_path):
+        """Spike should generate HTML with findings and decision."""
+        spike = Spike(
+            id="spk-test",
+            title="Test Spike",
+            findings="# Research Findings\nThis is what we learned.",
+            decision="We decided to use approach A.",
+        )
+
+        html = spike.to_html()
+
+        assert 'data-type="spike"' in html
+        assert "<section data-findings>" in html
+        assert '<div class="findings-content">' in html
+        assert "# Research Findings" in html
+        assert "This is what we learned." in html
+        assert "<section data-decision>" in html
+        assert "We decided to use approach A." in html
+
+    def test_spike_html_parsing_with_findings(self, tmp_path):
+        """Parser should extract findings and decision from spike HTML."""
+        # Create a spike HTML file with findings
+        spike_html = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Spike</title>
+</head>
+<body>
+    <article id="spk-test" data-type="spike" data-status="done">
+        <header>
+            <h1>Test Spike</h1>
+        </header>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+# Executive Summary
+This is what we discovered.
+
+## Details
+More information here.
+            </div>
+        </section>
+        <section data-decision>
+            <h3>Decision</h3>
+            <p>We decided to proceed with option B.</p>
+        </section>
+    </article>
+</body>
+</html>"""
+
+        # Parse the HTML
+        parser = HtmlParser.from_string(spike_html)
+        data = parser.parse_full_node()
+
+        # Verify findings and decision are extracted
+        assert data["id"] == "spk-test"
+        assert data["type"] == "spike"
+        assert "findings" in data
+        assert "decision" in data
+        assert "Executive Summary" in data["findings"]
+        assert "This is what we discovered." in data["findings"]
+        assert "Details" in data["findings"]
+        assert "We decided to proceed with option B." in data["decision"]
+
+    def test_spike_roundtrip_with_findings(self, tmp_path):
+        """Spike should roundtrip through HTML without losing findings."""
+        original = Spike(
+            id="spk-roundtrip",
+            title="Roundtrip Test",
+            findings="# Research\nKey findings here.",
+            decision="Final decision documented.",
+        )
+
+        # Convert to HTML
+        html = original.to_html()
+
+        # Parse back
+        parser = HtmlParser.from_string(html)
+        data = parser.parse_full_node()
+        reconstructed = Spike(**data)
+
+        # Verify roundtrip
+        assert reconstructed.id == original.id
+        assert reconstructed.title == original.title
+        assert reconstructed.findings == original.findings
+        assert reconstructed.decision == original.decision

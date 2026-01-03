@@ -1,6 +1,5 @@
 """Tests for Jinja2-based template system with user customization."""
 
-
 import pytest
 from htmlgraph.docs import get_agents_md, sync_docs_to_file
 from htmlgraph.docs.template_engine import DocTemplateEngine

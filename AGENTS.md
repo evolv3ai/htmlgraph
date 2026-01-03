@@ -911,6 +911,50 @@ Task(subagent_type="general-purpose", prompt="Run e2e tests and report failures"
 
 ---
 
+## Architecture: Operations Layer
+
+HtmlGraph uses a **unified operations layer** that both CLI and SDK call. This eliminates code duplication and ensures consistent behavior.
+
+```
+CLI ────┐
+        ├──→ Operations Layer (shared backend)
+SDK ────┘
+```
+
+**Benefits:**
+- ✅ No code duplication between CLI and SDK
+- ✅ Consistent results regardless of interface
+- ✅ Single source of truth for business logic
+- ✅ Easier testing and maintenance
+
+**Operations modules:**
+- `operations/server.py` - Server lifecycle (start, stop, status)
+- `operations/hooks.py` - Git hooks management
+- `operations/events.py` - Event log indexing
+- `operations/analytics.py` - Analytics operations
+
+**See [docs/OPERATIONS_LAYER.md](./docs/OPERATIONS_LAYER.md) for complete documentation.**
+
+**Example - SDK uses operations:**
+```python
+# In SDK
+def start_server(self, port: int = 8080) -> ServerHandle:
+    from htmlgraph.operations import server
+    result = server.start_server(port=port, ...)
+    return result.handle
+```
+
+**Example - CLI uses operations:**
+```python
+# In CLI
+def cmd_serve(args):
+    from htmlgraph.operations import server
+    result = server.start_server(port=args.port, ...)
+    print(f"Server started at {result.handle.url}")
+```
+
+---
+
 ## API Reference
 
 ### SDK Class

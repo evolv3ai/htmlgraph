@@ -379,6 +379,50 @@ class HtmlParser:
 
         return "\n".join(text_parts)
 
+    def get_findings(self) -> str | None:
+        """Extract findings from section[data-findings] (Spike-specific)."""
+        findings_section = self.query_one("section[data-findings]")
+        if not findings_section:
+            return None
+
+        # Look for findings-content div using full selector
+        content_div = self.query_one("section[data-findings] div.findings-content")
+        if content_div:
+            text = content_div.to_text().strip()
+            return text if text else None
+
+        # Fallback: get all text excluding h3 header
+        text_parts = []
+        for child in findings_section.children:
+            if hasattr(child, "name") and child.name == "h3":
+                continue
+            if hasattr(child, "to_text"):
+                text = child.to_text().strip()
+                if text:
+                    text_parts.append(text)
+
+        result = "\n".join(text_parts)
+        return result if result else None
+
+    def get_decision(self) -> str | None:
+        """Extract decision from section[data-decision] (Spike-specific)."""
+        decision_section = self.query_one("section[data-decision]")
+        if not decision_section:
+            return None
+
+        # Get text content excluding the h3 header
+        text_parts = []
+        for child in decision_section.children:
+            if hasattr(child, "name") and child.name == "h3":
+                continue
+            if hasattr(child, "to_text"):
+                text = child.to_text().strip()
+                if text:
+                    text_parts.append(text)
+
+        result = "\n".join(text_parts)
+        return result if result else None
+
     def parse_full_node(self) -> dict[str, Any]:
         """
         Parse complete node data from HTML.
@@ -388,7 +432,7 @@ class HtmlParser:
         metadata = self.get_node_metadata()
         title = self.get_title()
 
-        return {
+        result = {
             **metadata,
             "title": title or metadata.get("id", "Untitled"),
             "edges": self.get_edges(),
@@ -396,6 +440,17 @@ class HtmlParser:
             "properties": self.get_properties(),
             "content": self.get_content(),
         }
+
+        # Add Spike-specific fields if present
+        findings = self.get_findings()
+        if findings is not None:
+            result["findings"] = findings
+
+        decision = self.get_decision()
+        if decision is not None:
+            result["decision"] = decision
+
+        return result
 
 
 def parse_html_file(filepath: Path | str) -> dict[str, Any]:
