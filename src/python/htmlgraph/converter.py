@@ -555,12 +555,14 @@ def html_to_session(filepath: Path | str) -> Session:
         pattern_type = tr.attrs.get("data-pattern-type", "neutral")
 
         # Extract sequence from first <td class="sequence">
-        seq_td = tr.query_one("td.sequence")
+        seq_tds = tr.query("td.sequence")
+        seq_td = seq_tds[0] if seq_tds else None
         sequence_str = seq_td.to_text().strip() if seq_td else ""
         sequence = [s.strip() for s in sequence_str.split("→")] if sequence_str else []
 
         # Extract count from third <td>
-        count_td = tr.query_all("td")[2] if len(tr.query_all("td")) > 2 else None
+        tds = tr.query("td")
+        count_td = tds[2] if len(tds) > 2 else None
         count_str = count_td.to_text().strip() if count_td else "0"
         try:
             count = int(count_str)
@@ -568,7 +570,7 @@ def html_to_session(filepath: Path | str) -> Session:
             count = 0
 
         # Extract timestamps from fourth <td>
-        time_td = tr.query_all("td")[3] if len(tr.query_all("td")) > 3 else None
+        time_td = tds[3] if len(tds) > 3 else None
         time_str = time_td.to_text().strip() if time_td else ""
         times = time_str.split(" / ")
         first_detected = times[0].strip() if len(times) > 0 else ""
