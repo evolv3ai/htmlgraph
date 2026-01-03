@@ -111,9 +111,9 @@ def cmd_install_gemini_extension(args: argparse.Namespace) -> None:
 
 def cmd_serve(args: argparse.Namespace) -> None:
     """Start the HtmlGraph server."""
-    from htmlgraph.server import serve
+    from htmlgraph.operations import start_server
 
-    serve(
+    start_server(
         port=args.port,
         graph_dir=args.graph_dir,
         static_dir=args.static_dir,
@@ -122,10 +122,14 @@ def cmd_serve(args: argparse.Namespace) -> None:
         auto_port=args.auto_port,
     )
 
+    # The start_server operation already handles all output and blocks
+    # No additional CLI formatting needed
+
 
 def cmd_init(args: argparse.Namespace) -> None:
     """Initialize a new .htmlgraph directory."""
     import shutil
+    from contextlib import nullcontext
 
     from htmlgraph.analytics_index import AnalyticsIndex
     from htmlgraph.server import HtmlGraphAPIHandler
@@ -160,38 +164,33 @@ def cmd_init(args: argparse.Namespace) -> None:
         agent_name = "claude"
         generate_docs = True  # Always generate in non-interactive mode
 
-    graph_dir = Path(args.dir) / ".htmlgraph"
-    graph_dir.mkdir(parents=True, exist_ok=True)
-
-    for collection in HtmlGraphAPIHandler.COLLECTIONS:
-        (graph_dir / collection).mkdir(exist_ok=True)
-
-    # Event stream directory (Git-friendly source of truth)
-    events_dir = graph_dir / "events"
-    events_dir.mkdir(exist_ok=True)
-    if not args.no_events_keep:
-        keep = events_dir / ".gitkeep"
-        if not keep.exists():
-            keep.write_text("", encoding="utf-8")
-
-    # Copy stylesheet
-    styles_src = Path(__file__).parent / "styles.css"
-    styles_dest = graph_dir / "styles.css"
-    if styles_src.exists() and not styles_dest.exists():
-        styles_dest.write_text(styles_src.read_text())
-
-    # Create default index.html if not exists
-    index_path = Path(args.dir) / "index.html"
-    if not index_path.exists():
-        create_default_index(index_path)
-
-    # Create analytics cache DB (rebuildable; typically gitignored)
-    if not args.no_index:
+    def init_progress() -> tuple[Any | None, Any | None]:
+        if args.quiet or getattr(args, "format", "text") != "text":
+            return None, None
         try:
-            AnalyticsIndex(graph_dir / "index.sqlite").ensure_schema()
+            from rich.console import Console
+            from rich.progress import (
+                BarColumn,
+                Progress,
+                SpinnerColumn,
+                TextColumn,
+                TimeElapsedColumn,
+            )
         except Exception:
-            # Never fail init because of analytics cache.
-            pass
+            return None, None
+        console = Console()
+        progress = Progress(
+            SpinnerColumn(),
+            TextColumn("{task.description}"),
+            BarColumn(),
+            TimeElapsedColumn(),
+            console=console,
+            transient=True,
+        )
+        return progress, console
+
+    graph_dir = Path(args.dir) / ".htmlgraph"
+    events_dir = graph_dir / "events"
 
     def ensure_gitignore_entries(project_dir: Path, lines: list[str]) -> None:
         if args.no_update_gitignore:
@@ -218,19 +217,12 @@ def cmd_init(args: argparse.Namespace) -> None:
             # Don't fail init on .gitignore issues.
             pass
 
-    ensure_gitignore_entries(
-        Path(args.dir),
-        [
-            ".htmlgraph/index.sqlite",
-            ".htmlgraph/index.sqlite-wal",
-            ".htmlgraph/index.sqlite-shm",
-            ".htmlgraph/git-hook-errors.log",
-        ],
-    )
+    progress, progress_console = init_progress()
 
-    # Ensure versioned hook scripts exist (installation into .git/hooks is optional)
-    hooks_dir = graph_dir / "hooks"
-    hooks_dir.mkdir(exist_ok=True)
+    def status_context(message: str) -> Any:
+        if progress_console is None:
+            return nullcontext()
+        return progress_console.status(message)
 
     # Hook templates (used when htmlgraph is installed without this repo layout).
     post_commit = """#!/bin/bash
@@ -443,26 +435,77 @@ fi
 exit 0
 """
 
-    def ensure_hook_file(hook_name: str, hook_content: str) -> Path:
-        hook_dest = hooks_dir / f"{hook_name}.sh"
-        if not hook_dest.exists():
-            hook_dest.write_text(hook_content)
-        try:
-            hook_dest.chmod(0o755)
-        except Exception:
-            pass
-        return hook_dest
+    hook_files: dict[str, Path] = {}
 
-    hook_files = {
-        "pre-commit": ensure_hook_file("pre-commit", pre_commit),
-        "post-commit": ensure_hook_file("post-commit", post_commit),
-        "post-checkout": ensure_hook_file("post-checkout", post_checkout),
-        "post-merge": ensure_hook_file("post-merge", post_merge),
-        "pre-push": ensure_hook_file("pre-push", pre_push),
-    }
+    def create_graph_dirs() -> None:
+        graph_dir.mkdir(parents=True, exist_ok=True)
+        for collection in HtmlGraphAPIHandler.COLLECTIONS:
+            (graph_dir / collection).mkdir(exist_ok=True)
 
-    # Generate documentation files from templates
-    if generate_docs:
+    def create_events_dir() -> None:
+        events_dir.mkdir(exist_ok=True)
+        if not args.no_events_keep:
+            keep = events_dir / ".gitkeep"
+            if not keep.exists():
+                keep.write_text("", encoding="utf-8")
+
+    def copy_assets() -> None:
+        styles_src = Path(__file__).parent / "styles.css"
+        styles_dest = graph_dir / "styles.css"
+        if styles_src.exists() and not styles_dest.exists():
+            styles_dest.write_text(styles_src.read_text())
+
+        index_path = Path(args.dir) / "index.html"
+        if not index_path.exists():
+            create_default_index(index_path)
+
+    def init_analytics_cache() -> None:
+        if args.no_index:
+            return
+        with status_context("Initializing analytics cache..."):
+            try:
+                AnalyticsIndex(graph_dir / "index.sqlite").ensure_schema()
+            except Exception:
+                # Never fail init because of analytics cache.
+                pass
+
+    def update_gitignore() -> None:
+        ensure_gitignore_entries(
+            Path(args.dir),
+            [
+                ".htmlgraph/index.sqlite",
+                ".htmlgraph/index.sqlite-wal",
+                ".htmlgraph/index.sqlite-shm",
+                ".htmlgraph/git-hook-errors.log",
+            ],
+        )
+
+    def create_hook_templates() -> None:
+        nonlocal hook_files
+        hooks_dir = graph_dir / "hooks"
+        hooks_dir.mkdir(exist_ok=True)
+
+        def ensure_hook_file(hook_name: str, hook_content: str) -> Path:
+            hook_dest = hooks_dir / f"{hook_name}.sh"
+            if not hook_dest.exists():
+                hook_dest.write_text(hook_content)
+            try:
+                hook_dest.chmod(0o755)
+            except Exception:
+                pass
+            return hook_dest
+
+        hook_files = {
+            "pre-commit": ensure_hook_file("pre-commit", pre_commit),
+            "post-commit": ensure_hook_file("post-commit", post_commit),
+            "post-checkout": ensure_hook_file("post-checkout", post_checkout),
+            "post-merge": ensure_hook_file("post-merge", post_merge),
+            "pre-push": ensure_hook_file("pre-push", pre_push),
+        }
+
+    def generate_docs_step() -> None:
+        if not generate_docs:
+            return
 
         def render_template(
             template_path: Path, replacements: dict[str, str]
@@ -483,7 +526,7 @@ exit 0
             from htmlgraph import __version__
 
             version = __version__
-        except:
+        except Exception:
             version = "unknown"
 
         replacements = {
@@ -519,17 +562,9 @@ exit 0
                 gemini_dest.write_text(content, encoding="utf-8")
                 print(f"✓ Generated: {gemini_dest}")
 
-    print(f"\nInitialized HtmlGraph in {graph_dir}")
-    print(f"Collections: {', '.join(HtmlGraphAPIHandler.COLLECTIONS)}")
-    print("\nStart server with: htmlgraph serve")
-    if not args.no_index:
-        print(
-            f"Analytics cache: {graph_dir / 'index.sqlite'} (rebuildable; typically gitignored)"
-        )
-    print(f"Events: {events_dir}/ (append-only JSONL)")
-
-    # Install Git hooks if requested
-    if args.install_hooks:
+    def install_hooks_step() -> None:
+        if not args.install_hooks:
+            return
         git_dir = Path(args.dir) / ".git"
         if not git_dir.exists():
             print("\n⚠️  Warning: No .git directory found. Git hooks not installed.")
@@ -605,6 +640,46 @@ fi
         install_hook("pre-push", hook_files["pre-push"], pre_push)
 
         print("\nGit events will now be logged to HtmlGraph automatically.")
+
+    steps: list[tuple[str, Any]] = [
+        ("Create .htmlgraph directories", create_graph_dirs),
+        ("Create event log directory", create_events_dir),
+        ("Update .gitignore", update_gitignore),
+        ("Prepare git hook templates", create_hook_templates),
+        ("Copy default assets", copy_assets),
+    ]
+    if not args.no_index:
+        steps.append(("Initialize analytics cache", init_analytics_cache))
+    if generate_docs:
+        steps.append(("Generate documentation", generate_docs_step))
+    if args.install_hooks:
+        steps.append(("Install git hooks", install_hooks_step))
+
+    def run_steps(step_list: list[tuple[str, Any]]) -> None:
+        if progress is None:
+            for _, fn in step_list:
+                fn()
+            return
+
+        with progress:
+            task_id = progress.add_task(
+                "Initializing HtmlGraph...", total=len(step_list)
+            )
+            for description, fn in step_list:
+                progress.update(task_id, description=description)
+                fn()
+                progress.advance(task_id)
+
+    run_steps(steps)
+
+    print(f"\nInitialized HtmlGraph in {graph_dir}")
+    print(f"Collections: {', '.join(HtmlGraphAPIHandler.COLLECTIONS)}")
+    print("\nStart server with: htmlgraph serve")
+    if not args.no_index:
+        print(
+            f"Analytics cache: {graph_dir / 'index.sqlite'} (rebuildable; typically gitignored)"
+        )
+    print(f"Events: {events_dir}/ (append-only JSONL)")
 
 
 def cmd_install_hooks(args: argparse.Namespace) -> None:
@@ -2358,22 +2433,15 @@ def cmd_events_export(args: argparse.Namespace) -> None:
 
 def cmd_index_rebuild(args: argparse.Namespace) -> None:
     """Rebuild the SQLite analytics index from JSONL event logs."""
-    from htmlgraph.analytics_index import AnalyticsIndex
-    from htmlgraph.event_log import JsonlEventLog
+    from htmlgraph.operations import rebuild_index
 
     graph_dir = Path(args.graph_dir)
-    events_dir = graph_dir / "events"
-    db_path = graph_dir / "index.sqlite"
 
-    log = JsonlEventLog(events_dir)
-    index = AnalyticsIndex(db_path)
+    result = rebuild_index(graph_dir=graph_dir)
 
-    events = (event for _, event in log.iter_events())
-    result = index.rebuild_from_events(events)
-
-    print(f"DB: {db_path}")
-    print(f"Inserted: {result['inserted']}")
-    print(f"Skipped:  {result['skipped']}")
+    print(f"DB: {result.db_path}")
+    print(f"Inserted: {result.inserted}")
+    print(f"Skipped:  {result.skipped}")
 
 
 def cmd_watch(args: argparse.Namespace) -> None:

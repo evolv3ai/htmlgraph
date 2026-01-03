@@ -1174,6 +1174,8 @@ def serve(
     host: str = "localhost",
     watch: bool = True,
     auto_port: bool = False,
+    show_progress: bool = False,
+    quiet: bool = False,
 ) -> None:
     """
     Start the HtmlGraph server.
@@ -1186,7 +1188,11 @@ def serve(
         host: Host to bind to
         watch: Enable file watching for auto-reload (default: True)
         auto_port: Automatically find available port if specified port is in use
+        show_progress: Show Rich progress during startup
+        quiet: Suppress progress output when true
     """
+    from contextlib import nullcontext
+
     graph_dir = Path(graph_dir)
     static_dir = Path(static_dir)
 
@@ -1196,67 +1202,121 @@ def serve(
         port = find_available_port(port + 1)
         print(f"⚠️  Port {original_port} is in use, using {port} instead\n")
 
-    # Auto-sync dashboard files
-    try:
-        if sync_dashboard_files(static_dir):
-            print("⚠️  Dashboard files out of sync")
-            print("✅ Synced dashboard.html → index.html\n")
-    except PermissionError as e:
-        print(f"⚠️  Warning: Unable to sync dashboard files: {e}")
-        print(
-            f"   Run: cp src/python/htmlgraph/dashboard.html {static_dir / 'index.html'}\n"
-        )
-    except Exception as e:
-        print(f"⚠️  Warning: Error during dashboard sync: {e}\n")
+    progress = None
+    progress_console = None
+    if show_progress and not quiet:
+        try:
+            from rich.console import Console
+            from rich.progress import (
+                BarColumn,
+                Progress,
+                SpinnerColumn,
+                TextColumn,
+                TimeElapsedColumn,
+            )
+        except Exception:
+            progress = None
+        else:
+            progress_console = Console()
+            progress = Progress(
+                SpinnerColumn(),
+                TextColumn("{task.description}"),
+                BarColumn(),
+                TimeElapsedColumn(),
+                console=progress_console,
+                transient=True,
+            )
 
-    # Create graph directory structure
-    graph_dir.mkdir(parents=True, exist_ok=True)
-    for collection in HtmlGraphAPIHandler.COLLECTIONS:
-        (graph_dir / collection).mkdir(exist_ok=True)
+    def status_context(message: str) -> Any:
+        if progress_console is None:
+            return nullcontext()
+        return progress_console.status(message)
 
-    # Copy default stylesheet if not present
-    styles_dest = graph_dir / "styles.css"
-    if not styles_dest.exists():
-        styles_src = Path(__file__).parent / "styles.css"
-        if styles_src.exists():
-            styles_dest.write_text(styles_src.read_text())
-
-    # Configure handler
-    HtmlGraphAPIHandler.graph_dir = graph_dir
-    HtmlGraphAPIHandler.static_dir = static_dir
-    HtmlGraphAPIHandler.graphs = {}
-    HtmlGraphAPIHandler.analytics_db = None
-
-    # Create server with error handling
-    try:
-        server = HTTPServer((host, port), HtmlGraphAPIHandler)
-    except OSError as e:
-        # Handle "Address already in use" error
-        if e.errno == 48 or "Address already in use" in str(e):
-            print(f"\n❌ Port {port} is already in use\n")
-            print("Solutions:")
-            print("  1. Use a different port:")
-            print(f"     htmlgraph serve --port {port + 1}\n")
-            print("  2. Let htmlgraph automatically find an available port:")
-            print("     htmlgraph serve --auto-port\n")
-            print(f"  3. Find and kill the process using port {port}:")
-            print(f"     lsof -ti:{port} | xargs kill -9\n")
-
-            # Try to find and suggest an available port
-            try:
-                alt_port = find_available_port(port + 1)
-                print(f"💡 Found available port: {alt_port}")
-                print(f"   Run: htmlgraph serve --port {alt_port}\n")
-            except OSError:
-                pass
-
-            sys.exit(1)
-        # Re-raise other OSErrors
-        raise
-
-    # Start file watcher if enabled
+    server = None
     watcher = None
-    if watch:
+
+    events_dir = graph_dir / "events"
+    db_path = graph_dir / "index.sqlite"
+    index_needs_build = (
+        not db_path.exists() and events_dir.exists() and any(events_dir.glob("*.jsonl"))
+    )
+
+    def sync_dashboard() -> None:
+        # Auto-sync dashboard files
+        try:
+            if sync_dashboard_files(static_dir):
+                print("⚠️  Dashboard files out of sync")
+                print("✅ Synced dashboard.html → index.html\n")
+        except PermissionError as e:
+            print(f"⚠️  Warning: Unable to sync dashboard files: {e}")
+            print(
+                f"   Run: cp src/python/htmlgraph/dashboard.html {static_dir / 'index.html'}\n"
+            )
+        except Exception as e:
+            print(f"⚠️  Warning: Error during dashboard sync: {e}\n")
+
+    def create_graph_dirs() -> None:
+        graph_dir.mkdir(parents=True, exist_ok=True)
+        for collection in HtmlGraphAPIHandler.COLLECTIONS:
+            (graph_dir / collection).mkdir(exist_ok=True)
+
+    def copy_stylesheet() -> None:
+        styles_dest = graph_dir / "styles.css"
+        if not styles_dest.exists():
+            styles_src = Path(__file__).parent / "styles.css"
+            if styles_src.exists():
+                styles_dest.write_text(styles_src.read_text())
+
+    def build_analytics_index() -> None:
+        if not index_needs_build:
+            return
+        with status_context("Building analytics index..."):
+            try:
+                log = JsonlEventLog(events_dir)
+                index = AnalyticsIndex(db_path)
+                events = (event for _, event in log.iter_events())
+                index.rebuild_from_events(events)
+            except Exception as e:
+                print(f"⚠️  Warning: Failed to build analytics index: {e}")
+
+    def configure_handler() -> None:
+        HtmlGraphAPIHandler.graph_dir = graph_dir
+        HtmlGraphAPIHandler.static_dir = static_dir
+        HtmlGraphAPIHandler.graphs = {}
+        HtmlGraphAPIHandler.analytics_db = None
+
+    def create_server() -> None:
+        nonlocal server
+        try:
+            server = HTTPServer((host, port), HtmlGraphAPIHandler)
+        except OSError as e:
+            # Handle "Address already in use" error
+            if e.errno == 48 or "Address already in use" in str(e):
+                print(f"\n❌ Port {port} is already in use\n")
+                print("Solutions:")
+                print("  1. Use a different port:")
+                print(f"     htmlgraph serve --port {port + 1}\n")
+                print("  2. Let htmlgraph automatically find an available port:")
+                print("     htmlgraph serve --auto-port\n")
+                print(f"  3. Find and kill the process using port {port}:")
+                print(f"     lsof -ti:{port} | xargs kill -9\n")
+
+                # Try to find and suggest an available port
+                try:
+                    alt_port = find_available_port(port + 1)
+                    print(f"💡 Found available port: {alt_port}")
+                    print(f"   Run: htmlgraph serve --port {alt_port}\n")
+                except OSError:
+                    pass
+
+                sys.exit(1)
+            # Re-raise other OSErrors
+            raise
+
+    def start_watcher() -> None:
+        nonlocal watcher
+        if not watch:
+            return
 
         def get_graph(collection: str) -> HtmlGraph:
             """Callback to get graph instance for a collection."""
@@ -1274,6 +1334,37 @@ def serve(
             get_graph_callback=get_graph,
         )
         watcher.start()
+
+    steps: list[tuple[str, Any]] = [
+        ("Sync dashboard files", sync_dashboard),
+        ("Create graph directories", create_graph_dirs),
+        ("Copy default stylesheet", copy_stylesheet),
+    ]
+    if index_needs_build:
+        steps.append(("Build analytics index", build_analytics_index))
+    steps.extend(
+        [
+            ("Configure server", configure_handler),
+            ("Start HTTP server", create_server),
+            ("Start file watcher", start_watcher),
+        ]
+    )
+
+    def run_steps(step_list: list[tuple[str, Any]]) -> None:
+        if progress is None:
+            for _, fn in step_list:
+                fn()
+            return
+        with progress:
+            task_id = progress.add_task(
+                "Starting HtmlGraph server...", total=len(step_list)
+            )
+            for description, fn in step_list:
+                progress.update(task_id, description=description)
+                fn()
+                progress.advance(task_id)
+
+    run_steps(steps)
 
     watch_status = "Enabled" if watch else "Disabled"
     print(f"""
@@ -1308,12 +1399,14 @@ Press Ctrl+C to stop.
 """)
 
     try:
-        server.serve_forever()
+        if server is not None:
+            server.serve_forever()
     except KeyboardInterrupt:
         print("\nShutting down...")
         if watcher:
             watcher.stop()
-        server.shutdown()
+        if server is not None:
+            server.shutdown()
 
 
 if __name__ == "__main__":

@@ -5,6 +5,8 @@ This module provides the `htmlgraph analytics` command for analyzing work patter
 """
 
 import argparse
+from collections.abc import Iterator
+from contextlib import AbstractContextManager, nullcontext
 from pathlib import Path
 
 from rich import box
@@ -19,6 +21,7 @@ from htmlgraph.converter import html_to_session
 def cmd_analytics(args: argparse.Namespace) -> int:
     """Display work type analytics with beautiful rich formatting."""
     console = Console()
+    quiet = getattr(args, "quiet", False)
 
     try:
         sdk = SDK(agent=args.agent or "cli")
@@ -46,21 +49,67 @@ def cmd_analytics(args: argparse.Namespace) -> int:
     # Determine scope
     if args.session_id:
         # Single session analysis
-        _display_session_analytics(console, sdk, args.session_id, args.graph_dir)
+        _display_session_analytics(
+            console, sdk, args.session_id, args.graph_dir, quiet=quiet
+        )
     elif args.recent:
         # Recent sessions
         _display_recent_sessions(
-            console, sdk, session_files[: args.recent], args.graph_dir
+            console, sdk, session_files[: args.recent], args.graph_dir, quiet=quiet
         )
     else:
         # Project-wide overview
-        _display_project_analytics(console, sdk, session_files, args.graph_dir)
+        _display_project_analytics(
+            console, sdk, session_files, args.graph_dir, quiet=quiet
+        )
 
     return 0
 
 
+def _status_context(
+    console: Console, quiet: bool, message: str
+) -> AbstractContextManager[object]:
+    if quiet:
+        return nullcontext()
+    return console.status(message)
+
+
+def _iter_with_progress(
+    console: Console, quiet: bool, items: list[Path], description: str
+) -> Iterator[Path]:
+    if quiet:
+        for item in items:
+            yield item
+        return
+    try:
+        from rich.progress import (
+            BarColumn,
+            Progress,
+            SpinnerColumn,
+            TextColumn,
+            TimeElapsedColumn,
+        )
+    except Exception:
+        for item in items:
+            yield item
+        return
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("{task.description}"),
+        BarColumn(),
+        TimeElapsedColumn(),
+        console=console,
+        transient=True,
+    ) as progress:
+        task_id = progress.add_task(description, total=len(items))
+        for item in items:
+            yield item
+            progress.advance(task_id)
+
+
 def _display_session_analytics(
-    console: Console, sdk: SDK, session_id: str, graph_dir: str
+    console: Console, sdk: SDK, session_id: str, graph_dir: str, quiet: bool
 ) -> None:
     """Display analytics for a single session."""
     from htmlgraph.converter import html_to_session
@@ -72,19 +121,23 @@ def _display_session_analytics(
         return
 
     try:
-        session = html_to_session(session_path)
+        with _status_context(console, quiet, "Loading session data..."):
+            session = html_to_session(session_path)
     except Exception as e:
         console.print(f"[red]Error loading session: {e}[/red]")
         return
 
     # Get analytics
-    dist = sdk.analytics.work_type_distribution(session_id=session_id)
-    ratio = sdk.analytics.spike_to_feature_ratio(session_id=session_id)
-    burden = sdk.analytics.maintenance_burden(session_id=session_id)
-    primary = sdk.analytics.calculate_session_primary_work_type(session_id)
-    breakdown = sdk.analytics.calculate_session_work_breakdown(session_id)
-    total_events = sum(breakdown.values()) if breakdown else session.event_count
-    transition_metrics = sdk.analytics.transition_time_metrics(session_id=session_id)
+    with _status_context(console, quiet, "Computing session analytics..."):
+        dist = sdk.analytics.work_type_distribution(session_id=session_id)
+        ratio = sdk.analytics.spike_to_feature_ratio(session_id=session_id)
+        burden = sdk.analytics.maintenance_burden(session_id=session_id)
+        primary = sdk.analytics.calculate_session_primary_work_type(session_id)
+        breakdown = sdk.analytics.calculate_session_work_breakdown(session_id)
+        total_events = sum(breakdown.values()) if breakdown else session.event_count
+        transition_metrics = sdk.analytics.transition_time_metrics(
+            session_id=session_id
+        )
 
     # Header panel
     header = Panel(
@@ -167,7 +220,11 @@ def _display_session_analytics(
 
 
 def _display_recent_sessions(
-    console: Console, sdk: SDK, session_files: list[Path], graph_dir: str
+    console: Console,
+    sdk: SDK,
+    session_files: list[Path],
+    graph_dir: str,
+    quiet: bool,
 ) -> None:
     """Display analytics for recent sessions."""
     console.print(
@@ -188,7 +245,9 @@ def _display_recent_sessions(
     table.add_column("Primary Type", style="yellow")
     table.add_column("Spike Ratio", justify="right")
 
-    for session_path in session_files:
+    for session_path in _iter_with_progress(
+        console, quiet, session_files, "Processing sessions"
+    ):
         try:
             session = html_to_session(session_path)
             session_id = session.id
@@ -226,7 +285,11 @@ def _display_recent_sessions(
 
 
 def _display_project_analytics(
-    console: Console, sdk: SDK, session_files: list[Path], graph_dir: str
+    console: Console,
+    sdk: SDK,
+    session_files: list[Path],
+    graph_dir: str,
+    quiet: bool,
 ) -> None:
     """Display project-wide analytics."""
     console.print(
@@ -240,10 +303,11 @@ def _display_project_analytics(
     console.print()
 
     # Get project-wide metrics
-    all_dist = sdk.analytics.work_type_distribution()
-    all_ratio = sdk.analytics.spike_to_feature_ratio()
-    all_burden = sdk.analytics.maintenance_burden()
-    all_transition = sdk.analytics.transition_time_metrics()
+    with _status_context(console, quiet, "Computing project analytics..."):
+        all_dist = sdk.analytics.work_type_distribution()
+        all_ratio = sdk.analytics.spike_to_feature_ratio()
+        all_burden = sdk.analytics.maintenance_burden()
+        all_transition = sdk.analytics.transition_time_metrics()
 
     # Work distribution table
     if all_dist:
@@ -341,7 +405,9 @@ def _display_project_analytics(
     console.print("[bold]Recent Sessions:[/bold]")
     recent_files = session_files[:5]
 
-    for session_path in recent_files:
+    for session_path in _iter_with_progress(
+        console, quiet, recent_files, "Loading recent sessions"
+    ):
         try:
             session = html_to_session(session_path)
             primary = (
