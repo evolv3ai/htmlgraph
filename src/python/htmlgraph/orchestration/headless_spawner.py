@@ -60,7 +60,13 @@ class HeadlessSpawner:
         pass
 
     def spawn_gemini(
-        self, prompt: str, output_format: str = "json", timeout: int = 120
+        self,
+        prompt: str,
+        output_format: str = "json",
+        model: str | None = None,
+        include_directories: list[str] | None = None,
+        color: str = "auto",
+        timeout: int = 120,
     ) -> AIResult:
         """
         Spawn Gemini in headless mode.
@@ -68,6 +74,9 @@ class HeadlessSpawner:
         Args:
             prompt: Task description for Gemini
             output_format: "json" or "stream-json"
+            model: Model selection (e.g., "gemini-2.0-flash"). Default: None (uses default)
+            include_directories: List of directories to include for context. Default: None
+            color: Color output control ("auto", "on", "off"). Default: "auto"
             timeout: Max seconds to wait
 
         Returns:
@@ -76,6 +85,18 @@ class HeadlessSpawner:
         try:
             # Build command based on tested pattern from spike spk-4029eef3
             cmd = ["gemini", "-p", prompt, "--output-format", output_format]
+
+            # Add model option if specified
+            if model:
+                cmd.extend(["-m", model])
+
+            # Add include directories if specified
+            if include_directories:
+                for directory in include_directories:
+                    cmd.extend(["--include-directories", directory])
+
+            # Add color option
+            cmd.extend(["--color", color])
 
             # Execute with timeout and stderr redirection
             # Note: Cannot use capture_output with stderr parameter
@@ -161,6 +182,17 @@ class HeadlessSpawner:
         prompt: str,
         approval: str = "never",
         output_json: bool = True,
+        model: str | None = None,
+        sandbox: str | None = None,
+        full_auto: bool = False,
+        images: list[str] | None = None,
+        color: str = "auto",
+        output_last_message: str | None = None,
+        output_schema: str | None = None,
+        skip_git_check: bool = False,
+        working_directory: str | None = None,
+        use_oss: bool = False,
+        bypass_approvals: bool = False,
         timeout: int = 120,
     ) -> AIResult:
         """
@@ -170,6 +202,17 @@ class HeadlessSpawner:
             prompt: Task description for Codex
             approval: Approval mode ("never", "always")
             output_json: Use --json flag for JSONL output
+            model: Model selection (e.g., "gpt-4-turbo"). Default: None
+            sandbox: Sandbox mode ("read-only", "workspace-write", "danger-full-access"). Default: None
+            full_auto: Enable full auto mode (--full-auto). Default: False
+            images: List of image paths (--image). Default: None
+            color: Color output control ("auto", "on", "off"). Default: "auto"
+            output_last_message: Write last message to file (--output-last-message). Default: None
+            output_schema: JSON schema for validation (--output-schema). Default: None
+            skip_git_check: Skip git repo check (--skip-git-repo-check). Default: False
+            working_directory: Workspace directory (--cd). Default: None
+            use_oss: Use local Ollama provider (--oss). Default: False
+            bypass_approvals: Dangerously bypass approvals (--dangerously-bypass-approvals-and-sandbox). Default: False
             timeout: Max seconds to wait
 
         Returns:
@@ -179,6 +222,50 @@ class HeadlessSpawner:
 
         if output_json:
             cmd.append("--json")
+
+        # Add model if specified
+        if model:
+            cmd.extend(["--model", model])
+
+        # Add sandbox mode if specified
+        if sandbox:
+            cmd.extend(["--sandbox", sandbox])
+
+        # Add full auto flag
+        if full_auto:
+            cmd.append("--full-auto")
+
+        # Add images
+        if images:
+            for image in images:
+                cmd.extend(["--image", image])
+
+        # Add color option
+        cmd.extend(["--color", color])
+
+        # Add output last message file if specified
+        if output_last_message:
+            cmd.extend(["--output-last-message", output_last_message])
+
+        # Add output schema if specified
+        if output_schema:
+            cmd.extend(["--output-schema", output_schema])
+
+        # Add skip git check flag
+        if skip_git_check:
+            cmd.append("--skip-git-repo-check")
+
+        # Add working directory if specified
+        if working_directory:
+            cmd.extend(["--cd", working_directory])
+
+        # Add OSS flag
+        if use_oss:
+            cmd.append("--oss")
+
+        # Add bypass approvals flag
+        if bypass_approvals:
+            cmd.append("--dangerously-bypass-approvals-and-sandbox")
 
         cmd.extend(["--approval", approval, prompt])
 
@@ -255,6 +342,8 @@ class HeadlessSpawner:
         self,
         prompt: str,
         allow_tools: list[str] | None = None,
+        allow_all_tools: bool = False,
+        deny_tools: list[str] | None = None,
         timeout: int = 120,
     ) -> AIResult:
         """
@@ -263,6 +352,8 @@ class HeadlessSpawner:
         Args:
             prompt: Task description for Copilot
             allow_tools: List of tools to auto-approve (e.g., ["shell(git)", "write(*.py)"])
+            allow_all_tools: Auto-approve all tools (--allow-all-tools). Default: False
+            deny_tools: List of tools to deny (--deny-tool). Default: None
             timeout: Max seconds to wait
 
         Returns:
@@ -270,10 +361,19 @@ class HeadlessSpawner:
         """
         cmd = ["copilot", "-p", prompt]
 
+        # Add allow all tools flag
+        if allow_all_tools:
+            cmd.append("--allow-all-tools")
+
         # Add tool permissions
         if allow_tools:
             for tool in allow_tools:
                 cmd.extend(["--allow-tool", tool])
+
+        # Add denied tools
+        if deny_tools:
+            for tool in deny_tools:
+                cmd.extend(["--deny-tool", tool])
 
         try:
             result = subprocess.run(
@@ -336,6 +436,8 @@ class HeadlessSpawner:
         prompt: str,
         output_format: str = "json",
         permission_mode: str = "bypassPermissions",
+        resume: str | None = None,
+        verbose: bool = False,
         timeout: int = 300,
     ) -> AIResult:
         """
@@ -358,6 +460,8 @@ class HeadlessSpawner:
                 - "default": Normal interactive prompts
                 - "plan": Plan mode (no execution)
                 - "delegate": Delegation mode
+            resume: Resume from previous session (--resume). Default: None
+            verbose: Enable verbose output (--verbose). Default: False
             timeout: Max seconds (default: 300, Claude can be slow with initialization)
 
         Returns:
@@ -377,6 +481,14 @@ class HeadlessSpawner:
 
         if permission_mode:
             cmd.extend(["--permission-mode", permission_mode])
+
+        # Add resume flag if specified
+        if resume:
+            cmd.extend(["--resume", resume])
+
+        # Add verbose flag
+        if verbose:
+            cmd.append("--verbose")
 
         cmd.append(prompt)
 

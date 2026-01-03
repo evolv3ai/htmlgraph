@@ -84,6 +84,49 @@ class TestHeadlessSpawner:
         assert "paris" in response_lower
         assert "50" in result.response
 
+    def test_spawn_gemini_with_model(self):
+        """Test Gemini with specific model selection."""
+        spawner = HeadlessSpawner()
+        result = spawner.spawn_gemini(
+            "What is 2+2? Brief answer only.", model="gemini-2.0-flash"
+        )
+
+        assert isinstance(result, AIResult)
+        # May fail if specific model not available
+        if result.success:
+            assert "4" in result.response
+
+    def test_spawn_gemini_with_include_directories(self):
+        """Test Gemini with include directories for context."""
+        spawner = HeadlessSpawner()
+        result = spawner.spawn_gemini(
+            "Summarize the structure.", include_directories=["src/", "tests/"]
+        )
+
+        assert isinstance(result, AIResult)
+        # Just verify it doesn't crash with the option
+
+    def test_spawn_gemini_color_control(self):
+        """Test Gemini with color output control."""
+        spawner = HeadlessSpawner()
+        result = spawner.spawn_gemini("What is 2+2? Brief answer only.", color="off")
+
+        assert isinstance(result, AIResult)
+        if result.success:
+            assert "4" in result.response
+
+    def test_spawn_gemini_multiple_options(self):
+        """Test Gemini with multiple options combined."""
+        spawner = HeadlessSpawner()
+        result = spawner.spawn_gemini(
+            "What is 2+2?",
+            model="gemini-2.0-flash",
+            include_directories=["src/"],
+            color="auto",
+        )
+
+        assert isinstance(result, AIResult)
+
     def test_air_result_structure(self):
         """Test AIResult dataclass structure."""
         result = AIResult(
@@ -152,6 +195,106 @@ class TestHeadlessSpawner:
             assert result.response
             assert isinstance(result.raw_output, str)
 
+    def test_spawn_codex_with_model(self):
+        """Test Codex with specific model selection."""
+        spawner = HeadlessSpawner()
+        result = spawner.spawn_codex(
+            "What is 2+2? Brief answer only.", model="gpt-4-turbo"
+        )
+
+        assert isinstance(result, AIResult)
+
+    def test_spawn_codex_with_sandbox_mode(self):
+        """Test Codex with sandbox mode."""
+        spawner = HeadlessSpawner()
+        result = spawner.spawn_codex(
+            "List files in current directory.", sandbox="read-only"
+        )
+
+        assert isinstance(result, AIResult)
+
+    def test_spawn_codex_full_auto_mode(self):
+        """Test Codex with full auto mode enabled."""
+        spawner = HeadlessSpawner()
+        result = spawner.spawn_codex("What is 2+2? Brief answer only.", full_auto=True)
+
+        assert isinstance(result, AIResult)
+
+    def test_spawn_codex_with_images(self):
+        """Test Codex with image inputs."""
+        spawner = HeadlessSpawner()
+        result = spawner.spawn_codex(
+            "Describe this image.", images=["test.png", "image.jpg"]
+        )
+
+        assert isinstance(result, AIResult)
+
+    def test_spawn_codex_color_output(self):
+        """Test Codex with color output control."""
+        spawner = HeadlessSpawner()
+        result = spawner.spawn_codex("What is 2+2?", color="off")
+
+        assert isinstance(result, AIResult)
+
+    def test_spawn_codex_output_last_message(self):
+        """Test Codex with output last message file."""
+        spawner = HeadlessSpawner()
+        result = spawner.spawn_codex(
+            "What is 2+2?", output_last_message="/tmp/last_message.txt"
+        )
+
+        assert isinstance(result, AIResult)
+
+    def test_spawn_codex_output_schema(self):
+        """Test Codex with output schema validation."""
+        spawner = HeadlessSpawner()
+        schema = '{"type": "object", "properties": {"answer": {"type": "string"}}}'
+        result = spawner.spawn_codex("What is 2+2?", output_schema=schema)
+
+        assert isinstance(result, AIResult)
+
+    def test_spawn_codex_skip_git_check(self):
+        """Test Codex with git check skipped."""
+        spawner = HeadlessSpawner()
+        result = spawner.spawn_codex("What is 2+2?", skip_git_check=True)
+
+        assert isinstance(result, AIResult)
+
+    def test_spawn_codex_working_directory(self):
+        """Test Codex with working directory option."""
+        spawner = HeadlessSpawner()
+        result = spawner.spawn_codex("List files.", working_directory="/tmp")
+
+        assert isinstance(result, AIResult)
+
+    def test_spawn_codex_use_oss(self):
+        """Test Codex with OSS flag for local Ollama."""
+        spawner = HeadlessSpawner()
+        result = spawner.spawn_codex("What is 2+2?", use_oss=True)
+
+        assert isinstance(result, AIResult)
+
+    def test_spawn_codex_bypass_approvals(self):
+        """Test Codex with dangerous bypass approvals flag."""
+        spawner = HeadlessSpawner()
+        result = spawner.spawn_codex("What is 2+2?", bypass_approvals=True)
+
+        assert isinstance(result, AIResult)
+
+    def test_spawn_codex_multiple_options(self):
+        """Test Codex with multiple options combined."""
+        spawner = HeadlessSpawner()
+        result = spawner.spawn_codex(
+            "What is 2+2?",
+            model="gpt-4-turbo",
+            sandbox="read-only",
+            full_auto=True,
+            color="auto",
+            skip_git_check=True,
+        )
+
+        assert isinstance(result, AIResult)
+
     def test_spawn_copilot_basic(self):
         """Test basic Copilot spawn."""
         spawner = HeadlessSpawner()
@@ -184,6 +327,35 @@ class TestHeadlessSpawner:
         assert isinstance(result, AIResult)
         assert not result.success
         assert "Timed out" in result.error or "not found" in result.error
+
+    def test_spawn_copilot_allow_all_tools(self):
+        """Test Copilot with allow all tools flag."""
+        spawner = HeadlessSpawner()
+        result = spawner.spawn_copilot(
+            "What is 2+2? Brief answer only.", allow_all_tools=True
+        )
+
+        assert isinstance(result, AIResult)
+
+    def test_spawn_copilot_deny_tools(self):
+        """Test Copilot with denied tools."""
+        spawner = HeadlessSpawner()
+        result = spawner.spawn_copilot(
+            "What is 2+2?", deny_tools=["shell(rm)", "write(*)"]
+        )
+
+        assert isinstance(result, AIResult)
+
+    def test_spawn_copilot_combined_tool_options(self):
+        """Test Copilot with combined allow and deny tool options."""
+        spawner = HeadlessSpawner()
+        result = spawner.spawn_copilot(
+            "What is 2+2?",
+            allow_tools=["shell(ls)", "write(*.py)"],
+            deny_tools=["shell(rm)"],
+        )
+
+        assert isinstance(result, AIResult)
 
     def test_spawn_claude_basic(self):
         """Test basic Claude spawn with JSON output."""
@@ -292,6 +464,37 @@ class TestHeadlessSpawner:
         if not result.success and result.error:
             # Should have meaningful error message
             assert len(result.error) > 0
+
+    def test_spawn_claude_with_resume(self):
+        """Test Claude with session resume option."""
+        spawner = HeadlessSpawner()
+        result = spawner.spawn_claude(
+            "Continue working on the previous task.", resume="session-abc-123"
+        )
+
+        assert isinstance(result, AIResult)
+        # Resume may fail if session doesn't exist, just verify we handle it
+
+    def test_spawn_claude_verbose_mode(self):
+        """Test Claude with verbose output."""
+        spawner = HeadlessSpawner()
+        result = spawner.spawn_claude("What is 2+2? Brief answer only.", verbose=True)
+
+        assert isinstance(result, AIResult)
+        if result.success:
+            assert "4" in result.response
+
+    def test_spawn_claude_resume_and_verbose(self):
+        """Test Claude with both resume and verbose options."""
+        spawner = HeadlessSpawner()
+        result = spawner.spawn_claude(
+            "Continue the task.",
+            resume="session-abc-123",
+            verbose=True,
+            permission_mode="plan",
+        )
+
+        assert isinstance(result, AIResult)
 
 
 # Conditional tests that require Gemini CLI to be installed
