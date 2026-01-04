@@ -3,5 +3,15 @@
     "spike_id": "spk-2c7170e9",
     "created": "2026-01-01T16:37:41.702179",
     "occurrences": 3
+  },
+  "Bash:Exit code 2\nusage: htmlgraph [-h] [--format {text,json}] [--quiet] [--verbose]\n                 {ser": {
+    "spike_id": "spk-e9debd38",
+    "created": "2026-01-04T05:03:08.044830",
+    "occurrences": 3
+  },
+  "Bash:Exit code 1\n\u001b[1m============================= test session starts ==============================\u001b[0m": {
+    "spike_id": "spk-1475f8ec",
+    "created": "2026-01-04T05:46:18.891660",
+    "occurrences": 3
   }
 }
