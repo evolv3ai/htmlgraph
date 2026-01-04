@@ -150,13 +150,18 @@ class HeadlessSpawner:
                 raw_output=output,
             )
 
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as e:
             return AIResult(
                 success=False,
                 response="",
                 tokens_used=None,
                 error=f"Gemini CLI timed out after {timeout} seconds",
-                raw_output=None,
+                raw_output={
+                    "partial_stdout": e.stdout.decode() if e.stdout else None,
+                    "partial_stderr": e.stderr.decode() if e.stderr else None,
+                }
+                if e.stdout or e.stderr
+                else None,
             )
         except FileNotFoundError:
             return AIResult(
@@ -282,11 +287,19 @@ class HeadlessSpawner:
 
             # Parse JSONL output
             events = []
-            for line in result.stdout.splitlines():
+            parse_errors = []
+            for line_num, line in enumerate(result.stdout.splitlines(), start=1):
                 if line.strip():
                     try:
                         events.append(json.loads(line))
-                    except json.JSONDecodeError:
+                    except json.JSONDecodeError as e:
+                        parse_errors.append(
+                            {
+                                "line_number": line_num,
+                                "error": str(e),
+                                "content": line[:100],  # First 100 chars for debugging
+                            }
+                        )
                         continue
 
             # Extract agent message
@@ -310,7 +323,10 @@ class HeadlessSpawner:
                 response=response or "",
                 tokens_used=tokens,
                 error=None if result.returncode == 0 else "Command failed",
-                raw_output=events,
+                raw_output={
+                    "events": events,
+                    "parse_errors": parse_errors if parse_errors else None,
+                },
             )
 
         except FileNotFoundError:
@@ -321,12 +337,25 @@ class HeadlessSpawner:
                 error="Codex CLI not found. Install from: https://github.com/openai/codex",
                 raw_output=None,
             )
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as e:
             return AIResult(
                 success=False,
                 response="",
                 tokens_used=None,
                 error=f"Timed out after {timeout} seconds",
+                raw_output={
+                    "partial_stdout": e.stdout.decode() if e.stdout else None,
+                    "partial_stderr": e.stderr.decode() if e.stderr else None,
+                }
+                if e.stdout or e.stderr
+                else None,
+            )
+        except Exception as e:
+            return AIResult(
+                success=False,
+                response="",
+                tokens_used=None,
+                error=f"Unexpected error: {type(e).__name__}: {e}",
                 raw_output=None,
             )
 
@@ -414,12 +443,25 @@ class HeadlessSpawner:
                 error="Copilot CLI not found. Install from: https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line",
                 raw_output=None,
             )
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as e:
             return AIResult(
                 success=False,
                 response="",
                 tokens_used=None,
                 error=f"Timed out after {timeout} seconds",
+                raw_output={
+                    "partial_stdout": e.stdout.decode() if e.stdout else None,
+                    "partial_stderr": e.stderr.decode() if e.stderr else None,
+                }
+                if e.stdout or e.stderr
+                else None,
+            )
+        except Exception as e:
+            return AIResult(
+                success=False,
+                response="",
+                tokens_used=None,
+                error=f"Unexpected error: {type(e).__name__}: {e}",
                 raw_output=None,
             )
 
@@ -540,19 +582,24 @@ class HeadlessSpawner:
                 error="Claude CLI not found. Install Claude Code from: https://claude.com/claude-code",
                 raw_output=None,
             )
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as e:
             return AIResult(
                 success=False,
                 response="",
                 tokens_used=None,
                 error=f"Timed out after {timeout} seconds",
-                raw_output=None,
+                raw_output={
+                    "partial_stdout": e.stdout.decode() if e.stdout else None,
+                    "partial_stderr": e.stderr.decode() if e.stderr else None,
+                }
+                if e.stdout or e.stderr
+                else None,
             )
         except Exception as e:
             return AIResult(
                 success=False,
                 response="",
                 tokens_used=None,
-                error=f"Unexpected error: {str(e)}",
+                error=f"Unexpected error: {type(e).__name__}: {e}",
                 raw_output=None,
             )
