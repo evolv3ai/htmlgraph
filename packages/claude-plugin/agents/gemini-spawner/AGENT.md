@@ -81,8 +81,9 @@ result = spawner.spawn_gemini(
     timeout=120                        # Seconds
 )
 
-# Check result
-if result.success:
+# Check result - IMPORTANT: Detect empty responses!
+is_empty_response = result.success and not result.response
+if result.success and not is_empty_response:
     print(f"Response: {result.response}")
     print(f"Tokens: {result.tokens_used}")
 
@@ -90,11 +91,20 @@ if result.success:
     stats = result.raw_output.get("stats", {})
     models_used = stats.get("models", {})
 else:
-    print(f"Error: {result.error}")
+    # Handle both explicit failures and empty responses
+    if is_empty_response:
+        error_msg = "Empty response (likely quota exceeded or timeout)"
+        print(f"⚠️  Silent failure: {error_msg}")
+    else:
+        error_msg = result.error
+        print(f"Error: {error_msg}")
 
     # Fallback strategy
     Task(
-        prompt="Same task but with Haiku",
+        prompt=f"""
+        Task: Same task but with Haiku fallback
+        Reason: Gemini {error_msg}
+        """,
         subagent_type="haiku"
     )
 ```

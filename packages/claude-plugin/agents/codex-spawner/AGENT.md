@@ -128,8 +128,9 @@ result = spawner.spawn_codex(
     timeout=120                         # Seconds
 )
 
-# Check result
-if result.success:
+# Check result - IMPORTANT: Detect empty responses!
+is_empty_response = result.success and not result.response
+if result.success and not is_empty_response:
     print(f"Response: {result.response}")
     print(f"Tokens: {result.tokens_used}")
 
@@ -138,11 +139,20 @@ if result.success:
         if event.get("type") == "item.completed":
             print(f"Completed: {event['item']['type']}")
 else:
-    print(f"Error: {result.error}")
+    # Handle both explicit failures and empty responses
+    if is_empty_response:
+        error_msg = "Empty response (likely quota exceeded or timeout)"
+        print(f"⚠️  Silent failure: {error_msg}")
+    else:
+        error_msg = result.error
+        print(f"Error: {error_msg}")
 
     # Fallback strategy
     Task(
-        prompt="Same task but with Sonnet",
+        prompt=f"""
+        Task: Same task but with Sonnet fallback
+        Reason: Codex {error_msg}
+        """,
         subagent_type="sonnet"
     )
 ```
