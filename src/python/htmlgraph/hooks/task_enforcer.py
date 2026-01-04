@@ -9,6 +9,7 @@ Architecture:
 - Checks if prompt already includes save instructions
 - Auto-injects SDK save template if missing
 - Returns updatedInput with modified prompt
+- Tracks parent session context and nesting depth (Phase 2)
 
 Usage:
     from htmlgraph.hooks.task_enforcer import enforce_task_saving
@@ -17,6 +18,7 @@ Usage:
     # Returns: {"continue": True, "hookSpecificOutput": {"updatedInput": {...}}}
 """
 
+import os
 from typing import Any
 
 
@@ -124,8 +126,56 @@ def enforce_task_saving(tool_name: str, tool_params: dict[str, Any]) -> dict[str
     if not prompt:
         return {"continue": True}
 
+    # Phase 2: Track parent session context and increment nesting depth
+    parent_session = os.environ.get("HTMLGRAPH_PARENT_SESSION")
+    parent_agent = os.environ.get("HTMLGRAPH_PARENT_AGENT", "claude-code")
+    nesting_depth = int(os.environ.get("HTMLGRAPH_NESTING_DEPTH", "0"))
+
+    # Track Task invocation as activity (if parent session exists)
+    task_activity_id = None
+    if parent_session:
+        try:
+            from htmlgraph import SDK
+
+            sdk = SDK(agent=parent_agent, parent_session=parent_session)
+
+            # Track Task invocation
+            entry = sdk.track_activity(
+                tool="Task",
+                summary=f"Task invoked: {tool_params.get('description', 'Unnamed task')[:100]}",
+                payload={
+                    "subagent_type": tool_params.get("subagent_type"),
+                    "description": tool_params.get("description"),
+                    "prompt_preview": prompt[:200] if prompt else "",
+                    "nesting_depth": nesting_depth,
+                },
+                success=True,
+            )
+
+            if entry:
+                task_activity_id = entry.id
+
+        except Exception:
+            # Graceful degradation - continue even if tracking fails
+            pass
+
+    # Increment nesting depth for child
+    new_depth = nesting_depth + 1
+
+    # Set parent activity and increment depth in environment
+    if task_activity_id:
+        os.environ["HTMLGRAPH_PARENT_ACTIVITY"] = task_activity_id
+
+    os.environ["HTMLGRAPH_NESTING_DEPTH"] = str(new_depth)
+
+    # Warn about runaway recursion
+    warning = ""
+    if new_depth > 3:
+        warning = f"\n⚠️  Warning: Nesting depth exceeds 3 levels (depth={new_depth}). Consider flattening task hierarchy."
+
     # Check if save instructions already present
     if has_save_instructions(prompt):
+        # Even if save instructions exist, we still need to update environment
         return {"continue": True}
 
     # Detect subagent type from prompt context
@@ -146,15 +196,21 @@ def enforce_task_saving(tool_name: str, tool_params: dict[str, Any]) -> dict[str
     updated_params = tool_params.copy()
     updated_params["prompt"] = modified_prompt
 
+    # Build context message
+    context_msg = (
+        f"📝 Auto-injected HtmlGraph save instructions into Task prompt. "
+        f"Subagent will be reminded to save findings using SDK.spikes. "
+        f"(depth={new_depth}, parent={parent_session[:12] if parent_session else 'none'})"
+    )
+    if warning:
+        context_msg += warning
+
     # Return response with updatedInput
     return {
         "continue": True,
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
             "updatedInput": updated_params,
-            "additionalContext": (
-                "📝 Auto-injected HtmlGraph save instructions into Task prompt. "
-                "Subagent will be reminded to save findings using SDK.spikes."
-            ),
+            "additionalContext": context_msg,
         },
     }

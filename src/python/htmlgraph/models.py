@@ -925,6 +925,11 @@ class Session(BaseModel):
     worked_on: list[str] = Field(default_factory=list)  # Feature IDs
     continued_from: str | None = None  # Previous session ID
 
+    # Parent session context (for nested Task() calls)
+    parent_session: str | None = None  # Parent session ID
+    parent_activity: str | None = None  # Parent activity ID
+    nesting_depth: int = 0  # Depth of nesting (0 = top-level)
+
     # Handoff context
     handoff_notes: str | None = None
     recommended_next: str | None = None
@@ -1357,6 +1362,14 @@ class Session(BaseModel):
             if self.primary_work_type
             else ""
         )
+        # Parent session attributes
+        parent_session_attrs = ""
+        if self.parent_session:
+            parent_session_attrs += f' data-parent-session="{self.parent_session}"'
+        if self.parent_activity:
+            parent_session_attrs += f' data-parent-activity="{self.parent_activity}"'
+        if self.nesting_depth > 0:
+            parent_session_attrs += f' data-nesting-depth="{self.nesting_depth}"'
 
         # Serialize work_breakdown as JSON if present
         import json
@@ -1466,7 +1479,7 @@ class Session(BaseModel):
              data-agent="{self.agent}"
              data-started-at="{self.started_at.isoformat()}"
              data-last-activity="{self.last_activity.isoformat()}"
-             data-event-count="{self.event_count}"{subagent_attr}{commit_attr}{ended_attr}{primary_work_type_attr}{work_breakdown_attr}{context_attrs}{transcript_attrs}>
+             data-event-count="{self.event_count}"{subagent_attr}{commit_attr}{ended_attr}{primary_work_type_attr}{work_breakdown_attr}{context_attrs}{transcript_attrs}{parent_session_attrs}>
 
         <header>
             <h1>{title}</h1>

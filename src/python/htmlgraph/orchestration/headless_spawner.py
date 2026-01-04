@@ -1,6 +1,7 @@
 """Headless AI spawner for multi-AI orchestration."""
 
 import json
+import os
 import subprocess
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -65,14 +66,30 @@ class HeadlessSpawner:
         pass
 
     def _get_sdk(self) -> "SDK | None":
-        """Get SDK instance for HtmlGraph tracking. Returns None if SDK unavailable."""
+        """
+        Get SDK instance for HtmlGraph tracking with parent session support.
+
+        Returns None if SDK unavailable.
+        """
         try:
             from htmlgraph.sdk import SDK
 
-            return SDK(agent="spawner")
+            # Read parent session context from environment
+            parent_session = os.getenv("HTMLGRAPH_PARENT_SESSION")
+            parent_agent = os.getenv("HTMLGRAPH_PARENT_AGENT")
+
+            # Create SDK with parent session context
+            sdk = SDK(
+                agent=f"spawner-{parent_agent}" if parent_agent else "spawner",
+                parent_session=parent_session,  # Pass parent session
+            )
+
+            return sdk
+
         except Exception:
             # SDK unavailable or not properly initialized (optional dependency)
             # This happens in test contexts without active sessions
+            # Don't log error to avoid noise in tests
             return None
 
     def _parse_and_track_gemini_events(
@@ -90,6 +107,11 @@ class HeadlessSpawner:
         """
         events = []
 
+        # Get parent context for metadata
+        parent_activity = os.getenv("HTMLGRAPH_PARENT_ACTIVITY")
+        nesting_depth_str = os.getenv("HTMLGRAPH_NESTING_DEPTH", "0")
+        nesting_depth = int(nesting_depth_str) if nesting_depth_str.isdigit() else 0
+
         for line in jsonl_output.splitlines():
             if not line.strip():
                 continue
@@ -105,21 +127,34 @@ class HeadlessSpawner:
                     if event_type == "tool_use":
                         tool_name = event.get("tool_name", "unknown_tool")
                         parameters = event.get("parameters", {})
+                        payload = {
+                            "tool_name": tool_name,
+                            "parameters": parameters,
+                        }
+                        if parent_activity:
+                            payload["parent_activity"] = parent_activity
+                        if nesting_depth > 0:
+                            payload["nesting_depth"] = nesting_depth
                         sdk.track_activity(
                             tool="gemini_tool_call",
                             summary=f"Gemini called {tool_name}",
-                            payload={"tool_name": tool_name, "parameters": parameters},
+                            payload=payload,
                         )
 
                     elif event_type == "tool_result":
                         status = event.get("status", "unknown")
                         success = status == "success"
                         tool_id = event.get("tool_id", "unknown")
+                        payload = {"tool_id": tool_id, "status": status}
+                        if parent_activity:
+                            payload["parent_activity"] = parent_activity
+                        if nesting_depth > 0:
+                            payload["nesting_depth"] = nesting_depth
                         sdk.track_activity(
                             tool="gemini_tool_result",
                             summary=f"Gemini tool result: {status}",
                             success=success,
-                            payload={"tool_id": tool_id, "status": status},
+                            payload=payload,
                         )
 
                     elif event_type == "message":
@@ -130,18 +165,28 @@ class HeadlessSpawner:
                             summary = (
                                 content[:100] + "..." if len(content) > 100 else content
                             )
+                            payload = {"role": role, "content_length": len(content)}
+                            if parent_activity:
+                                payload["parent_activity"] = parent_activity
+                            if nesting_depth > 0:
+                                payload["nesting_depth"] = nesting_depth
                             sdk.track_activity(
                                 tool="gemini_message",
                                 summary=f"Gemini: {summary}",
-                                payload={"role": role, "content_length": len(content)},
+                                payload=payload,
                             )
 
                     elif event_type == "result":
                         stats = event.get("stats", {})
+                        payload = {"stats": stats}
+                        if parent_activity:
+                            payload["parent_activity"] = parent_activity
+                        if nesting_depth > 0:
+                            payload["nesting_depth"] = nesting_depth
                         sdk.track_activity(
                             tool="gemini_completion",
                             summary="Gemini task completed",
-                            payload={"stats": stats},
+                            payload=payload,
                         )
                 except Exception:
                     # Tracking failure should not break parsing
@@ -169,6 +214,11 @@ class HeadlessSpawner:
         events = []
         parse_errors = []
 
+        # Get parent context for metadata
+        parent_activity = os.getenv("HTMLGRAPH_PARENT_ACTIVITY")
+        nesting_depth_str = os.getenv("HTMLGRAPH_NESTING_DEPTH", "0")
+        nesting_depth = int(nesting_depth_str) if nesting_depth_str.isdigit() else 0
+
         for line_num, line in enumerate(jsonl_output.splitlines(), start=1):
             if not line.strip():
                 continue
@@ -187,10 +237,15 @@ class HeadlessSpawner:
 
                         if item_type == "command_execution":
                             command = item.get("command", "")
+                            payload = {"command": command}
+                            if parent_activity:
+                                payload["parent_activity"] = parent_activity
+                            if nesting_depth > 0:
+                                payload["nesting_depth"] = nesting_depth
                             sdk.track_activity(
                                 tool="codex_command",
                                 summary=f"Codex executing: {command[:80]}",
-                                payload={"command": command},
+                                payload=payload,
                             )
 
                     # Track item.completed events
@@ -200,30 +255,45 @@ class HeadlessSpawner:
 
                         if item_type == "file_change":
                             path = item.get("path", "unknown")
+                            payload = {"path": path}
+                            if parent_activity:
+                                payload["parent_activity"] = parent_activity
+                            if nesting_depth > 0:
+                                payload["nesting_depth"] = nesting_depth
                             sdk.track_activity(
                                 tool="codex_file_change",
                                 summary=f"Codex modified: {path}",
                                 file_paths=[path],
-                                payload={"path": path},
+                                payload=payload,
                             )
 
                         elif item_type == "agent_message":
                             text = item.get("text", "")
                             summary = text[:100] + "..." if len(text) > 100 else text
+                            payload = {"text_length": len(text)}
+                            if parent_activity:
+                                payload["parent_activity"] = parent_activity
+                            if nesting_depth > 0:
+                                payload["nesting_depth"] = nesting_depth
                             sdk.track_activity(
                                 tool="codex_message",
                                 summary=f"Codex: {summary}",
-                                payload={"text_length": len(text)},
+                                payload=payload,
                             )
 
                     # Track turn.completed for token usage
                     elif event_type == "turn.completed":
                         usage = event.get("usage", {})
                         total_tokens = sum(usage.values())
+                        payload = {"usage": usage}
+                        if parent_activity:
+                            payload["parent_activity"] = parent_activity
+                        if nesting_depth > 0:
+                            payload["nesting_depth"] = nesting_depth
                         sdk.track_activity(
                             tool="codex_completion",
                             summary=f"Codex turn completed ({total_tokens} tokens)",
-                            payload={"usage": usage},
+                            payload=payload,
                         )
                 except Exception:
                     # Tracking failure should not break parsing
@@ -257,14 +327,24 @@ class HeadlessSpawner:
         """
         events = []
 
+        # Get parent context for metadata
+        parent_activity = os.getenv("HTMLGRAPH_PARENT_ACTIVITY")
+        nesting_depth_str = os.getenv("HTMLGRAPH_NESTING_DEPTH", "0")
+        nesting_depth = int(nesting_depth_str) if nesting_depth_str.isdigit() else 0
+
         try:
             # Track start
             start_event = {"type": "copilot_start", "prompt": prompt[:100]}
             events.append(start_event)
+            payload: dict[str, str | int] = {"prompt_length": len(prompt)}
+            if parent_activity:
+                payload["parent_activity"] = parent_activity
+            if nesting_depth > 0:
+                payload["nesting_depth"] = nesting_depth
             sdk.track_activity(
                 tool="copilot_start",
                 summary=f"Copilot started with prompt: {prompt[:80]}",
-                payload={"prompt_length": len(prompt)},
+                payload=payload,
             )
         except Exception:
             pass
@@ -273,10 +353,15 @@ class HeadlessSpawner:
             # Track result
             result_event = {"type": "copilot_result", "response": response[:100]}
             events.append(result_event)
+            payload_result: dict[str, str | int] = {"response_length": len(response)}
+            if parent_activity:
+                payload_result["parent_activity"] = parent_activity
+            if nesting_depth > 0:
+                payload_result["nesting_depth"] = nesting_depth
             sdk.track_activity(
                 tool="copilot_result",
                 summary=f"Copilot completed: {response[:80]}",
-                payload={"response_length": len(response)},
+                payload=payload_result,
             )
         except Exception:
             pass

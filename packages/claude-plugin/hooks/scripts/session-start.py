@@ -872,6 +872,19 @@ def main():
         except Exception:
             pass
 
+        # Set environment variables for parent session context (Phase 2: Parent context propagation)
+        # These variables are used by child Task() calls to track parent session and nesting depth
+        if active and active.id:
+            os.environ["HTMLGRAPH_PARENT_SESSION"] = active.id
+            os.environ["HTMLGRAPH_PARENT_AGENT"] = "claude-code"
+            os.environ["HTMLGRAPH_NESTING_DEPTH"] = "0"  # Root level
+
+            # Export to shell environment (persist across tools)
+            # Note: These print statements export to shell only if hook output is captured
+            print(f"export HTMLGRAPH_PARENT_SESSION={active.id}", file=sys.stderr)
+            print("export HTMLGRAPH_PARENT_AGENT=claude-code", file=sys.stderr)
+            print("export HTMLGRAPH_NESTING_DEPTH=0", file=sys.stderr)
+
         # If new conversation, close open auto-spikes and create new one
         if is_new_conversation:
             try:

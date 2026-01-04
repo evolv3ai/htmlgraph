@@ -39,6 +39,7 @@ Example:
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -201,13 +202,19 @@ class SDK:
         sdk.epics.assign(["epic-001"], agent="claude")
     """
 
-    def __init__(self, directory: Path | str | None = None, agent: str | None = None):
+    def __init__(
+        self,
+        directory: Path | str | None = None,
+        agent: str | None = None,
+        parent_session: str | None = None,
+    ):
         """
         Initialize SDK.
 
         Args:
             directory: Path to .htmlgraph directory (auto-discovered if not provided)
             agent: Agent identifier for operations
+            parent_session: Parent session ID to log activities to (for nested contexts)
         """
         if directory is None:
             directory = self._discover_htmlgraph()
@@ -217,6 +224,7 @@ class SDK:
 
         self._directory = Path(directory)
         self._agent_id = agent
+        self._parent_session = parent_session or os.getenv("HTMLGRAPH_PARENT_SESSION")
 
         # Initialize underlying HtmlGraphs first (for backward compatibility and sharing)
         # These are shared with SessionManager to avoid double-loading features
@@ -541,7 +549,7 @@ class SDK:
             file_paths: Files involved in this activity
             success: Whether the tool call succeeded
             feature_id: Explicit feature ID (skips attribution if provided)
-            session_id: Session ID (defaults to active session for current agent)
+            session_id: Session ID (defaults to parent session if available, then active session)
             parent_activity_id: ID of parent activity (e.g., Skill/Task invocation)
             payload: Optional rich payload data
 
@@ -558,14 +566,23 @@ class SDK:
             ... )
             >>> print(f"Tracked: [{entry.tool}] {entry.summary}")
         """
-        # Find active session if not specified
+        # Determine target session: explicit > parent > active
         if not session_id:
-            active = self.session_manager.get_active_session(agent=self._agent_id)
-            if not active:
-                raise ValueError(
-                    "No active session. Start one with sdk.start_session()"
-                )
-            session_id = active.id
+            # Use parent session if available (for nested contexts)
+            if self._parent_session:
+                session_id = self._parent_session
+            else:
+                # Fall back to active session
+                active = self.session_manager.get_active_session(agent=self._agent_id)
+                if not active:
+                    raise ValueError(
+                        "No active session. Start one with sdk.start_session()"
+                    )
+                session_id = active.id
+
+        # Get parent activity ID from environment if not provided
+        if not parent_activity_id:
+            parent_activity_id = os.getenv("HTMLGRAPH_PARENT_ACTIVITY")
 
         return self.session_manager.track_activity(
             session_id=session_id,
